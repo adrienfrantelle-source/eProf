@@ -1,0 +1,14 @@
+[autorun]
+;; L'autorun automatique est désactivé par défaut sur Windows 7+ pour des raisons de sécurité
+;; Ce fichier permet uniquement de personnaliser l'icône et le label de la clé USB
+
+label=eProf - Tableau de bord
+icon=LOGO JD - Cholet sans fond.png
+
+;; L'utilisateur doit lancer manuellement DEMARRER_EPROF.bat
+;; Double-clic sur le fichier .bat pour démarrer l'application
+
+;; Note : Pour que l'icône apparaisse, le fichier image doit être au format .ico
+;; Vous pouvez convertir votre PNG en ICO sur https://convertio.co/fr/png-ico/
+
+action=Ouvrir eProf

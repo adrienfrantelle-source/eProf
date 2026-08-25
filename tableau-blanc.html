@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Blanc - eProf</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <link rel="stylesheet" href="css/tableau-blanc.css">
+</head>
+<body>
+    <!-- Canvas pour le dessin -->
+    <canvas id="whiteboard-canvas"></canvas>
+
+    <!-- Bouton retour en haut à gauche -->
+    <div class="top-left-controls">
+        <button id="back-btn" class="control-btn" title="Retour à eProf" onclick="window.close(); window.location.href='index.html';">🏠 Retour</button>
+    </div>
+
+    <!-- Boutons en haut à droite -->
+    <div class="top-controls">
+        <button id="fullscreen-btn" class="control-btn" title="Plein écran">🖥️</button>
+        <button id="settings-btn" class="control-btn" title="Paramètres">⚙️</button>
+    </div>
+
+    <!-- Bouton de pagination en bas à droite -->
+    <div class="page-navigation">
+        <button id="prev-page-btn" class="page-nav-btn" onclick="changePage(-1)" title="Page précédente"><</button>
+        <span id="page-indicator" class="page-indicator">1/3</span>
+        <button id="next-page-btn" class="page-nav-btn" onclick="changePage(1)" title="Page suivante">></button>
+    </div>
+
+    <div id="workspace-taskbar" class="workspace-taskbar"></div>
+
+    <!-- Barre d'outils en bas -->
+    <div class="toolbar">
+        <button class="tool-btn" id="draw-tool" title="Dessin">✏️</button>
+        <button class="tool-btn" id="student-picker-tool" title="Tirage au sort">🎲</button>
+        <button class="tool-btn" id="timer-tool" title="Chronomètre">⏱️</button>
+        <button class="tool-btn" id="clock-tool" title="Horloge">🕐</button>
+        <button class="tool-btn" id="calendar-tool" title="Calendrier">📅</button>
+        <button class="tool-btn" id="dice-tool" title="Dé">🎯</button>
+        <button class="tool-btn" id="qrcode-tool" title="QR Code">📱</button>        <button class="tool-btn" id="notes-tool" title="Bloc-notes">📝</button>        <button class="tool-btn" id="wordcloud-tool" title="Nuage de mots">☁️</button>        <button class="tool-btn" id="pdf-viewer-tool" title="Visionneuse PDF">📄</button>        <button class="tool-btn" id="eraser-tool" title="Effacer">🧹</button>
+    </div>
+
+    <!-- Panneau de contrôle pour le dessin -->
+    <div id="draw-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">✏️ Outil de dessin 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('draw-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('draw-panel')">✖</span>
+            </div>
+        </h3>
+        <label>Couleur : <input type="color" id="draw-color" value="#000000"></label>
+        <label>Épaisseur : <input type="range" id="draw-width" min="1" max="20" value="3"> <span id="width-value">3</span>px</label>
+        <button onclick="clearCanvas()">Effacer tout</button>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau tirage au sort élèves -->
+    <div id="student-picker-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">🎲 Tirage au sort d'élèves 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('student-picker-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('student-picker-panel')">✖</span>
+            </div>
+        </h3>
+        
+        <!-- Onglets -->
+        <div class="student-tabs">
+            <button class="student-tab active" onclick="switchStudentTab('random')">🎲 Tirage au sort</button>
+            <button class="student-tab" onclick="switchStudentTab('groups')">👥 Groupes aléatoires</button>
+        </div>
+        
+        <!-- Contenu Tirage au sort -->
+        <div id="random-tab-content" class="student-tab-content">
+            <label>Classe : 
+                <select id="student-class-select" onchange="showAbsentPickerRandom()">
+                    <option value="">-- Choisir une classe --</option>
+                </select>
+            </label>
+            
+            <details style="margin: 10px 0;">
+                <summary style="cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; font-weight: 500;">
+                    ❌ Marquer des absents
+                </summary>
+                <div id="absent-list-random" style="margin-top: 10px;"></div>
+            </details>
+
+            <details style="margin: 10px 0;">
+                <summary style="cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; font-weight: 500;">
+                    ➕ Ajouter manuellement des élèves
+                </summary>
+                <div id="manual-student-list-random" style="margin-top: 10px;"></div>
+            </details>
+            
+            <label>Nombre d'élèves : <input type="number" id="student-count" min="1" max="30" value="1"></label>
+            <button onclick="pickStudents()">🎲 Tirer au sort</button>
+            <div id="picked-students" class="picked-students-grid"></div>
+        </div>
+        
+        <!-- Contenu Groupes -->
+        <div id="groups-tab-content" class="student-tab-content" style="display:none;">
+            <label>Classe : 
+                <select id="groups-class-select" onchange="showAbsentPickerGroups()">
+                    <option value="">-- Choisir une classe --</option>
+                </select>
+            </label>
+            
+            <details style="margin: 10px 0;">
+                <summary style="cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; font-weight: 500;">
+                    ❌ Marquer des absents (seront mis entre parenthèses)
+                </summary>
+                <div id="absent-list-groups" style="margin-top: 10px;"></div>
+            </details>
+
+            <details style="margin: 10px 0;">
+                <summary style="cursor: pointer; padding: 8px; background: #f1f5f9; border-radius: 6px; font-weight: 500;">
+                    ➕ Ajouter manuellement des élèves
+                </summary>
+                <div id="manual-student-list-groups" style="margin-top: 10px;"></div>
+            </details>
+            
+            <label>Mode : 
+                <select id="groups-mode" onchange="updateGroupsMode()">
+                    <option value="count">Nombre de groupes</option>
+                    <option value="size">Taille des groupes</option>
+                </select>
+            </label>
+            <label id="groups-count-label">Nombre de groupes : 
+                <input type="number" id="groups-count" min="2" max="10" value="3">
+            </label>
+            <label id="groups-size-label" style="display:none;">Élèves par groupe : 
+                <input type="number" id="groups-size" min="2" max="10" value="4">
+            </label>
+            <button onclick="createRandomGroups()">👥 Créer les groupes</button>
+            <div id="groups-result" class="groups-result-container"></div>
+        </div>
+        
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau timer -->
+    <div id="timer-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">⏱️ Chronomètre 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('timer-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('timer-panel')">✖</span>
+            </div>
+        </h3>
+        <canvas id="timer-analog" width="220" height="220" class="timer-analog"></canvas>
+        <div id="timer-display">00:00</div>
+        <div id="timer-display-secondary">00:00.00</div>
+        <label>Minutes : <input type="number" id="timer-minutes" min="0" max="60" value="5"></label>
+        <label>Secondes : <input type="number" id="timer-seconds" min="0" max="59" value="0"></label>
+        <button onclick="startTimer()">▶️ Démarrer</button>
+        <button onclick="pauseTimer()">⏸️ Pause</button>
+        <button onclick="resetTimer()">🔄 Réinitialiser</button>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau horloge -->
+    <div id="clock-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">🕐 Horloge 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('clock-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('clock-panel')">✖</span>
+            </div>
+        </h3>
+        <label>Type d'horloge :
+            <select id="clock-type" onchange="updateClockType()">
+                <option value="digital">Numérique</option>
+                <option value="analog">Analogique (aiguilles)</option>
+            </select>
+        </label>
+        <label>Fuseau horaire :
+            <select id="clock-timezone" onchange="updateClock()">
+                <option value="local">Heure locale</option>
+                <option value="UTC">UTC (temps universel)</option>
+                <option value="America/New_York">New York (EST)</option>
+                <option value="America/Los_Angeles">Los Angeles (PST)</option>
+                <option value="Europe/London">Londres (GMT)</option>
+                <option value="Europe/Paris">Paris (CET)</option>
+                <option value="Europe/Moscow">Moscou (MSK)</option>
+                <option value="Asia/Dubai">Dubaï (GST)</option>
+                <option value="Asia/Tokyo">Tokyo (JST)</option>
+                <option value="Asia/Shanghai">Shanghai (CST)</option>
+                <option value="Australia/Sydney">Sydney (AEDT)</option>
+            </select>
+        </label>
+        <div id="clock-display"></div>
+        <canvas id="analog-clock" width="225" height="225" style="display:none;"></canvas>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau calendrier -->
+    <div id="calendar-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">📅 Calendrier 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('calendar-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('calendar-panel')">✖</span>
+            </div>
+        </h3>
+        <div id="calendar-display"></div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau dé -->
+    <div id="dice-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">🎯 Dé 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('dice-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('dice-panel')">✖</span>
+            </div>
+        </h3>
+        <details class="dice-config-panel">
+            <summary>⚙️ Configuration</summary>
+            <div class="dice-config-body">
+                <label>Minimum : <input type="number" id="dice-min" min="1" value="1"></label>
+                <label>Maximum : <input type="number" id="dice-max" min="1" value="6"></label>
+                <label>Nombre de dés : <input type="number" id="dice-count" min="1" max="12" value="1"></label>
+            </div>
+        </details>
+        <button onclick="rollDice()">🎲 Lancer le(s) dé(s)</button>
+        <div id="dice-result"></div>
+        <div id="dice-results-list" class="dice-results-list"></div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau QR Code -->
+    <div id="qrcode-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">📱 Générateur QR Code 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('qrcode-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('qrcode-panel')">✖</span>
+            </div>
+        </h3>
+        <label>Texte/URL : <input type="text" id="qrcode-text" placeholder="Entrez du texte ou une URL"></label>
+        <button onclick="generateQRCode()">Générer QR Code</button>
+        <div id="qrcode-display"></div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau bloc-notes -->
+    <div id="notes-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">📝 Bloc-notes 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('notes-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('notes-panel')">✖</span>
+            </div>
+        </h3>
+        
+        <!-- Barre d'outils de formatage -->
+        <div class="notes-toolbar">
+            <div class="notes-toolbar-group">
+                <select id="font-family" title="Police" onchange="formatText('fontName', this.value)">
+                    <option value="Arial">Arial</option>
+                    <option value="Courier New">Courier</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Times New Roman">Times</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Comic Sans MS">Comic Sans</option>
+                </select>
+                <select id="font-size" title="Taille" onchange="formatText('fontSize', this.value)">
+                    <option value="1">Très petit</option>
+                    <option value="2">Petit</option>
+                    <option value="3" selected>Normal</option>
+                    <option value="4">Moyen</option>
+                    <option value="5">Grand</option>
+                    <option value="6">Très grand</option>
+                    <option value="7">Énorme</option>
+                </select>
+            </div>
+            
+            <div class="notes-toolbar-separator"></div>
+            
+            <div class="notes-toolbar-group">
+                <button class="format-btn" onclick="formatText('bold')" title="Gras (Ctrl+B)">
+                    <strong>B</strong>
+                </button>
+                <button class="format-btn" onclick="formatText('italic')" title="Italique (Ctrl+I)">
+                    <em>I</em>
+                </button>
+                <button class="format-btn" onclick="formatText('underline')" title="Souligné (Ctrl+U)">
+                    <u>U</u>
+                </button>
+                <button class="format-btn" onclick="formatText('strikeThrough')" title="Barré">
+                    <s>S</s>
+                </button>
+            </div>
+            
+            <div class="notes-toolbar-separator"></div>
+            
+            <div class="notes-toolbar-group">
+                <button class="format-btn" onclick="formatText('justifyLeft')" title="Aligné à gauche">
+                    ☰
+                </button>
+                <button class="format-btn" onclick="formatText('justifyCenter')" title="Centré">
+                    ☷
+                </button>
+                <button class="format-btn" onclick="formatText('justifyRight')" title="Aligné à droite">
+                    ☰
+                </button>
+                <button class="format-btn" onclick="formatText('justifyFull')" title="Justifié">
+                    ≡
+                </button>
+            </div>
+            
+            <div class="notes-toolbar-separator"></div>
+            
+            <div class="notes-toolbar-group">
+                <button class="format-btn" onclick="formatText('insertUnorderedList')" title="Liste à puces">
+                    • Liste
+                </button>
+                <button class="format-btn" onclick="formatText('insertOrderedList')" title="Liste numérotée">
+                    1. Liste
+                </button>
+            </div>
+            
+            <div class="notes-toolbar-separator"></div>
+            
+            <div class="notes-toolbar-group">
+                <div class="color-format-wrapper">
+                    <label for="text-color" class="format-btn" title="Couleur du texte" style="padding: 4px 8px;">
+                        <span style="text-decoration: underline; text-decoration-color: currentColor;">A</span>
+                        <input type="color" id="text-color" value="#000000" onchange="formatText('foreColor', this.value)" style="width: 0; height: 0; opacity: 0; position: absolute;">
+                    </label>
+                </div>
+                <div class="color-format-wrapper">
+                    <label for="bg-color" class="format-btn" title="Surlignage" style="padding: 4px 8px;">
+                        <span style="background-color: yellow; padding: 0 4px;">A</span>
+                        <input type="color" id="bg-color" value="#ffff00" onchange="formatText('backColor', this.value)" style="width: 0; height: 0; opacity: 0; position: absolute;">
+                    </label>
+                </div>
+            </div>
+            
+            <div class="notes-toolbar-separator"></div>
+            
+            <div class="notes-toolbar-group">
+                <button class="format-btn" onclick="formatText('removeFormat')" title="Supprimer le formatage">
+                    🚫
+                </button>
+            </div>
+        </div>
+        
+        <div id="notes-editor" contenteditable="true" class="notes-editor" placeholder="Prenez vos notes ici..."></div>
+        
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button onclick="saveNotes()">💾 Sauvegarder</button>
+            <button onclick="clearNotes()">🗑️ Effacer tout</button>
+            <button onclick="exportNotesAsPDF()">📄 Export PDF</button>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau nuage de mots -->
+    <div id="wordcloud-panel" class="tool-panel" style="display:none; width: 650px;">
+        <h3 class="panel-header">☁️ Nuage de mots 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('wordcloud-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('wordcloud-panel')">✖</span>
+            </div>
+        </h3>
+        
+        <!-- Étape 1 : Configuration -->
+        <div id="wc-setup">
+            <div class="wc-step-indicator">
+                <span class="wc-step active">1. Configuration</span>
+                <span class="wc-step-arrow">→</span>
+                <span class="wc-step">2. Création</span>
+            </div>
+            <div class="wc-setup-field">
+                <label class="wc-label">🎯 Sujet / Thème principal</label>
+                <input type="text" id="wc-theme-input" class="wc-input" placeholder="Ex: La Révolution française">
+            </div>
+            <div class="wc-setup-row">
+                <div class="wc-setup-field">
+                    <label class="wc-label">🔷 Forme</label>
+                    <select id="wc-shape-select" class="wc-select">
+                        <option value="free">✨ Libre</option>
+                        <option value="circle">⭕ Cercle</option>
+                        <option value="square">⬜ Carré</option>
+                        <option value="diamond">💎 Losange</option>
+                        <option value="heart">❤️ Cœur</option>
+                    </select>
+                </div>
+                <div class="wc-setup-field">
+                    <label class="wc-label">🎨 Palette</label>
+                    <select id="wc-palette-select" class="wc-select">
+                        <option value="vibrant">🌈 Vibrant</option>
+                        <option value="ocean">🌊 Océan</option>
+                        <option value="sunset">🌅 Coucher de soleil</option>
+                        <option value="forest">🌲 Forêt</option>
+                        <option value="pastel">🎨 Pastel</option>
+                        <option value="neon">💡 Néon</option>
+                    </select>
+                </div>
+            </div>
+            <div class="wc-palette-preview" id="wc-palette-preview"></div>
+            <button id="wc-confirm-btn" class="wc-btn wc-btn-primary" onclick="WordCloud.confirm()">✅ Confirmer et commencer</button>
+        </div>
+
+        <!-- Étape 2 : Éditeur -->
+        <div id="wc-editor" style="display: none;">
+            <div class="wc-step-indicator">
+                <span class="wc-step done">1. Configuration ✓</span>
+                <span class="wc-step-arrow">→</span>
+                <span class="wc-step active">2. Création</span>
+            </div>
+            <div class="wc-config-summary" id="wc-config-summary"></div>
+            <div class="wc-word-input-row">
+                <input type="text" id="wc-word-input" class="wc-input" placeholder="Tapez un mot puis Entrée...">
+                <button onclick="WordCloud.addWord()" class="wc-btn wc-btn-add">+ Ajouter</button>
+            </div>
+            <div id="wc-cloud-area" class="wc-cloud-area">
+                <div class="wc-placeholder">Ajoutez des mots pour construire votre nuage...</div>
+            </div>
+            <div class="wc-word-count" id="wc-word-count"></div>
+            <div class="wc-actions">
+                <button onclick="WordCloud.clear()" class="wc-btn wc-btn-danger">🗑️ Effacer</button>
+                <button onclick="WordCloud.save()" class="wc-btn wc-btn-info">💾 Sauvegarder</button>
+                <button onclick="WordCloud.exportPDF()" class="wc-btn wc-btn-success">📄 PDF</button>
+            </div>
+        </div>
+        
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau visionneuse PDF -->
+    <div id="pdf-viewer-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">📄 Visionneuse PDF 
+            <div class="panel-header-controls">
+                <button id="pdf-fullscreen-btn" onclick="togglePDFFullscreen()" class="control-btn" title="Plein écran" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-right: 8px; font-size: 0.9em;">🖥️ Plein écran</button>
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('pdf-viewer-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('pdf-viewer-panel')">✖</span>
+            </div>
+        </h3>
+        
+        <div id="pdf-import-section" style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">
+                📁 Importer un PDF :
+            </label>
+            <input type="file" id="pdf-file-input" accept=".pdf" onchange="loadPDFFile(event)" style="display: block; margin-bottom: 10px; width: 100%;">
+            <div id="pdf-drop-zone" style="border: 2px dashed #94a3b8; border-radius: 8px; padding: 20px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.3s;">
+                <div style="font-size: 2em; margin-bottom: 8px;">📄</div>
+                <div style="color: #64748b; font-size: 0.9em;">Glissez-déposez un PDF ici<br>ou cliquez pour sélectionner</div>
+            </div>
+        </div>
+        
+        <div id="pdf-viewer-container" style="display: none;">
+            <button id="show-import-btn" onclick="togglePDFImportSection()" style="width: 100%; padding: 8px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; margin-bottom: 10px; display: none;">📁 Charger un autre PDF</button>
+            
+            <div id="pdf-controls-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
+                    <button onclick="previousPDFPage()" style="flex: 0 0 auto; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">◀ Précédent</button>
+                    <span id="pdf-page-info" style="flex: 1; text-align: center; font-weight: 500;">Page 1 / 1</span>
+                    <button onclick="nextPDFPage()" style="flex: 0 0 auto; padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">Suivant ▶</button>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px;">
+                    <button onclick="zoomOutPDF()" style="flex: 0 0 auto; padding: 8px 12px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍− Zoom -</button>
+                    <span id="pdf-zoom-info" style="flex: 1; text-align: center; font-weight: 500;">100%</span>
+                    <button onclick="zoomInPDF()" style="flex: 0 0 auto; padding: 8px 12px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍+ Zoom +</button>
+                </div>
+                
+                <div id="pdf-filename" style="text-align: center; margin-bottom: 10px; padding: 8px; background: #f1f5f9; border-radius: 6px; font-weight: 500; word-break: break-all;"></div>
+            </div>
+            
+            <button id="pdf-toggle-controls-btn" onclick="togglePDFControls()" style="width: 100%; padding: 6px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; margin-bottom: 8px; transition: all 0.3s;">▲ Réduire les contrôles</button>
+            
+            <div id="pdf-canvas-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; padding: 10px;">
+                <canvas id="pdf-canvas" style="display: block; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></canvas>
+            </div>
+            
+            <button onclick="closePDFViewer()" style="margin-top: 10px; width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">✖ Fermer le PDF</button>
+        </div>
+        
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Panneau paramètres -->
+    <div id="settings-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">⚙️ Paramètres 
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('settings-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('settings-panel')">✖</span>
+            </div>
+        </h3>
+        <label>
+            <input type="checkbox" id="white-background" onchange="toggleWhiteBackground()"> Fond blanc
+        </label>
+        <button onclick="changeBackground()">🖼️ Changer l'image de fond</button>
+        <button onclick="resetAll()">🔄 Réinitialiser tout</button>
+        <div class="resize-handle"></div>
+    </div>
+
+    <script src="js/listes-eleves.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configuration de PDF.js
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    <script src="js/tableau-blanc.js"></script>
+</body>
+</html>

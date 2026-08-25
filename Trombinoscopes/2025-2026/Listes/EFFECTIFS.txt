@@ -1,0 +1,35 @@
+═══════════════════════════════════════════════════════════════
+    EFFECTIFS DES CLASSES - ANNÉE 2025-2026
+═══════════════════════════════════════════════════════════════
+
+📊 RÉCAPITULATIF
+────────────────────────────────────────────────────────────────
+
+2nde LCQ                    10 élèves
+2nde SAPAT AB1              22 élèves
+2nde SAPAT AB2              21 élèves
+2nde SAPAT AB3              22 élèves
+3e A                        21 élèves
+3e B                        21 élèves
+4e                          20 élèves
+Tle SAPAT A                 26 élèves
+Tle SAPAT B                 25 élèves
+
+────────────────────────────────────────────────────────────────
+TOTAL                      188 élèves
+────────────────────────────────────────────────────────────────
+
+📋 DÉTAILS PAR NIVEAU
+────────────────────────────────────────────────────────────────
+
+Collège (3e + 4e)           62 élèves
+Seconde (LCQ + SAPAT)       75 élèves  
+Terminale (SAPAT A + B)     51 élèves
+
+═══════════════════════════════════════════════════════════════
+
+✅ Toutes les listes sont prêtes à être utilisées dans le Plan de classe
+📁 Format : CSV avec colonnes Nom, Prénom, Sexe
+🎨 Coloration automatique : Bleu (F) / Vert (M)
+
+═══════════════════════════════════════════════════════════════

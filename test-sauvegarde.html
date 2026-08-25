@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test DataManager</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+</head>
+<body>
+    <h1>Test du système de sauvegarde</h1>
+    
+    <div style="margin: 20px;">
+        <h2>Mode automatique</h2>
+        <button onclick="testSetupAuto()" style="padding: 10px 20px; margin: 5px; background: #4caf50; color: white; border: none; border-radius: 5px;">⚡ Activer sauvegarde auto</button>
+        <button onclick="testDisableAuto()" style="padding: 10px 20px; margin: 5px; background: #f44336; color: white; border: none; border-radius: 5px;">❌ Désactiver sauvegarde auto</button>
+        <button onclick="testAutoSave()" style="padding: 10px 20px; margin: 5px; background: #2196F3; color: white; border: none; border-radius: 5px;">🔄 Tester sauvegarde auto</button>
+        
+        <h2>Mode manuel</h2>
+        <button onclick="testExport()" style="padding: 10px 20px; margin: 5px;">💾 Test Export</button>
+        <button onclick="testImport()" style="padding: 10px 20px; margin: 5px;">📂 Test Import</button>
+    </div>
+    
+    <div id="log" style="margin: 20px; padding: 10px; background: #f0f0f0; font-family: monospace; white-space: pre-wrap;"></div>
+    
+    <script src="js/data-manager.js"></script>
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += new Date().toLocaleTimeString() + ' - ' + message + '\n';
+        }
+        
+        async function testSetupAuto() {
+            log('Test activation sauvegarde automatique...');
+            try {
+                const success = await window.dataManager.setupAutoSaveToFile();
+                if (success) {
+                    log('✓ Sauvegarde automatique activée !');
+                    log('Fichier créé : Donnees/sauvegarde-auto.json');
+                } else {
+                    log('❌ Activation annulée');
+                }
+            } catch (error) {
+                log('❌ Erreur : ' + error.message);
+            }
+        }
+        
+        function testDisableAuto() {
+            log('Désactivation sauvegarde automatique...');
+            window.dataManager.disableAutoSaveToFile();
+            log('✓ Sauvegarde automatique désactivée');
+        }
+        
+        function testExport() {
+            log('Test export manuel...');
+            try {
+                // Créer des données de test
+                localStorage.setItem('carnetNotesEvaluations', JSON.stringify({
+                    "Test": [{id: 1, nom: "Eval test"}]
+                }));
+                
+                window.dataManager.exportAllData();
+                log('✓ Export manuel réussi !');
+            } catch (error) {
+                log('❌ Erreur export: ' + error.message);
+            }
+        }
+        
+        function testImport() {
+            log('Test import...');
+            window.dataManager.importAllData()
+                .then(data => {
+                    log('✓ Import réussi !');
+                    log('Données chargées: ' + JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    log('❌ Erreur import: ' + error.message);
+                });
+        }
+        
+        function testAutoSave() {
+            log('Test sauvegarde automatique...');
+            
+            // Modifier des données
+            localStorage.setItem('carnetNotesNotes', JSON.stringify({
+                "Test": {eleve: {eval1: {note: 15}}}
+            }));
+            
+            // Déclencher la sauvegarde
+            window.dataManager.triggerAutoSave();
+            
+            if (window.dataManager.autoSaveToFile) {
+                log('✓ Sauvegarde auto déclenchée → fichier sera mis à jour dans 3s');
+            } else {
+                log('✓ Sauvegarde auto déclenchée → localStorage uniquement (mode auto non activé)');
+            }
+        }
+        
+        log('DataManager chargé: ' + (typeof window.dataManager !== 'undefined' ? 'OUI ✓' : 'NON ✗'));
+        log('Mode auto actif: ' + (window.dataManager && window.dataManager.autoSaveToFile ? 'OUI ✓' : 'NON ✗'));
+    </script>
+</body>
+</html>

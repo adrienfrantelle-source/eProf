@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résultats Quiz - eProf</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/quiz-resultats.css">
+</head>
+<body>
+    <header>
+        <div class="header-logo-title">
+            <a href="index.html" title="Retour à l'accueil">
+                <img src="images/logo eProf.jpg" alt="Logo eProf" class="logo-eprof">
+            </a>
+            <h1>Résultats du Quiz</h1>
+        </div>
+        <div class="header-user-info">
+            <button class="btn-action" onclick="exportResults()">📊 Exporter en PDF</button>
+            <a href="generateur-quiz.html" class="btn-retour">← Retour</a>
+        </div>
+    </header>
+
+    <main class="resultats-container">
+        <div class="resultats-header">
+            <h2 id="quiz-title">Quiz</h2>
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value" id="total-participants">0</div>
+                    <div class="stat-label">Participants</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="avg-score">0%</div>
+                    <div class="stat-label">Score moyen</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value" id="avg-time">0m</div>
+                    <div class="stat-label">Temps moyen</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-value" id="best-score">0</div>
+                    <div class="stat-label">Meilleur score</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="resultats-content">
+            <!-- Onglets -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('participants')">
+                    👥 Participants
+                </button>
+                <button class="tab" onclick="switchTab('questions')">
+                    📝 Questions
+                </button>
+                <button class="tab" onclick="switchTab('details')">
+                    📋 Détails
+                </button>
+            </div>
+
+            <!-- Tab Participants -->
+            <div id="tab-participants" class="tab-content active">
+                <div class="participants-list" id="participants-list">
+                    <!-- Liste des participants -->
+                </div>
+            </div>
+
+            <!-- Tab Questions -->
+            <div id="tab-questions" class="tab-content">
+                <div class="questions-analysis" id="questions-analysis">
+                    <!-- Analyse par question -->
+                </div>
+            </div>
+
+            <!-- Tab Détails -->
+            <div id="tab-details" class="tab-content">
+                <div class="detailed-results" id="detailed-results">
+                    <!-- Résultats détaillés -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="libs/jspdf.umd.min.js"></script>
+    <script src="js/quiz-resultats.js"></script>
+</body>
+</html>

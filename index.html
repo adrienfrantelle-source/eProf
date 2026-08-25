@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eProf - Plateforme Enseignant</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/electron-portable.css">
+</head>
+<body>
+    <header>
+        <div class="header-logo-title">
+            <a href="index.html" title="Retour à l'accueil">
+                <img src="images/logo eProf.jpg" alt="Logo eProf" class="logo-eprof">
+            </a>
+            <h1>eProf - Tableau de bord</h1>
+        </div>
+        <div class="header-quick-links">
+            <a href="https://www.ecoledirecte.com/login?cameFrom=%2FEnseignant" target="_blank" class="quick-link" title="EcoleDirecte">
+                <img src="images/logo ecole directe.png" alt="EcoleDirecte" class="logo-large">
+            </a>
+            <a href="https://jd3p-my.sharepoint.com/?source=waffle" target="_blank" class="quick-link" title="OneDrive">
+                <img src="images/logo onedrive.png" alt="OneDrive" class="logo-large">
+            </a>
+            <a href="https://teams.microsoft.com/v2/" target="_blank" class="quick-link" title="Microsoft Teams">
+                <img src="images/logo teams.png" alt="Teams">
+            </a>
+            <a href="https://chlorofil.fr" target="_blank" class="quick-link" title="Chlorofil">
+                <img src="images/logo chlorofil" alt="Chlorofil">
+            </a>
+        </div>
+        <div class="header-user-info">
+            <div class="user-name" id="user-name-display">Enseignant</div>
+            <a href="#" target="_blank" class="user-email">identifiant@jeannedelanoue.com</a>
+        </div>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <nav>
+                <ul>
+                    <li><a href="#" id="dashboard-link">🏠 Accueil</a></li>
+                    <li><a href="#" id="calendar-link">📅 Calendrier</a></li>
+                    <li class="tools-title">🛠️ Outils</li>
+                    <li><a href="#" data-tool="tableau-blanc">📋 Tableau blanc</a></li>
+                    <li><a href="#" data-tool="plan-classe">🪑 Plan de classe</a></li>
+                    <li><a href="#" data-tool="jeu">🎮 Jeu pédagogique</a></li>
+                    <li><a href="#" data-tool="trombinoscopes">📸 Trombinoscopes</a></li>
+                    <li><a href="#" data-tool="eleves">👨‍🎓 Suivi des élèves</a></li>
+                    <li><a href="#" data-tool="notes">📒 Carnet de notes</a></li>
+                    <li><a href="#" data-tool="converter">🔄 Conversion de fichier</a></li>
+                    <li><a href="#" data-tool="archives">📦 Archives</a></li>
+                    <li><a href="#" data-tool="ressources">📚 Ressources pédagogiques</a></li>
+                    <li><a href="#" data-tool="parametres">⚙️ Paramètres</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <main id="main-content">
+            <!-- Le contenu dynamique s'affichera ici -->
+        </main>
+    </div>
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="images/LOGO JD - Cholet blanc sans fond.png" alt="Lycée Jeanne Delanoue" class="footer-jd-logo">
+            </div>
+            <div class="footer-info">
+                <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
+                <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
+                <p class="footer-version" id="footer-version">Version V2.0.0</p>
+                <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
+            </div>
+        </div>
+    </footer>
+    <!-- Modale pour ajout événement/todo -->
+    <div id="event-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Ajouter un événement ou todo</h3>
+                <button class="close-modal" id="close-event-modal" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <form id="event-form">
+                <label for="event-title">Titre <span style="color:red">*</span></label>
+                <input type="text" id="event-title" name="event-title" required>
+                <label for="event-type">Type <span style="color:red">*</span></label>
+                <select id="event-type" name="event-type">
+                    <option value="event">Événement</option>
+                    <option value="todo">Todo</option>
+                    <option value="rdv">Rendez-vous</option>
+                </select>
+                <label for="event-lieu">Lieu</label>
+                <input type="text" id="event-lieu" name="event-lieu" placeholder="Salle, adresse, etc.">
+                <label for="event-desc">Description</label>
+                <textarea id="event-desc" name="event-desc" placeholder="Détail, consignes, etc."></textarea>
+                <div class="event-dates-row">
+                    <div style="flex:1;">
+                        <label for="event-start">Début <span style="color:red">*</span></label>
+                        <input type="datetime-local" id="event-start" name="event-start" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label for="event-end">Fin</label>
+                        <input type="datetime-local" id="event-end" name="event-end">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" id="event-save-btn">Valider</button>
+                    <button type="button" id="event-cancel-btn">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Modale détails événement -->
+    <div id="event-detail-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Détail de l'événement</h3>
+                <button class="close-modal" id="close-detail-modal" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <div id="event-detail-content"></div>
+            <div class="modal-actions">
+                <button type="button" id="edit-event-btn">Modifier</button>
+                <button type="button" id="delete-event-btn" style="background:#e53935;color:#fff;">Supprimer</button>
+                <button type="button" id="close-detail-btn">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Qui sommes-nous ? -->
+    <div id="about-modal" class="modal" style="display:none;">
+        <div class="modal-content about-modal-content">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Qui sommes-nous ?</h3>
+                <button class="close-modal" id="close-about-modal" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <div class="about-modal-body">
+                <p>eProf est une plateforme pédagogique pensée pour accompagner les enseignants dans leur organisation, le suivi des élèves et la préparation de la classe.</p>
+                <p>Elle centralise plusieurs outils utiles au quotidien : calendrier, carnet de notes, plan de classe, ressources pédagogiques et suivi des élèves.</p>
+                <p>Le projet est conçu pour être simple, lisible et compatible avec une utilisation hors ligne, en gardant les données locales et accessibles rapidement.</p>
+            </div>
+        </div>
+    </div>
+    <!-- Bibliothèques locales pour conversions (mode portable 100%) -->
+    <script src="libs/xlsx.full.min.js"></script>
+    <script src="libs/mammoth.browser.min.js"></script>
+    <script src="libs/jspdf.umd.min.js"></script>
+    <script src="libs/html2canvas.min.js"></script>
+    <!-- EmailJS pour envoi d'emails réels -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- Listes d'élèves embarquées (évite le problème CORS) -->
+    <script src="js/listes-eleves.js"></script>
+    <!-- Données du carnet de notes -->
+    <script src="js/carnet-notes-data.js"></script>
+    <!-- Gestionnaire d'enseignants (doit être chargé en premier) -->
+    <script src="js/teacher-manager.js"></script>
+    <!-- Jeux pédagogiques embarqués (portabilité complète) -->
+    <script src="js/jeux-pedagogiques.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

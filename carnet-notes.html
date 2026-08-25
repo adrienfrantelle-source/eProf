@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carnet de Notes - eProf</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <link rel="stylesheet" href="css/carnet-notes.css">
+    <link rel="stylesheet" href="css/electron-portable.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>📓 Carnet de Notes</h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span id="teacher-name-display" style="color: #10b981; font-weight: bold; cursor: pointer;" title="Gérer mes classes et matières"></span>
+            <a href="#" target="_blank" class="user-email" style="color: #3b82f6; text-decoration: none; font-size: 0.9em;">identifiant@jeannedelanoue.com</a>
+            <button id="back-btn" onclick="window.close()">← Retour</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Sélection de la classe -->
+        <div class="class-selector">
+            <label for="class-select">Classe :</label>
+            <select id="class-select">
+                <option value="">-- Les listes 2026-2027 arrivent bientôt --</option>
+            </select>
+            <div id="class-empty-message" style="margin-top: 8px; color: #64748b; font-size: 0.9rem;">
+                Les listes de cette année scolaire ne sont pas encore ajoutées. Les archives des années précédentes restent accessibles.
+            </div>
+            <div class="data-controls">
+                <button id="save-portable-btn" class="btn-secondary" title="Sauvegarder toutes les notes dans un fichier portable" style="background: #3b82f6; color: white;">💾 Sauvegarder notes</button>
+                <button id="restore-portable-btn" class="btn-secondary" title="Restaurer les notes depuis un fichier portable" style="background: #10b981; color: white;">📂 Restaurer notes</button>
+                <input type="file" id="restore-file-input" accept=".js" style="display: none;">
+                <button id="import-data-btn" class="btn-secondary" title="Importer les données depuis les fichiers CSV">📥 Import CSV</button>
+                <button id="export-data-btn" class="btn-secondary" title="Exporter les données en CSV">📤 Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Zone de gestion des évaluations -->
+        <div id="evaluations-section" style="display:none;">
+            <div class="evaluations-header">
+                <h2>Évaluations</h2>
+                <div class="evaluations-header-actions">
+                    <button id="class-stats-btn" class="btn-stats" title="Voir les statistiques de la classe">
+                        📊 Statistiques de la classe
+                    </button>
+                    <button id="toggle-evals-btn" class="btn-toggle" title="Réduire/Agrandir la section des évaluations">
+                        <span class="toggle-icon">▼</span> Réduire
+                    </button>
+                    <button id="add-eval-btn" class="btn-primary">+ Nouvelle évaluation</button>
+                </div>
+            </div>
+
+            <!-- Liste des évaluations (collapsible) -->
+            <div id="evaluations-list" class="evaluations-grid collapsed"></div>
+
+            <!-- Tableau des notes -->
+            <div class="notes-table-container">
+                <h2>Tableau des notes</h2>
+                <div class="period-selector">
+                    <label>Période :</label>
+                    <div id="period-buttons" class="period-buttons">
+                        <!-- Les boutons seront générés dynamiquement selon la classe -->
+                    </div>
+                </div>
+                <div id="notes-table-wrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour ajouter/modifier une évaluation -->
+    <div id="eval-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Nouvelle évaluation</h3>
+                <button class="close-modal" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <form id="eval-form">
+                <div class="form-group">
+                    <label for="copy-eval-select">Dupliquer une évaluation existante (optionnel) :</label>
+                    <select id="copy-eval-select">
+                        <option value="">-- Créer une nouvelle évaluation --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="eval-title">Titre de l'évaluation :</label>
+                    <input type="text" id="eval-title" required>
+                </div>
+                <div class="form-group">
+                    <label for="eval-date">Date :</label>
+                    <input type="date" id="eval-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="eval-subject">Matière :</label>
+                    <select id="eval-subject" required>
+                        <option value="">-- Choisir --</option>
+                        <option value="Histoire">Histoire</option>
+                        <option value="Géographie">Géographie</option>
+                        <option value="MP5-10 HG">MP5-10 HG</option>
+                        <option value="MP9-10">MP9-10</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="eval-max">Barème (points) :</label>
+                    <input type="number" id="eval-max" min="1" value="20" required>
+                </div>
+                <div class="form-group">
+                    <label for="eval-coef">Coefficient :</label>
+                    <input type="number" id="eval-coef" min="0.1" step="0.1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="eval-period">Période :</label>
+                    <div id="eval-period-buttons" class="period-buttons-form">
+                        <!-- Les boutons seront générés dynamiquement selon la classe -->
+                    </div>
+                    <input type="hidden" id="eval-period">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeEvalModal()">Annuler</button>
+                    <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal statistiques classe -->
+    <div id="class-stats-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="class-stats-title">📊 Statistiques de la classe</h3>
+                <button class="close-class-stats" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <div class="class-stats-content">
+                <!-- Filtre par période -->
+                <div class="stats-period-filter">
+                    <label>📅 Période :</label>
+                    <div class="period-filter-buttons" id="class-stats-period-buttons">
+                        <!-- Généré dynamiquement -->
+                    </div>
+                </div>
+                <!-- Onglets -->
+                <div class="stats-tabs">
+                    <button class="stats-tab active" data-tab="overview">📈 Vue d'ensemble</button>
+                    <button class="stats-tab" data-tab="details">📋 Par matière</button>
+                    <button class="stats-tab" data-tab="evolution">📊 Évolution</button>
+                    <button class="stats-tab" data-tab="distribution">📉 Distribution</button>
+                </div>
+
+                <!-- Onglet Vue d'ensemble -->
+                <div id="tab-class-overview" class="stats-tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>Moyenne générale</h4>
+                            <div class="stat-value" id="class-stat-moyenne-generale">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Meilleure moyenne</h4>
+                            <div class="stat-value" id="class-stat-meilleure-moyenne">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Nombre d'élèves</h4>
+                            <div class="stat-value" id="class-stat-nb-eleves">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Évaluations</h4>
+                            <div class="stat-value" id="class-stat-nb-evals">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-class-moyennes-matieres"></canvas>
+                    </div>
+                </div>
+
+                <!-- Onglet Par matière -->
+                <div id="tab-class-details" class="stats-tab-content">
+                    <div id="class-details-par-matiere"></div>
+                </div>
+
+                <!-- Onglet Évolution -->
+                <div id="tab-class-evolution" class="stats-tab-content">
+                    <div class="chart-container">
+                        <canvas id="chart-class-evolution"></canvas>
+                    </div>
+                </div>
+
+                <!-- Onglet Distribution -->
+                <div id="tab-class-distribution" class="stats-tab-content">
+                    <div class="chart-container">
+                        <canvas id="chart-class-distribution"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal statistiques élève -->
+    <div id="student-stats-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="student-stats-title">📊 Statistiques - </h3>
+                <button class="close-student-stats" title="Fermer">
+                    <span>×</span>
+                </button>
+            </div>
+            <div class="student-stats-content">
+                <!-- Filtre par période -->
+                <div class="stats-period-filter">
+                    <label>📅 Période :</label>
+                    <div class="period-filter-buttons" id="stats-period-buttons">
+                        <!-- Généré dynamiquement selon la classe -->
+                    </div>
+                </div>
+                <!-- Onglets -->
+                <div class="stats-tabs">
+                    <button class="stats-tab active" data-tab="overview">📈 Vue d'ensemble</button>
+                    <button class="stats-tab" data-tab="details">📋 Détails</button>
+                    <button class="stats-tab" data-tab="evolution">📊 Évolution</button>
+                </div>
+
+                <!-- Onglet Vue d'ensemble -->
+                <div id="tab-overview" class="stats-tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>Moyenne générale</h4>
+                            <div class="stat-value" id="stat-moyenne-generale">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Meilleure note</h4>
+                            <div class="stat-value" id="stat-meilleure-note">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Note la plus basse</h4>
+                            <div class="stat-value" id="stat-note-basse">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Nombre d'évaluations</h4>
+                            <div class="stat-value" id="stat-nb-evals">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-moyennes-matieres"></canvas>
+                    </div>
+                </div>
+
+                <!-- Onglet Détails -->
+                <div id="tab-details" class="stats-tab-content">
+                    <div id="details-par-matiere"></div>
+                </div>
+
+                <!-- Onglet Évolution -->
+                <div id="tab-evolution" class="stats-tab-content">
+                    <div class="chart-container">
+                        <canvas id="chart-evolution"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/listes-eleves.js"></script>
+    <script src="js/teacher-manager.js"></script>
+    <script src="js/electron-auto-save.js"></script>
+    <script src="js/carnet-notes-data.js"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/carnet-notes.js"></script>
+</body>
+</html>

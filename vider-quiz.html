@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vider les quiz - eProf</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 3em;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #1a2236;
+            margin: 0 0 1em 0;
+        }
+        .status {
+            font-size: 4em;
+            margin: 0.5em 0;
+        }
+        .message {
+            color: #64748b;
+            font-size: 1.1em;
+            margin: 1em 0;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 1em 2em;
+            font-size: 1em;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1em;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #ef4444;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Nettoyage des quiz</h1>
+        
+        <div id="before-delete">
+            <div class="status">⚠️</div>
+            <p class="message">
+                Cette action va supprimer <strong>TOUS</strong> les quiz créés de manière <strong>définitive</strong>.
+            </p>
+            <p class="message">
+                <strong id="quiz-count">Chargement...</strong>
+            </p>
+            <button class="btn btn-danger" onclick="deleteAllQuiz()">
+                🗑️ Supprimer tous les quiz
+            </button>
+            <br>
+            <button class="btn" onclick="window.location.href='index.html'" style="margin-top: 1em;">
+                Annuler
+            </button>
+        </div>
+        
+        <div id="after-delete" style="display: none;">
+            <div class="status success">✅</div>
+            <p class="message success">
+                <strong>Tous les quiz ont été supprimés !</strong>
+            </p>
+            <button class="btn" onclick="window.location.href='index.html'">
+                🏠 Retour à l'accueil
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Compter les quiz au chargement
+        window.addEventListener('DOMContentLoaded', () => {
+            const quizList = JSON.parse(localStorage.getItem('quizList') || '[]');
+            const eprofQuizzes = JSON.parse(localStorage.getItem('eprof_quizzes') || '[]');
+            const quizData = localStorage.getItem('QUIZ_DATA');
+            
+            let count = Math.max(quizList.length, eprofQuizzes.length);
+            if (quizData) {
+                try {
+                    const parsed = JSON.parse(quizData);
+                    if (Array.isArray(parsed) && parsed.length > count) {
+                        count = parsed.length;
+                    } else if (parsed.quiz && Array.isArray(parsed.quiz) && parsed.quiz.length > count) {
+                        count = parsed.quiz.length;
+                    }
+                } catch (e) {
+                    console.error('Erreur parsing QUIZ_DATA:', e);
+                }
+            }
+            
+            document.getElementById('quiz-count').textContent = 
+                count === 0 ? 'Aucun quiz à supprimer' : 
+                count === 1 ? '1 quiz sera supprimé' : 
+                `${count} quiz seront supprimés`;
+        });
+
+        function deleteAllQuiz() {
+            if (confirm('⚠️ ATTENTION : Cette action est irréversible !\n\nÊtes-vous VRAIMENT sûr de vouloir supprimer tous les quiz ?')) {
+                try {
+                    // Supprimer TOUTES les clés liées aux quiz
+                    localStorage.removeItem('QUIZ_DATA');
+                    localStorage.removeItem('quizList');
+                    localStorage.removeItem('quiz');
+                    localStorage.removeItem('eprof_quizzes');
+                    localStorage.removeItem('eprof_quiz_submissions');
+                    
+                    // Afficher le message de succès
+                    document.getElementById('before-delete').style.display = 'none';
+                    document.getElementById('after-delete').style.display = 'block';
+                    
+                    console.log('✓ Tous les quiz ont été supprimés du localStorage');
+                } catch (error) {
+                    alert('❌ Erreur lors de la suppression : ' + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

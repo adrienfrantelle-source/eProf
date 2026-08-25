@@ -1,0 +1,60 @@
+{
+  "evaluations": {
+    "2nde SAPAT AB1": [
+      {
+        "id": "eval-001",
+        "nom": "Contrôle Histoire - Révolution",
+        "date": "2026-01-15",
+        "coefficient": 1,
+        "type": "DS",
+        "periode": "trimestre2",
+        "competences": ["Analyser", "Argumenter"]
+      }
+    ]
+  },
+  "notes": {
+    "2nde SAPAT AB1": {
+      "DUPONT Jean": {
+        "eval-001": {
+          "note": "15",
+          "appreciation": "Bon travail"
+        }
+      },
+      "MARTIN Sophie": {
+        "eval-001": {
+          "note": "17",
+          "appreciation": "Excellent"
+        }
+      }
+    }
+  },
+  "suiviEleves": {
+    "2nde SAPAT AB1": {
+      "DUPONT Jean": [
+        {
+          "date": "2026-01-09",
+          "type": "Incident",
+          "contenu": "Retard de 10 minutes",
+          "statut": "Résolu"
+        }
+      ]
+    }
+  },
+  "calendrier": [
+    {
+      "id": "evt-001",
+      "title": "Conseil de classe",
+      "start": "2026-01-20T14:00:00",
+      "end": "2026-01-20T16:00:00",
+      "type": "rdv"
+    }
+  ],
+  "parametres": {
+    "enseignant": {
+      "nom": "Frantelle",
+      "prenom": "Antoine"
+    }
+  },
+  "timestamp": "2026-01-09T14:30:00.000Z",
+  "version": "1.0"
+}

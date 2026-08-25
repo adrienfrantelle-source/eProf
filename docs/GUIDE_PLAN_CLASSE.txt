@@ -1,0 +1,133 @@
+═══════════════════════════════════════════════════════════════
+    GUIDE D'UTILISATION - PLAN DE CLASSE PERSONNALISÉ
+═══════════════════════════════════════════════════════════════
+
+📚 FONCTIONNALITÉS PRINCIPALES
+────────────────────────────────────────────────────────────────
+
+1. ORGANISATION PAR DÉFAUT
+   • Configuration standard : 30 places (5 rangées × 3 colonnes × 2 places)
+   • Placement rapide des élèves par glisser-déposer
+   • Idéal pour une salle de classe traditionnelle
+
+2. ORGANISATION PERSONNALISÉE (NOUVEAU!)
+   • Grille flexible 8×8 (jusqu'à 64 emplacements)
+   • Création d'îlots, groupes, U, cercle, etc.
+   • Adaptation à toutes les configurations de salle
+
+═══════════════════════════════════════════════════════════════
+📐 MODE ORGANISATION PERSONNALISÉE
+═══════════════════════════════════════════════════════════════
+
+ÉTAPE 1 : Activer le mode personnalisé
+────────────────────────────────────────────────────────────────
+► Cliquez sur le bouton "🎨 Organisation personnalisée"
+► Une zone de configuration apparaît
+
+ÉTAPE 2 : Définir le nombre de tables
+────────────────────────────────────────────────────────────────
+► Entrez le nombre de tables souhaitées (1-64)
+► Cliquez sur "Créer la grille"
+► Une grille 8×8 vide apparaît
+
+ÉTAPE 3 : Placer vos tables
+────────────────────────────────────────────────────────────────
+► Cliquez sur une cellule vide → Une table apparaît
+► Cliquez sur une table vide → La table se grise (désactivée)
+► Re-cliquez sur une table grisée → Elle redevient active
+► Double-cliquez sur une table occupée → L'élève retourne dans la liste
+
+ÉTAPE 4 : Placer les élèves
+────────────────────────────────────────────────────────────────
+► Glissez-déposez les élèves depuis la liste de droite
+► Les tables grisées ne peuvent pas recevoir d'élèves
+► Les couleurs s'appliquent automatiquement :
+  • BLEU pour les filles (F)
+  • VERT pour les garçons (M)
+
+═══════════════════════════════════════════════════════════════
+💡 EXEMPLES DE CONFIGURATIONS
+═══════════════════════════════════════════════════════════════
+
+ÎLOTS DE 4 ÉLÈVES
+────────────────────────────────────────────────────────────────
+□ □ ■ ■ □ □ ■ ■
+□ □ ■ ■ □ □ ■ ■
+□ □ □ □ □ □ □ □
+■ ■ □ □ ■ ■ □ □
+■ ■ □ □ ■ ■ □ □
+
+DISPOSITION EN U
+────────────────────────────────────────────────────────────────
+■ ■ ■ ■ ■ ■ ■ ■
+■ □ □ □ □ □ □ ■
+■ □ □ □ □ □ □ ■
+■ □ □ □ □ □ □ ■
+■ ■ ■ ■ ■ ■ ■ ■
+
+RANGÉES TRADITIONNELLES
+────────────────────────────────────────────────────────────────
+■ ■ □ ■ ■ □ ■ ■
+■ ■ □ ■ ■ □ ■ ■
+□ □ □ □ □ □ □ □
+■ ■ □ ■ ■ □ ■ ■
+■ ■ □ ■ ■ □ ■ ■
+
+Légende : ■ = table active   □ = cellule vide
+
+═══════════════════════════════════════════════════════════════
+🔧 FONCTIONS AVANCÉES
+═══════════════════════════════════════════════════════════════
+
+💾 SAUVEGARDER
+  → Cliquez sur "💾 Sauvegarder le plan"
+  → Le plan (avec organisation et placement) est enregistré
+  → Retrouvez-le au prochain chargement
+
+📄 EXPORTER EN PDF
+  → Cliquez sur "📄 Exporter en PDF"
+  → Une image du plan de classe est générée
+  → Parfait pour affichage ou impression
+
+🔄 RÉINITIALISER
+  → Cliquez sur "🔄 Réinitialiser"
+  → Tous les élèves retournent dans la liste
+  → Les tables restent en place
+  → Les tables grisées sont réactivées
+
+🔙 RETOUR AU MODE PAR DÉFAUT
+  → Cliquez sur "📐 Organisation par défaut"
+  → Revient à la configuration standard 30 places
+
+═══════════════════════════════════════════════════════════════
+📋 IMPORT DES ÉLÈVES
+═══════════════════════════════════════════════════════════════
+
+MÉTHODE 1 : Import brut
+────────────────────────────────────────────────────────────────
+Martin Dupont (M)
+Sophie Lefèvre (F)
+Lucas Bernard (M)
+...
+
+MÉTHODE 2 : Import Excel
+────────────────────────────────────────────────────────────────
+Structure attendue (à partir de la ligne 7) :
+• Colonne B : Nom
+• Colonne C : Prénom
+• Colonne D : Sexe (M ou F)
+
+═══════════════════════════════════════════════════════════════
+❓ ASTUCES ET CONSEILS
+═══════════════════════════════════════════════════════════════
+
+✓ Commencez par placer vos tables avant d'importer les élèves
+✓ Utilisez les tables grisées pour marquer les places vides/cassées
+✓ Sauvegardez régulièrement votre configuration
+✓ En mode personnalisé, vous pouvez créer des espaces de circulation
+✓ Double-clic = retrait rapide d'un élève
+✓ Les couleurs aident à équilibrer la répartition filles/garçons
+
+═══════════════════════════════════════════════════════════════
+
+Bonne organisation ! 🎓

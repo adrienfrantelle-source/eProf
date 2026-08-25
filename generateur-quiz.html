@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Quiz - eProf</title>
+    <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/generateur-quiz.css">
+</head>
+<body>
+    <header>
+        <div class="header-logo-title">
+            <a href="index.html" title="Retour à l'accueil">
+                <img src="images/logo eProf.jpg" alt="Logo eProf" class="logo-eprof">
+            </a>
+            <h1>Générateur de Quiz</h1>
+        </div>
+        <div class="header-user-info">
+            <a href="index.html" class="btn-retour">🏠 Retour à l'accueil</a>
+        </div>
+    </header>
+
+    <main class="quiz-container">
+        <div class="quiz-wizard">
+            <!-- Étape 1: Informations générales -->
+            <section class="quiz-step active" id="step-1">
+                <h2>📝 Étape 1 : Informations du quiz</h2>
+                
+                <div class="config-group">
+                    <label for="quiz-titre">📌 Titre du quiz :</label>
+                    <input type="text" id="quiz-titre" class="form-control" placeholder="Ex: Quiz Histoire - La Révolution Française" required>
+                </div>
+
+                <div class="config-group">
+                    <label for="quiz-matiere">📚 Matière :</label>
+                    <input type="text" id="quiz-matiere" class="form-control" placeholder="Ex: Histoire, Mathématiques, SVT...">
+                </div>
+
+                <div class="config-group">
+                    <label for="classe-select">🎓 Classe concernée :</label>
+                    <select id="classe-select" class="form-control">
+                        <option value="">-- Sélectionner une classe --</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label for="quiz-duree">⏱️ Durée estimée (minutes) :</label>
+                    <input type="number" id="quiz-duree" class="form-control" min="1" max="180" value="15">
+                </div>
+
+                <div class="config-group">
+                    <label for="quiz-description">📄 Description (optionnel) :</label>
+                    <textarea id="quiz-description" class="form-control" rows="3" placeholder="Consignes ou informations sur le quiz..."></textarea>
+                </div>
+
+                <button class="btn-next" onclick="goToStep(2)">
+                    Suivant : Ajouter les questions →
+                </button>
+            </section>
+
+            <!-- Étape 2: Création des questions -->
+            <section class="quiz-step" id="step-2">
+                <h2>❓ Étape 2 : Création des questions</h2>
+                
+                <div id="questions-list"></div>
+
+                <button class="btn-add-question" onclick="addQuestion()">
+                    ➕ Ajouter une question
+                </button>
+
+                <div class="button-group" style="margin-top: 30px;">
+                    <button class="btn-prev" onclick="goToStep(1)">← Précédent</button>
+                    <button class="btn-next" onclick="validateAndPreview()">Aperçu du quiz →</button>
+                </div>
+            </section>
+
+            <!-- Étape 3: Aperçu et sauvegarde -->
+            <section class="quiz-step" id="step-3">
+                <h2>🎉 Aperçu du quiz</h2>
+                
+                <div id="quiz-preview" style="display: none;">
+                    <div class="quiz-header">
+                        <h3 id="preview-titre"></h3>
+                        <p id="preview-info"></p>
+                    </div>
+                    <div id="preview-questions-container"></div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-prev" onclick="goToStep(2)">← Modifier</button>
+                    <button class="btn-action" onclick="saveQuiz()">💾 Sauvegarder le quiz</button>
+                    <button class="btn-action" onclick="generateShareableLink()">📤 Partager avec élèves</button>
+                    <button class="btn-action" onclick="exportQuiz()">📄 Exporter PDF</button>
+                    <button class="btn-action" onclick="newQuiz()">🔄 Nouveau quiz</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="libs/jspdf.umd.min.js"></script>
+    <script src="js/listes-eleves.js"></script>
+    <script src="js/generateur-quiz.js"></script>
+</body>
+</html>
