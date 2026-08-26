@@ -1,0 +1,86 @@
+/* ===== ANNONCES INSTITUTIONNELLES ===== */
+.annonces-zone:empty {
+    display: none;
+}
+
+.annonces-zone {
+    padding: 0.8em 1.2em 0;
+}
+
+.annonce {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8em;
+    border-left: 5px solid #1e88e5;
+    background: #eff6ff;
+    border-radius: 8px;
+    padding: 0.8em 1em;
+    margin-bottom: 0.6em;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.annonce-important {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.annonce-urgent {
+    border-left-color: #dc2626;
+    background: #fef2f2;
+}
+
+.annonce-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.annonce-body h4 {
+    margin: 0 0 0.25em;
+    color: #0f172a;
+    font-size: 1em;
+}
+
+.annonce-body p {
+    margin: 0;
+    color: #334155;
+    font-size: 0.92em;
+    line-height: 1.5;
+}
+
+.annonce-lien {
+    display: inline-block;
+    margin-top: 0.4em;
+    font-size: 0.9em;
+    color: #1d4ed8;
+}
+
+.annonce-meta {
+    margin-top: 0.4em;
+    font-size: 0.78em;
+    color: #64748b;
+}
+
+.annonce-actions {
+    display: flex;
+    gap: 0.2em;
+}
+
+.annonce-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    line-height: 1;
+    padding: 0.15em 0.35em;
+    border-radius: 5px;
+    color: #64748b;
+}
+
+.annonce-actions button:hover {
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+}
+
+.annonce-close {
+    font-size: 1.3em !important;
+}

@@ -238,6 +238,12 @@ const CLASSES_ANNEE_ACTUELLE = [
     'Tle LCQ'
 ];
 
+// Le référentiel de l'établissement fait autorité quand il est disponible ;
+// la liste ci-dessus sert de repli hors ligne / avant son chargement.
 window.getCurrentClassNames = function () {
+    if (window.EprofReferentiel) {
+        const depuisReferentiel = window.EprofReferentiel.getClassNames();
+        if (depuisReferentiel.length) return depuisReferentiel;
+    }
     return CLASSES_ANNEE_ACTUELLE.slice();
 };

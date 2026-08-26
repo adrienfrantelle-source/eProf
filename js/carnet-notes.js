@@ -277,9 +277,13 @@ function handleClassChange(e) {
     }
 }
 
-// Une classe est en semestres (1ère et Terminale) plutôt qu'en trimestres
+// Une classe est en semestres ou en trimestres selon le référentiel de
+// l'établissement ; à défaut, 1ère et Terminale sont en semestres.
 function usesSemestres(className) {
     if (!className) return false;
+    if (window.EprofReferentiel) {
+        return window.EprofReferentiel.getPeriodType(className) === 'semestre';
+    }
     const lower = className.toLowerCase();
     return lower.includes('1ère') || lower.includes('1ere') || lower.includes('terminale') || lower.includes('tle');
 }

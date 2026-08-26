@@ -34,6 +34,27 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      policies d'administration sur `allowed_teachers` et fonction
      `admin_delete_teacher_account`. Le compte `adfrantelle` est promu
      administrateur (panneau accessible via le bouton « 🔐 Admin » du footer).
+   - `0009_rgpd.sql` : journal d'audit admin (`admin_audit_log` +
+     `log_admin_action`), registre des traitements, consentements, durées de
+     conservation, et fonctions `admin_export_teacher_data` (droit d'accès),
+     `admin_anonymize_teacher` (droit à l'oubli) et `admin_run_retention_purge`.
+     La purge automatique via `pg_cron` est optionnelle (SQL fourni en fin de
+     fichier de migration).
+   - `0010_supervision.sql` : logs applicatifs (`app_logs`), suivi des jobs
+     (`platform_jobs`), tableau de bord (`admin_platform_stats`), journal des
+     connexions (`admin_list_auth_events`) et sauvegarde globale
+     (`admin_full_backup`). Met aussi à jour la purge RGPD pour couvrir les
+     nouvelles tables.
+   - `0011_communication.sql` : annonces institutionnelles (`announcements`,
+     ciblage par identifiant ou par matière via RLS), accusés de lecture,
+     modèles de notification, modération des contenus signalés
+     (`content_reports`) et statistiques de diffusion.
+   - `0012_administration_pedagogique.sql` : référentiels mutualisés de
+     l'établissement — classes officielles avec leur type de période
+     (`school_classes`), matières (`school_subjects`), affectations
+     prof ↔ classe ↔ matière (`teacher_assignments`), référentiels de
+     compétences et modèles d'évaluation. Lecture ouverte aux enseignants
+     connectés, écriture réservée à l'administrateur.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
