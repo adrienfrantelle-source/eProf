@@ -429,6 +429,40 @@ main#main-content {
     }
 }
 
+/* ===== TROMBINOSCOPES ===== */
+.trombi-grille {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.trombi-carte {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.trombi-photo {
+    font-size: 2.4em;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.trombi-nom {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 0.92em;
+}
+
+.trombi-nom-famille {
+    font-size: 0.82em;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
 /* ===== MODE D'AFFICHAGE MOBILE (auto / forcé / désactivé) ===== */
 @media (max-width: 900px) {
     body:not(.mode-mobile-off) .layout {
@@ -551,6 +585,26 @@ header {
     flex-direction: column;
     align-items: flex-end;
     gap: 0.3em;
+}
+.header-status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+}
+.logout-btn {
+    background: rgba(239, 68, 68, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    color: #fca5a5;
+    font-size: 0.75em;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.logout-btn:hover {
+    background: rgba(239, 68, 68, 0.35);
+    color: #fff;
 }
 .online-status-badge {
     font-size: 0.75em;

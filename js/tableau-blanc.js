@@ -486,6 +486,10 @@ function handleToolClick(toolId) {
             if (toolBtn) toolBtn.classList.add('active');
             openToolPanel('wordcloud-panel');
             break;
+        case 'calculator-tool':
+            if (toolBtn) toolBtn.classList.add('active');
+            openToolPanel('calculator-panel');
+            break;
         case 'pdf-viewer-tool':
             if (toolBtn) toolBtn.classList.add('active');
             openToolPanel('pdf-viewer-panel');
@@ -623,9 +627,20 @@ function initStudentPicker() {
     const groupsClassSelect = document.getElementById('groups-class-select');
     
     if (!classSelect) return;
-    
-    const activeLists = window.getAvailableStudentLists ? window.getAvailableStudentLists() : (typeof LISTES_ELEVES !== 'undefined' ? LISTES_ELEVES : {});
-    Object.keys(activeLists).forEach(className => {
+
+    // Les listes arrivent du référentiel en ligne : on repart d'une base propre
+    // pour éviter les doublons lors d'un rafraîchissement.
+    const premiereOption = classSelect.querySelector('option');
+    classSelect.innerHTML = '';
+    if (premiereOption) classSelect.appendChild(premiereOption);
+    if (groupsClassSelect) {
+        const premiereOptionGroupes = groupsClassSelect.querySelector('option');
+        groupsClassSelect.innerHTML = '';
+        if (premiereOptionGroupes) groupsClassSelect.appendChild(premiereOptionGroupes);
+    }
+
+    const activeLists = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+    Object.keys(activeLists).sort().forEach(className => {
         const option = document.createElement('option');
         option.value = className;
         option.textContent = className;
@@ -639,6 +654,8 @@ function initStudentPicker() {
         }
     });
 }
+
+document.addEventListener('eprof-referentiel-maj', initStudentPicker);
 
 // Basculer entre les onglets
 function switchStudentTab(tab) {
@@ -675,8 +692,9 @@ function saveManualStudentList(className, names) {
 
 function getClassStudentOptions(className) {
     const baseOptions = [];
-    if (className && typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[className]) {
-        LISTES_ELEVES[className].forEach(student => {
+    const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+    if (className && listes[className]) {
+        listes[className].forEach(student => {
             const fullName = `${student.prenom || ''} ${student.nom || ''}`.trim();
             if (fullName) baseOptions.push(fullName);
         });

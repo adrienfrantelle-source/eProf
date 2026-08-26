@@ -40,6 +40,35 @@ body {
     text-align: center;
 }
 
+/* ===== ÉVALUATIONS NON SIGNIFICATIVES ===== */
+.eval-header.eval-non-significative {
+    background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 8px, #e2e8f0 8px, #e2e8f0 16px);
+    color: #475569;
+    font-style: italic;
+}
+
+.eval-toggle-group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.eval-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.eval-toggle-group small {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 0.82em;
+}
+
 @keyframes eprofSavePulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
     50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }

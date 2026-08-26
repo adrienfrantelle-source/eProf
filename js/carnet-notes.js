@@ -224,6 +224,29 @@ function saveData() {
     }
 
     markUnsavedCloudChanges();
+    planifierSauvegardeCloud();
+}
+
+// Sauvegarde en ligne automatique, regroupée pour ne pas écrire à chaque frappe.
+// Le bouton manuel reste disponible pour forcer une sauvegarde immédiate.
+let cloudAutoSaveTimer = null;
+
+function planifierSauvegardeCloud() {
+    clearTimeout(cloudAutoSaveTimer);
+    cloudAutoSaveTimer = setTimeout(async function () {
+        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return;
+        const teacherId = await window.EprofStore.getTeacherId();
+        const { error } = await window.EprofStore.upsert('teacher_documents', [{
+            teacher_id: teacherId,
+            doc_type: CARNET_DOC_TYPE,
+            data: { evaluations, notes }
+        }], { onConflict: 'teacher_id,doc_type' });
+        if (error) {
+            console.error('❌ Carnet de notes : sauvegarde automatique en ligne échouée', error);
+            return;
+        }
+        clearUnsavedCloudChanges();
+    }, 3000);
 }
 
 // ===== Rappel de sauvegarde en ligne (bannière + liseré + confirmation avant fermeture) =====
@@ -463,6 +486,7 @@ function openEvalModal(evalId = null) {
         document.getElementById('eval-max').value = eval.maxPoints;
         document.getElementById('eval-coef').value = eval.coefficient;
         document.getElementById('eval-period').value = eval.period;
+        document.getElementById('eval-non-significative').checked = eval.nonSignificative === true;
         // Activer le bouton correspondant
         setFormPeriodActive(eval.period);
         form.dataset.evalId = evalId;
@@ -470,6 +494,7 @@ function openEvalModal(evalId = null) {
         // Mode création
         title.textContent = 'Nouvelle évaluation';
         delete form.dataset.evalId;
+        document.getElementById('eval-non-significative').checked = false;
         // Date par défaut : aujourd'hui
         document.getElementById('eval-date').value = new Date().toISOString().split('T')[0];
         // Sélectionner la première période par défaut
@@ -497,12 +522,14 @@ function handleEvalFormSubmit(e) {
         maxPoints: parseFloat(document.getElementById('eval-max').value),
         coefficient: parseFloat(document.getElementById('eval-coef').value),
         period: document.getElementById('eval-period').value,
+        nonSignificative: document.getElementById('eval-non-significative').checked,
         id: Date.now().toString()
     };
     
     if (form.dataset.evalId !== undefined) {
-        // Modification
+        // Modification : on conserve l'identifiant existant, référencé par les notes
         const evalId = parseInt(form.dataset.evalId);
+        evalData.id = evaluations[currentClass][evalId].id;
         evaluations[currentClass][evalId] = evalData;
     } else {
         // Création
@@ -648,7 +675,9 @@ function renderNotesTable() {
     Object.keys(evalsBySubject).forEach(subject => {
         const subjectEvals = evalsBySubject[subject];
         subjectEvals.forEach(eval => {
-            html += `<th class="eval-header" title="${eval.subject} - ${new Date(eval.date).toLocaleDateString('fr-FR')}">${eval.title}<br><small>/${eval.maxPoints} (×${eval.coefficient})</small></th>`;
+            const nonSignif = !compteDansMoyennes(eval);
+            const infos = nonSignif ? 'non comptée' : `/${eval.maxPoints} (×${eval.coefficient})`;
+            html += `<th class="eval-header${nonSignif ? ' eval-non-significative' : ''}" title="${eval.subject} - ${new Date(eval.date).toLocaleDateString('fr-FR')}${nonSignif ? ' — note non significative' : ''}">${nonSignif ? '📌 ' : ''}${eval.title}<br><small>${infos}</small></th>`;
         });
         html += `<th style="background: #f1f5f9; font-weight: bold;">Moy. ${subject}</th>`;
     });
@@ -821,11 +850,18 @@ function updateAveragesDisplay() {
 }
 
 
+// Une évaluation marquée « non significative » reste affichée mais ne compte
+// dans aucune moyenne ni statistique.
+function compteDansMoyennes(evaluation) {
+    return !!evaluation && evaluation.nonSignificative !== true;
+}
+
 function calculateStudentAverage(studentName, evals) {
     let totalPoints = 0;
     let totalCoef = 0;
     
     evals.forEach(eval => {
+        if (!compteDansMoyennes(eval)) return;
         const note = notes[currentClass][studentName][eval.id];
         if (note !== undefined && note !== null && note !== '' && note !== 'abs') {
             // Convertir la note sur 20
@@ -844,6 +880,7 @@ function calculateStudentAverageBySubject(studentName, subjectEvals) {
     let totalCoef = 0;
     
     subjectEvals.forEach(eval => {
+        if (!compteDansMoyennes(eval)) return;
         const note = notes[currentClass][studentName][eval.id];
         if (note !== undefined && note !== null && note !== '' && note !== 'abs') {
             // Convertir la note sur 20
@@ -893,7 +930,6 @@ function calculateEvalAverage(evalId, students) {
     // Trouver l'évaluation pour obtenir maxPoints
     const eval = (evaluations[currentClass] || []).find(e => e.id === evalId);
     if (!eval) return null;
-    
     const maxPoints = parseFloat(eval.maxPoints) || 20;
     let sum = 0;
     let count = 0;
@@ -1462,7 +1498,7 @@ function setupStatsTabs() {
 }
 
 function calculateStudentStats(studentName, period = 'all') {
-    let evals = evaluations[currentClass] || [];
+    let evals = (evaluations[currentClass] || []).filter(compteDansMoyennes);
     
     console.log('═══════════════════════════════');
     console.log('Calcul stats pour:', studentName);
@@ -1821,7 +1857,7 @@ function setupClassStatsTabs() {
 }
 
 function calculateClassStats(period = 'all') {
-    let evals = evaluations[currentClass] || [];
+    let evals = (evaluations[currentClass] || []).filter(compteDansMoyennes);
     const students = getStudentsForClass(currentClass);
     
     if (period !== 'all') {

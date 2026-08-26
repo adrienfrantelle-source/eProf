@@ -275,6 +275,104 @@ body {
     background: linear-gradient(135deg, transparent 0%, transparent 50%, #3b82f6 50%, #3b82f6 100%);
 }
 
+/* ===== CALCULATRICE ===== */
+#calculator-panel {
+    width: 320px;
+}
+
+.calc-expression {
+    text-align: right;
+    color: #94a3b8;
+    font-size: 0.85em;
+    min-height: 1.1em;
+    font-family: monospace;
+}
+
+.calc-display {
+    background: #0f172a;
+    color: #4ade80;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 1.5em;
+    text-align: right;
+    font-family: monospace;
+    word-break: break-all;
+    min-height: 1.6em;
+}
+
+.calc-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.85em;
+    margin-bottom: 8px;
+}
+
+.calc-options select {
+    padding: 3px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+}
+
+.calc-keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.calc-keys-scientific {
+    grid-template-columns: repeat(5, 1fr);
+    margin-bottom: 6px;
+}
+
+.calc-keys button {
+    padding: 10px 0;
+    border: none;
+    border-radius: 6px;
+    background: #e2e8f0;
+    color: #0f172a;
+    font-size: 1em;
+    cursor: pointer;
+}
+
+.calc-keys button:hover {
+    background: #cbd5e1;
+}
+
+.calc-keys-scientific button {
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 0.85em;
+    padding: 8px 0;
+}
+
+.calc-keys .calc-op {
+    background: #fed7aa;
+    color: #9a3412;
+}
+
+.calc-keys .calc-action {
+    background: #fecaca;
+    color: #991b1b;
+}
+
+.calc-keys .calc-equal {
+    background: #86efac;
+    color: #14532d;
+    font-weight: bold;
+}
+
+.calc-history {
+    margin-top: 10px;
+    font-size: 0.78em;
+    color: #64748b;
+    font-family: monospace;
+    max-height: 90px;
+    overflow-y: auto;
+}
+
 .panel-header {
     margin-bottom: 15px;
     color: #1a2236;

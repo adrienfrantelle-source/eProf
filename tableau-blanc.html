@@ -39,7 +39,7 @@
         <button class="tool-btn" id="clock-tool" title="Horloge">🕐</button>
         <button class="tool-btn" id="calendar-tool" title="Calendrier">📅</button>
         <button class="tool-btn" id="dice-tool" title="Dé">🎯</button>
-        <button class="tool-btn" id="qrcode-tool" title="QR Code">📱</button>        <button class="tool-btn" id="notes-tool" title="Bloc-notes">📝</button>        <button class="tool-btn" id="wordcloud-tool" title="Nuage de mots">☁️</button>        <button class="tool-btn" id="pdf-viewer-tool" title="Visionneuse PDF">📄</button>        <button class="tool-btn" id="eraser-tool" title="Effacer">🧹</button>
+        <button class="tool-btn" id="qrcode-tool" title="QR Code">📱</button>        <button class="tool-btn" id="notes-tool" title="Bloc-notes">📝</button>        <button class="tool-btn" id="wordcloud-tool" title="Nuage de mots">☁️</button>        <button class="tool-btn" id="calculator-tool" title="Calculatrice">🧮</button>        <button class="tool-btn" id="pdf-viewer-tool" title="Visionneuse PDF">📄</button>        <button class="tool-btn" id="eraser-tool" title="Effacer">🧹</button>
     </div>
 
     <!-- Panneau de contrôle pour le dessin -->
@@ -515,6 +515,85 @@
         <div class="resize-handle"></div>
     </div>
 
+    <div id="calculator-panel" class="tool-panel" style="display:none;">
+        <h3 class="panel-header">🧮 Calculatrice
+            <div class="panel-header-controls">
+                <div class="color-picker-btn" title="Couleur du panneau">
+                    <input type="color" value="#ffffff" onchange="changePanelColor('calculator-panel', this.value)">
+                </div>
+                <span class="close-panel" onclick="closePanel('calculator-panel')">✖</span>
+            </div>
+        </h3>
+        <div class="calc-body">
+            <div class="calc-expression" id="calc-expression"></div>
+            <div class="calc-display" id="calc-display">0</div>
+            <div class="calc-options">
+                <label><input type="checkbox" id="calc-scientific" onchange="calcToggleScientific()"> Mode scientifique</label>
+                <label id="calc-angle-wrap" style="display:none;">
+                    <select id="calc-angle" onchange="calcSetAngle(this.value)">
+                        <option value="deg">Degrés</option>
+                        <option value="rad">Radians</option>
+                    </select>
+                </label>
+            </div>
+            <div class="calc-keys calc-keys-scientific" id="calc-keys-scientific" style="display:none;">
+                <button onclick="calcFn('sin(')">sin</button>
+                <button onclick="calcFn('cos(')">cos</button>
+                <button onclick="calcFn('tan(')">tan</button>
+                <button onclick="calcFn('asin(')">sin⁻¹</button>
+                <button onclick="calcFn('acos(')">cos⁻¹</button>
+                <button onclick="calcFn('atan(')">tan⁻¹</button>
+                <button onclick="calcFn('sqrt(')">√</button>
+                <button onclick="calcAppend('^')">xʸ</button>
+                <button onclick="calcAppend('^2')">x²</button>
+                <button onclick="calcFn('ln(')">ln</button>
+                <button onclick="calcFn('log(')">log</button>
+                <button onclick="calcFn('exp(')">eˣ</button>
+                <button onclick="calcAppend('pi')">π</button>
+                <button onclick="calcAppend('e')">e</button>
+                <button onclick="calcAppend('!')">n!</button>
+                <button onclick="calcAppend('%')">%</button>
+                <button onclick="calcFn('abs(')">|x|</button>
+                <button onclick="calcAppend('(')">(</button>
+                <button onclick="calcAppend(')')">)</button>
+                <button onclick="calcFn('mod(')">mod</button>
+            </div>
+            <div class="calc-keys">
+                <button class="calc-action" onclick="calcClear()">C</button>
+                <button class="calc-action" onclick="calcBackspace()">⌫</button>
+                <button class="calc-op" onclick="calcAppend('(')">(</button>
+                <button class="calc-op" onclick="calcAppend(')')">)</button>
+
+                <button onclick="calcAppend('7')">7</button>
+                <button onclick="calcAppend('8')">8</button>
+                <button onclick="calcAppend('9')">9</button>
+                <button class="calc-op" onclick="calcAppend('/')">÷</button>
+
+                <button onclick="calcAppend('4')">4</button>
+                <button onclick="calcAppend('5')">5</button>
+                <button onclick="calcAppend('6')">6</button>
+                <button class="calc-op" onclick="calcAppend('*')">×</button>
+
+                <button onclick="calcAppend('1')">1</button>
+                <button onclick="calcAppend('2')">2</button>
+                <button onclick="calcAppend('3')">3</button>
+                <button class="calc-op" onclick="calcAppend('-')">−</button>
+
+                <button onclick="calcAppend('0')">0</button>
+                <button onclick="calcAppend('.')">,</button>
+                <button class="calc-equal" onclick="calcCompute()">=</button>
+                <button class="calc-op" onclick="calcAppend('+')">+</button>
+            </div>
+            <div class="calc-history" id="calc-history"></div>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- Supabase : nécessaire pour récupérer les listes d'élèves de l'établissement -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/eprof-store.js"></script>
+    <script src="js/referentiel.js"></script>
     <script src="js/listes-eleves.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -524,6 +603,7 @@
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
     </script>
+    <script src="js/calculatrice.js"></script>
     <script src="js/tableau-blanc.js"></script>
 </body>
 </html>

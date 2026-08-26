@@ -96,6 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     updateFooterVersion();
 
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+            if (window.teacherManager) window.teacherManager.logout();
+        });
+    }
+
     // ===== Restriction des outils réservés à l'administrateur =====
     let estAdministrateur = false;
 
@@ -277,7 +284,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Gestion des outils du dashboard et sidebar
+    let outilCourant = null;
+
+    // Les listes d'élèves arrivent de façon asynchrone : on re-rend l'outil affiché.
+    document.addEventListener('eprof-referentiel-maj', function () {
+        if (['eleves', 'trombinoscopes', 'plan-classe'].includes(outilCourant)) {
+            handleDashboardTool(outilCourant);
+        }
+    });
+
     function handleDashboardTool(tool) {
+        outilCourant = tool;
         switch(tool) {
             case 'calendar':
                 renderCalendar(mainContent);
@@ -3443,40 +3460,149 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
     // ========================================
     function renderTrombinoscopes(container) {
         const annee = '2026-2027';
+        const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+        const classes = Object.keys(listes).sort();
+
+        if (classes.length === 0) {
+            container.innerHTML = `
+                <div id="suivi-eleves-module">
+                    <h2>📸 Trombinoscopes - Année ${annee}</h2>
+                    <div class="suivi-eleves-selection empty-state-box">
+                        <h3>Aucune liste d’élèves n’est encore disponible</h3>
+                        <p>Les listes sont importées par l’administrateur depuis son panneau.</p>
+                        <p>Les anciennes données de l’année 2025-2026 restent uniquement dans <strong>Archives</strong>.</p>
+                    </div>
+                </div>`;
+            return;
+        }
 
         container.innerHTML = `
             <div id="suivi-eleves-module">
                 <h2>📸 Trombinoscopes - Année ${annee}</h2>
-                <div class="suivi-eleves-selection empty-state-box">
-                    <h3>Pas encore de trombinoscopes pour cette année</h3>
-                    <p>Les listes et documents de l’année ${annee} seront ajoutés prochainement.</p>
-                    <p>Les anciennes données de l’année 2025-2026 restent uniquement dans <strong>Archives</strong>.</p>
+                <div class="selection-classe-suivi">
+                    <h3>Sélectionnez une classe</h3>
+                    <div class="classes-grid">
+                        ${classes.map(classe => `
+                            <button class="classe-btn" data-classe="${classe}">
+                                📚 ${classe} <small>(${listes[classe].length})</small>
+                            </button>
+                        `).join('')}
+                    </div>
                 </div>
-            </div>
-        `;
+                <div id="trombi-contenu" style="display:none; margin-top:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3 id="trombi-titre"></h3>
+                        <div>
+                            <button id="trombi-imprimer" class="btn-secondary">🖨️ Imprimer</button>
+                            <button id="trombi-retour" class="btn-secondary">← Retour</button>
+                        </div>
+                    </div>
+                    <div id="trombi-grille" class="trombi-grille"></div>
+                </div>
+            </div>`;
+
+        const contenu = container.querySelector('#trombi-contenu');
+        const selection = container.querySelector('.selection-classe-suivi');
+        const grille = container.querySelector('#trombi-grille');
+
+        container.querySelectorAll('.classe-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const classe = this.dataset.classe;
+                const eleves = (listes[classe] || []).slice()
+                    .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom));
+
+                container.querySelector('#trombi-titre').textContent = `${classe} — ${eleves.length} élève(s)`;
+                grille.innerHTML = eleves.map(e => `
+                    <div class="trombi-carte">
+                        <div class="trombi-photo">${e.sexe === 'F' ? '👧' : (e.sexe === 'M' ? '👦' : '🧑')}</div>
+                        <div class="trombi-nom">${e.prenom}</div>
+                        <div class="trombi-nom-famille">${e.nom}</div>
+                    </div>
+                `).join('');
+
+                selection.style.display = 'none';
+                contenu.style.display = 'block';
+            });
+        });
+
+        container.querySelector('#trombi-retour').addEventListener('click', function () {
+            contenu.style.display = 'none';
+            selection.style.display = 'block';
+        });
+
+        container.querySelector('#trombi-imprimer').addEventListener('click', function () {
+            window.print();
+        });
     }
 
     // ========================================
     // SUIVI DES ÉLÈVES
     // ========================================
+    // Synchronisation du suivi des élèves (données propres à chaque enseignant)
+    // ========================================
+    const SUIVI_DOC_TYPE = 'suivi_eleves';
+    let syncSuiviTimer = null;
+
+    async function chargerSuiviEnLigne() {
+        if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) return null;
+        const teacherId = await window.EprofStore.getTeacherId();
+        const { data, error } = await window.EprofStore.list('teacher_documents', {
+            filters: { teacher_id: teacherId, doc_type: SUIVI_DOC_TYPE }
+        });
+        if (error || !data || !data.length) return null;
+        return data[0].data || null;
+    }
+
+    async function sauvegarderSuiviEnLigne(suiviData) {
+        if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) return false;
+        const teacherId = await window.EprofStore.getTeacherId();
+        const { error } = await window.EprofStore.upsert('teacher_documents', [{
+            teacher_id: teacherId,
+            doc_type: SUIVI_DOC_TYPE,
+            data: suiviData
+        }], { onConflict: 'teacher_id,doc_type' });
+        if (error) console.error('❌ Suivi des élèves : sauvegarde en ligne échouée', error);
+        return !error;
+    }
+
+    // Les saisies s'enchaînent vite : on regroupe les écritures réseau.
+    function planifierSyncSuivi(suiviData) {
+        clearTimeout(syncSuiviTimer);
+        syncSuiviTimer = setTimeout(function () { sauvegarderSuiviEnLigne(suiviData); }, 2000);
+    }
+
+    // ========================================
     function renderSuiviEleves(container) {
-        // Les listes de l’année courante ne sont pas encore fournies
-        const classes = [];
-        
+        const listesEleves = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+        const classes = Object.keys(listesEleves).sort();
+
         container.innerHTML = `
             <div id="suivi-eleves-module">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>👨‍🎓 Suivi des élèves</h2>
                     <div class="data-controls">
-                        <button id="import-suivi-btn" class="btn-secondary" title="Importer les données du suivi" disabled>📂 Importer</button>
-                        <button id="export-suivi-btn" class="btn-secondary" title="Exporter les données du suivi" disabled>💾 Exporter</button>
+                        <button id="export-suivi-btn" class="btn-secondary" title="Exporter les données du suivi">💾 Exporter</button>
+                        <button id="sync-suivi-btn" class="btn-secondary" title="Sauvegarder le suivi en ligne">☁️ Sauvegarder en ligne</button>
                     </div>
                 </div>
                 
+                ${classes.length === 0 ? `
                 <div class="selection-classe-suivi empty-state-box">
-                    <h3>Les listes de l’année 2026-2027 ne sont pas encore ajoutées.</h3>
-                    <p>Les données antérieures restent consultables dans l’archive.</p>
+                    <h3>Aucune liste d’élèves n’est encore disponible.</h3>
+                    <p>Les listes sont importées par l’administrateur depuis son panneau.</p>
                 </div>
+                ` : `
+                <div class="selection-classe-suivi">
+                    <h3>Sélectionnez une classe</h3>
+                    <div class="classes-grid">
+                        ${classes.map(classe => `
+                            <button class="classe-btn" data-classe="${classe}">
+                                📚 ${classe} <small>(${listesEleves[classe].length})</small>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                `}
                 
                 <!-- Génération de liste d'émargement -->
                 <div id="emargement-container" style="display: none; margin-top: 30px;">
@@ -3635,7 +3761,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         function chargerClasse(classe) {
             classeActuelle = classe;
             
-            const listeClasse = LISTES_ELEVES[classe];
+            const listeClasse = (window.getAvailableStudentLists ? window.getAvailableStudentLists() : {})[classe];
             if (!listeClasse || listeClasse.length === 0) {
                 alert('⚠️ Aucun élève trouvé pour cette classe');
                 return;
@@ -4352,6 +4478,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         function sauvegarderSuivi() {
             localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
             updateNotifications();
+            planifierSyncSuivi(suiviData);
             
             // Sauvegarde automatique
             if (window.dataManager) {
@@ -4389,26 +4516,14 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             });
         });
         
-        // Boutons Import/Export
-        const importSuiviBtn = container.querySelector('#import-suivi-btn');
+        // Boutons Export / synchronisation
         const exportSuiviBtn = container.querySelector('#export-suivi-btn');
+        const syncSuiviBtn = container.querySelector('#sync-suivi-btn');
         
-        if (importSuiviBtn) {
-            importSuiviBtn.addEventListener('click', async () => {
-                if (!confirm('Importer les données du suivi élèves ? Cela va remplacer les données actuelles en mémoire.')) {
-                    return;
-                }
-                
-                try {
-                    const imported = await window.dataManager.importAllData();
-                    suiviData = imported.suiviEleves || {};
-                    localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
-                    
-                    alert('✓ Données du suivi importées avec succès !');
-                    location.reload(); // Recharger pour tout actualiser
-                } catch (error) {
-                    alert('❌ Erreur lors de l\'importation : ' + error.message);
-                }
+        if (syncSuiviBtn) {
+            syncSuiviBtn.addEventListener('click', async () => {
+                const ok = await sauvegarderSuiviEnLigne(suiviData);
+                alert(ok ? '✅ Suivi des élèves sauvegardé en ligne.' : '❌ Sauvegarde en ligne impossible (hors ligne ou non connecté).');
             });
         }
         
@@ -4422,6 +4537,15 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 }
             });
         }
+        
+        // Le suivi en ligne fait foi : on l'applique dès qu'il est disponible.
+        chargerSuiviEnLigne().then(distant => {
+            if (!distant) return;
+            suiviData = distant;
+            localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
+            updateNotifications();
+            if (classeActuelle) afficherEleves(classeActuelle);
+        });
         
         // Gestion de la liste d'émargement
         const emargementContainer = container.querySelector('#emargement-container');
@@ -6216,12 +6340,17 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <div id="import-liste-zone" style="display:none;">
                                     <label>Liste 2026-2027 :</label>
                                     <select id="liste-classe-select" style="width:100%;padding:10px;margin:10px 0;border:2px solid #3b82f6;border-radius:6px;font-size:1rem;">
-                                        <option value="">-- Les listes arrivent bientôt --</option>
+                                        ${(function () {
+                                            const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+                                            const noms = Object.keys(listes).sort();
+                                            if (!noms.length) return '<option value="">-- Aucune liste disponible --</option>';
+                                            return '<option value="">-- Choisir une classe --</option>' +
+                                                noms.map(n => `<option value="${n}">${n} (${listes[n].length})</option>`).join('');
+                                        })()}
                                     </select>
-                                    <button id="charger-liste-btn" class="btn-primary" disabled>📥 Charger la liste</button>
+                                    <button id="charger-liste-btn" class="btn-primary">📥 Charger la liste</button>
                                     <p style="color:#64748b;font-size:0.9rem;margin-top:10px;">
-                                        💡 Les listes de l’année 2026-2027 seront ajoutées ultérieurement.<br>
-                                        En attendant, utilisez l’import brut ou un fichier Excel.
+                                        💡 Les listes sont importées par l’administrateur. Vous pouvez sinon utiliser l’import brut ou un fichier Excel.
                                     </p>
                                 </div>
                                 
@@ -6466,12 +6595,11 @@ if (typeof module !== 'undefined' && module.exports) {
             }
             
             try {
-                // Charger depuis l'objet JavaScript embarqué (pas besoin de serveur HTTP)
-                if (!LISTES_ELEVES || !LISTES_ELEVES[classe]) {
+                const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+                const listeClasse = listes[classe];
+                if (!listeClasse) {
                     throw new Error(`Liste non trouvée pour la classe "${classe}"`);
                 }
-                
-                const listeClasse = LISTES_ELEVES[classe];
                 
                 if (listeClasse.length === 0) {
                     alert(`⚠️ La liste de la classe "${classe}" est vide.`);
@@ -6482,7 +6610,7 @@ if (typeof module !== 'undefined' && module.exports) {
                 const eleves = [];
                 listeClasse.forEach(eleve => {
                     // Format : "Prénom NOM (Sexe)"
-                    const eleveNom = `${eleve.prenom} ${eleve.nom.toUpperCase()} (${eleve.sexe.toUpperCase()})`;
+                    const eleveNom = `${eleve.prenom} ${eleve.nom.toUpperCase()} (${(eleve.sexe || '').toUpperCase()})`;
                     eleves.push(eleveNom);
                 });
                 

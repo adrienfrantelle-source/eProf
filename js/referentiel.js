@@ -39,6 +39,8 @@
                         maj: new Date().toISOString()
                     };
                     writeCache(cache);
+                    // Les vues déjà rendues doivent se réactualiser sans rechargement.
+                    document.dispatchEvent(new CustomEvent('eprof-referentiel-maj'));
                 }
             }
         } catch (e) {
