@@ -4641,12 +4641,16 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                     return;
                 }
                 
-                if (!classeActuelle || !LISTES_ELEVES[classeActuelle]) {
+                const listeClasseEmargement = classeActuelle
+                    ? (window.getAvailableStudentLists ? window.getAvailableStudentLists() : {})[classeActuelle]
+                    : null;
+
+                if (!listeClasseEmargement || listeClasseEmargement.length === 0) {
                     alert('⚠️ Erreur : aucune classe sélectionnée');
                     return;
                 }
                 
-                const eleves = LISTES_ELEVES[classeActuelle].map(e => ({
+                const eleves = listeClasseEmargement.map(e => ({
                     nom: e.nom,
                     prenom: e.prenom,
                     nomComplet: `${e.prenom} ${e.nom.toUpperCase()}`
