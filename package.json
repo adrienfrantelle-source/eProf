@@ -1,0 +1,9 @@
+{
+  "name": "eprof",
+  "version": "2.0.0",
+  "private": true,
+  "description": "eProf - plateforme enseignant (site statique + fonctions Vercel + Supabase)",
+  "engines": {
+    "node": ">=18"
+  }
+}

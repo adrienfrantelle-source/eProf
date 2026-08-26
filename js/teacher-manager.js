@@ -6,117 +6,127 @@ class TeacherManager {
         this.init();
     }
 
-    init() {
-        // Connexion automatique pour adfrantelle - plus besoin de saisir l'identifiant
-        this.login('adfrantelle');
-    }
+    async init() {
+        this.wireAuthGateForm();
 
-    showLoginModal() {
-        const modal = document.getElementById('teacher-login-modal');
-        if (!modal) {
-            this.createLoginModal();
+        const session = window.EprofStore ? await window.EprofStore.getSession() : null;
+        if (session && session.user && session.user.email) {
+            this.hideAuthGate();
+            await this.login(session.user.email.split('@')[0]);
         } else {
-            modal.style.display = 'block';
+            this.showAuthGate();
         }
-    }
 
-    createLoginModal() {
-        const modalHTML = `
-            <div id="teacher-login-modal" class="modal" style="display: block; backdrop-filter: blur(8px); background: rgba(0,0,0,0.5);">
-                <div class="modal-content" style="max-width: 550px; animation: slideDown 0.3s ease;">
-                    <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                        <div style="font-size: 4em; margin-bottom: 10px;">👨‍🏫</div>
-                        <h2 style="margin: 0; font-size: 1.8em; font-weight: 600;">Connexion Enseignant</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.95em;">Bienvenue sur eProf</p>
-                    </div>
-                    <div class="modal-body" style="padding: 40px 30px;">
-                        <form id="teacher-login-form">
-                            <div class="form-group" style="margin-bottom: 25px;">
-                                <label for="teacher-id" style="display: block; font-weight: 600; margin-bottom: 10px; color: #333; font-size: 1.05em;">
-                                    📝 Votre identifiant :
-                                </label>
-                                <input type="text" id="teacher-id" required autocomplete="username" 
-                                       placeholder="Exemple: adfrantelle, anboulord..."
-                                       style="width: 100%; padding: 15px; font-size: 1.1em; border: 2px solid #e0e0e0; border-radius: 8px; transition: all 0.3s; box-sizing: border-box;"
-                                       onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 3px rgba(102,126,234,0.1)'"
-                                       onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
-                                <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
-                                    💡 <strong>Votre email sera :</strong> <span style="color: #667eea; font-weight: 600;">[identifiant]@jeannedelanoue.com</span>
-                                </p>
-                            </div>
-                            <div class="form-actions" style="margin-top: 30px;">
-                                <button type="submit" class="btn-primary" 
-                                        style="width: 100%; padding: 16px; font-size: 1.15em; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(102,126,234,0.4);"
-                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102,126,234,0.6)'"
-                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102,126,234,0.4)'">
-                                    ✓ Se connecter
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            <style>
-                @keyframes slideDown {
-                    from { opacity: 0; transform: translateY(-50px); }
-                    to { opacity: 1; transform: translateY(0); }
+        if (window.eprofAuth) {
+            window.eprofAuth.onAuthStateChange((event) => {
+                if (event === 'SIGNED_OUT') {
+                    this.currentTeacher = null;
+                    this.showAuthGate();
                 }
-            </style>
-        `;
-        
-        document.body.insertAdjacentHTML('afterbegin', modalHTML);
-        
-        const form = document.getElementById('teacher-login-form');
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            const teacherId = document.getElementById('teacher-id').value.trim().toLowerCase();
-            if (teacherId) {
-                this.login(teacherId);
-            }
-        };
+            });
+        }
     }
 
-    login(teacherId) {
+    // ===== Porte de connexion (Supabase Auth) =====
+    showAuthGate() {
+        const gate = document.getElementById('eprof-auth-gate');
+        if (gate) gate.style.display = 'flex';
+    }
+
+    hideAuthGate() {
+        const gate = document.getElementById('eprof-auth-gate');
+        if (gate) gate.style.display = 'none';
+    }
+
+    wireAuthGateForm() {
+        const form = document.getElementById('eprof-auth-form');
+        if (!form) return;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorBox = document.getElementById('eprof-auth-error');
+            const submitBtn = document.getElementById('eprof-auth-submit');
+            const idInput = document.getElementById('eprof-auth-id');
+            const pwdInput = document.getElementById('eprof-auth-password');
+            if (errorBox) errorBox.style.display = 'none';
+
+            const identifiant = idInput.value.trim().toLowerCase();
+            const password = pwdInput.value;
+            if (!identifiant || !password) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Connexion...';
+
+            try {
+                if (!window.eprofAuth) {
+                    throw new Error('Service de connexion indisponible pour le moment.');
+                }
+                const email = `${identifiant}@jeannedelanoue.com`;
+                const { error } = await window.eprofAuth.signIn(email, password);
+                if (error) throw error;
+
+                pwdInput.value = '';
+                this.hideAuthGate();
+                await this.login(identifiant);
+            } catch (err) {
+                if (errorBox) {
+                    const message = err && err.message === 'Invalid login credentials'
+                        ? 'Identifiant ou mot de passe incorrect.'
+                        : (err && err.message) || 'Connexion impossible.';
+                    errorBox.textContent = '❌ ' + message;
+                    errorBox.style.display = 'block';
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Se connecter';
+            }
+        });
+    }
+
+    async login(teacherId) {
         this.currentTeacher = teacherId;
-        // Ne plus sauvegarder dans localStorage - connexion requise à chaque ouverture
-        // localStorage.setItem('eprof_currentTeacher', teacherId);
-        this.loadTeacherConfig();
-        
-        const modal = document.getElementById('teacher-login-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-        
-        // Mettre à jour l'interface AVANT de vérifier la config
+
+        await this.loadTeacherConfig();
+
         this.updateUI();
-        
-        // Forcer la mise à jour de l'email
         setTimeout(() => this.updateUI(), 100);
-        
-        // Vérifier si c'est la première connexion
+
         if (!this.teacherConfig.classes || this.teacherConfig.classes.length === 0) {
             this.showInitialConfig();
         }
-        
-        // Événement pour notifier les autres modules
+
         window.dispatchEvent(new CustomEvent('teacherLoggedIn', { detail: { teacherId } }));
-        
-        // Recharger les données selon l'enseignant
+
         this.reloadTeacherData();
     }
 
-    logout() {
-        if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-            this.currentTeacher = null;
-            // Plus besoin de supprimer de localStorage car on ne sauvegarde plus l'enseignant actuel
-            window.location.reload();
+    async logout() {
+        if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) return;
+        if (window.eprofAuth) {
+            await window.eprofAuth.signOut();
         }
+        window.location.reload();
     }
 
-    loadTeacherConfig() {
+    async loadTeacherConfig() {
         const configKey = `eprof_teacherConfig_${this.currentTeacher}`;
+
+        // Le profil en ligne fait foi quand l'enseignant est connecté à Supabase
+        if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
+            const teacherId = await window.EprofStore.getTeacherId();
+            const { data, error } = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
+            const profile = !error && data && data[0];
+            if (profile && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                this.teacherConfig = {
+                    classes: profile.classes,
+                    subjectsByClass: profile.subjects_by_class || {}
+                };
+                localStorage.setItem(configKey, JSON.stringify(this.teacherConfig));
+                return;
+            }
+        }
+
         const saved = localStorage.getItem(configKey);
-        
         if (saved) {
             this.teacherConfig = JSON.parse(saved);
         } else {
@@ -143,6 +153,40 @@ class TeacherManager {
     saveTeacherConfig() {
         const configKey = `eprof_teacherConfig_${this.currentTeacher}`;
         localStorage.setItem(configKey, JSON.stringify(this.teacherConfig));
+
+        // Synchronise aussi le profil en ligne (silencieux, sans bloquer l'UI)
+        if (window.EprofStore) {
+            (async () => {
+                if (!(await window.EprofStore.isOnlineReady())) return;
+                const teacherId = await window.EprofStore.getTeacherId();
+                const { error } = await window.EprofStore.upsert('profiles', [{
+                    id: teacherId,
+                    classes: this.teacherConfig.classes,
+                    subjects_by_class: this.teacherConfig.subjectsByClass
+                }], { onConflict: 'id' });
+                if (error) {
+                    console.error('❌ Synchronisation de la configuration enseignant échouée', error);
+                }
+            })();
+        }
+    }
+
+    // ===== Compte (gérés depuis la page Paramètres) =====
+    async changePassword(newPassword) {
+        if (!window.EprofStore) throw new Error('Supabase non configuré.');
+        const client = await window.EprofStore.getClient();
+        if (!client) throw new Error('Vous devez être connecté pour changer votre mot de passe.');
+        const { error } = await client.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+    }
+
+    async changeIdentifiant(newIdentifiant) {
+        if (!window.EprofStore) throw new Error('Supabase non configuré.');
+        const client = await window.EprofStore.getClient();
+        if (!client) throw new Error('Vous devez être connecté pour changer votre identifiant.');
+        const newEmail = `${newIdentifiant.trim().toLowerCase()}@jeannedelanoue.com`;
+        const { error } = await client.auth.updateUser({ email: newEmail });
+        if (error) throw error;
     }
 
     getDefaultSubjectsForClass(className) {

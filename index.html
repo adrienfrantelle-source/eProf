@@ -7,8 +7,28 @@
     <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/electron-portable.css">
+    <link rel="stylesheet" href="css/auth-gate.css">
 </head>
 <body>
+    <div id="eprof-auth-gate" class="eprof-auth-gate">
+        <div class="eprof-auth-card">
+            <img src="images/logo eProf.jpg" alt="eProf" class="eprof-auth-logo">
+            <h1>Connexion</h1>
+            <p class="eprof-auth-subtitle">Accédez à votre espace eProf</p>
+            <form id="eprof-auth-form" class="eprof-auth-form">
+                <label for="eprof-auth-id">Identifiant</label>
+                <div class="eprof-auth-id-wrap">
+                    <input type="text" id="eprof-auth-id" autocomplete="username" placeholder="ex : adfrantelle" required>
+                    <span class="eprof-auth-domain">@jeannedelanoue.com</span>
+                </div>
+                <label for="eprof-auth-password">Mot de passe</label>
+                <input type="password" id="eprof-auth-password" autocomplete="current-password" placeholder="••••••••" required>
+                <div id="eprof-auth-error" class="eprof-auth-error" style="display:none;"></div>
+                <button type="submit" id="eprof-auth-submit" class="eprof-auth-submit">Se connecter</button>
+            </form>
+            <p class="eprof-auth-hint">Identifiant et mot de passe fournis par l'établissement. En cas d'oubli, contactez l'administration.</p>
+        </div>
+    </div>
     <header>
         <div class="header-logo-title">
             <a href="index.html" title="Retour à l'accueil">
@@ -31,6 +51,7 @@
             </a>
         </div>
         <div class="header-user-info">
+            <span id="online-status-badge" class="online-status-badge online-status-offline" title="Statut de synchronisation">⚪ Hors ligne</span>
             <div class="user-name" id="user-name-display">Enseignant</div>
             <a href="#" target="_blank" class="user-email">identifiant@jeannedelanoue.com</a>
         </div>
@@ -145,6 +166,11 @@
             </div>
         </div>
     </div>
+    <!-- Supabase (mode en ligne) : doit être chargé avant supabase-client.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <!-- Socle générique d'accès aux données (Supabase + repli local) -->
+    <script src="js/eprof-store.js"></script>
     <!-- Bibliothèques locales pour conversions (mode portable 100%) -->
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/mammoth.browser.min.js"></script>

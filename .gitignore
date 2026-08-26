@@ -1,0 +1,19 @@
+# Environnement / secrets
+.env
+.env.local
+.env.*.local
+
+# Dépendances / outils
+node_modules/
+.venv/
+
+# Vercel
+.vercel/
+
+# Supabase CLI (état local)
+supabase/.branches/
+supabase/.temp/
+
+# Système
+.DS_Store
+Thumbs.db

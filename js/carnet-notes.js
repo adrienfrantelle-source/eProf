@@ -55,6 +55,8 @@ function initEventListeners() {
     const restorePortableBtn = document.getElementById('restore-portable-btn');
     const restoreFileInput = document.getElementById('restore-file-input');
     const configBtn = document.getElementById('config-btn');
+    const saveCloudBtn = document.getElementById('save-cloud-btn');
+    const loadCloudBtn = document.getElementById('load-cloud-btn');
     
     if (classSelect) {
         classSelect.addEventListener('change', handleClassChange);
@@ -97,6 +99,14 @@ function initEventListeners() {
         restoreFileInput.addEventListener('change', handleRestorePortable);
     }
     
+    if (saveCloudBtn) {
+        saveCloudBtn.addEventListener('click', handleSaveCloud);
+    }
+    
+    if (loadCloudBtn) {
+        loadCloudBtn.addEventListener('click', handleLoadCloud);
+    }
+    
     // Toggle évaluations
     const toggleEvalsBtn = document.getElementById('toggle-evals-btn');
     if (toggleEvalsBtn) {
@@ -122,7 +132,7 @@ function initClassSelector() {
     
     const classes = window.teacherManager.getTeacherClasses();
     if (classes && classes.length > 0) {
-        allowedClasses.forEach(className => {
+        classes.forEach(className => {
             const option = document.createElement('option');
             option.value = className;
             option.textContent = className;
@@ -1129,6 +1139,73 @@ remplacez js/carnet-notes-data.js dans votre dossier eProf par ce fichier.`);
     }
     
     e.target.value = '';
+}
+
+// ===== SYNCHRONISATION EN LIGNE (Supabase - table teacher_documents) =====
+// Le carnet de notes est encore adossé à des classes identifiées par leur nom
+// (pas encore de students/classes normalisés côté Supabase tant que les listes
+// 2026-2027 ne sont pas importées) : on synchronise donc tout le document
+// {evaluations, notes} en un seul bloc JSON, comme pour le plan de classe.
+const CARNET_DOC_TYPE = 'carnet_notes';
+
+async function handleSaveCloud() {
+    if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+        alert('☁️ Connectez-vous à votre compte eProf pour sauvegarder le carnet de notes en ligne.');
+        return;
+    }
+
+    const teacherId = await window.EprofStore.getTeacherId();
+    const { error } = await window.EprofStore.upsert('teacher_documents', [{
+        teacher_id: teacherId,
+        doc_type: CARNET_DOC_TYPE,
+        data: { evaluations, notes }
+    }], { onConflict: 'teacher_id,doc_type' });
+
+    if (error) {
+        alert('❌ Erreur lors de la sauvegarde en ligne : ' + error.message);
+        return;
+    }
+
+    const totalEvals = Object.values(evaluations).reduce((sum, evals) => sum + evals.length, 0);
+    alert(`✅ Carnet de notes sauvegardé en ligne !\n\n📊 ${Object.keys(evaluations).length} classe(s), ${totalEvals} évaluation(s).`);
+}
+
+async function handleLoadCloud() {
+    if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+        alert('☁️ Connectez-vous à votre compte eProf pour charger le carnet de notes depuis le cloud.');
+        return;
+    }
+
+    const teacherId = await window.EprofStore.getTeacherId();
+    const { data, error } = await window.EprofStore.list('teacher_documents', {
+        filters: { teacher_id: teacherId, doc_type: CARNET_DOC_TYPE }
+    });
+
+    if (error) {
+        alert('❌ Erreur lors du chargement en ligne : ' + error.message);
+        return;
+    }
+
+    const doc = data && data[0];
+    if (!doc || !doc.data) {
+        alert('ℹ️ Aucune sauvegarde en ligne trouvée pour ce compte.');
+        return;
+    }
+
+    if (!confirm('Charger le carnet de notes depuis le cloud ?\n\n⚠️ Cela remplacera vos données actuelles sur cet appareil.')) {
+        return;
+    }
+
+    evaluations = doc.data.evaluations || {};
+    notes = doc.data.notes || {};
+    saveData();
+
+    if (currentClass) {
+        renderEvaluations();
+        renderNotesTable();
+    }
+
+    alert('✅ Carnet de notes chargé depuis le cloud !');
 }
 
 // ===== TOGGLE LISTE DES ÉVALUATIONS =====

@@ -1,0 +1,155 @@
+/* ===== ÉCRAN DE CONNEXION eProf (Supabase Auth) ===== */
+.eprof-auth-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.eprof-auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    padding: 40px 34px;
+    text-align: center;
+    animation: eprofAuthSlideUp 0.35s ease;
+}
+
+@keyframes eprofAuthSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.eprof-auth-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    object-fit: cover;
+    margin-bottom: 12px;
+}
+
+.eprof-auth-card h1 {
+    margin: 0 0 4px 0;
+    font-size: 1.5em;
+    color: #1a2236;
+}
+
+.eprof-auth-subtitle {
+    margin: 0 0 26px 0;
+    color: #667085;
+    font-size: 0.95em;
+}
+
+.eprof-auth-form {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.eprof-auth-form label {
+    font-weight: 600;
+    color: #344054;
+    font-size: 0.9em;
+    margin-top: 10px;
+}
+
+.eprof-auth-form input {
+    width: 100%;
+    padding: 13px 14px;
+    border: 2px solid #e4e7ec;
+    border-radius: 9px;
+    font-size: 1em;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.eprof-auth-form input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.eprof-auth-id-wrap {
+    display: flex;
+    align-items: stretch;
+    border: 2px solid #e4e7ec;
+    border-radius: 9px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.eprof-auth-id-wrap:focus-within {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.eprof-auth-id-wrap input {
+    border: none;
+    border-radius: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.eprof-auth-id-wrap input:focus {
+    box-shadow: none;
+}
+
+.eprof-auth-domain {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    background: #f2f4f7;
+    color: #667085;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.eprof-auth-submit {
+    margin-top: 22px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 1.05em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4);
+}
+
+.eprof-auth-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(102, 126, 234, 0.5);
+}
+
+.eprof-auth-submit:disabled {
+    opacity: 0.7;
+    cursor: wait;
+    transform: none;
+}
+
+.eprof-auth-error {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    border-radius: 8px;
+    font-size: 0.88em;
+}
+
+.eprof-auth-hint {
+    margin: 18px 0 0 0;
+    font-size: 0.8em;
+    color: #98a2b3;
+    line-height: 1.5;
+}

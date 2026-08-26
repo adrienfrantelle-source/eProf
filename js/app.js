@@ -34,6 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
         footerVersion.textContent = `Version ${info.version}`;
     }
 
+    // Badge "en ligne / hors ligne" dans le header, reflète l'état réel Supabase
+    async function updateOnlineStatusBadge() {
+        const badge = document.getElementById('online-status-badge');
+        if (!badge || !window.EprofStore) return;
+        const online = await window.EprofStore.isOnlineReady();
+        badge.textContent = online ? '🟢 En ligne' : '⚪ Hors ligne';
+        badge.classList.toggle('online-status-online', online);
+        badge.classList.toggle('online-status-offline', !online);
+    }
+    updateOnlineStatusBadge();
+    if (window.eprofAuth) {
+        window.eprofAuth.onAuthStateChange(() => updateOnlineStatusBadge());
+    }
+
     const aboutTrigger = document.getElementById('about-modal-trigger');
     const aboutModal = document.getElementById('about-modal');
     const closeAboutModal = document.getElementById('close-about-modal');
@@ -81,12 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Erreur updateNotifications:', e);
         }
     }, 100);
-    
-    // Charger et afficher les informations enseignant
-    const parametresSaved = JSON.parse(localStorage.getItem('parametres') || '{}');
-    if (parametresSaved && parametresSaved.enseignant) {
-        updateHeaderUserInfo(parametresSaved);
-    }
     
     updateFooterVersion();
     
@@ -375,9 +383,9 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.querySelector('.calendar-image-backdrop').addEventListener('click', function() { modal.remove(); });
         }
 
-        function startFullCalendar() {
+        async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
-            var events = loadEventsFromStorage();
+            var events = await loadCalendarEvents();
 
             var joursFeries = [
                 { title: '🎉 Jour de l\'An', start: '2026-01-01', allDay: true },
@@ -532,9 +540,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-            calendar.on('eventAdd', function() { saveEventsToStorage(calendar.getEvents()); });
-            calendar.on('eventRemove', function() { saveEventsToStorage(calendar.getEvents()); });
-            calendar.on('eventChange', function() { saveEventsToStorage(calendar.getEvents()); });
+            calendar.on('eventAdd', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventAdd(info.event); });
+            calendar.on('eventRemove', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventRemove(info.event); });
+            calendar.on('eventChange', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventChange(info.event); });
             calendar.render();
         }
             // Modale détails événement
@@ -771,10 +779,16 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.onclick = function(e) { if (e.target === modal) closeModal(); };
     }
 
-    // Persistance des événements (localStorage)
+    // Persistance locale des événements (cache hors-ligne, toujours tenu à jour)
+    // Note : les jours fériés / vacances scolaires n'ont pas de extendedProps.type,
+    // on les exclut donc pour ne jamais les dupliquer en "événement utilisateur".
+    function isUserCalendarEvent(ev) {
+        return !!(ev && ev.extendedProps && typeof ev.extendedProps.type !== 'undefined');
+    }
     function saveEventsToStorage(events) {
-        var data = events.map(function(ev) {
+        var data = events.filter(isUserCalendarEvent).map(function(ev) {
             return {
+                id: ev.id || null,
                 title: ev.title,
                 start: ev.start ? ev.start.toISOString() : null,
                 end: ev.end ? ev.end.toISOString() : null,
@@ -793,6 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
             var data = JSON.parse(localStorage.getItem('eprof-events') || '[]');
             return data.map(function(ev) {
                 return {
+                    id: ev.id || undefined,
                     title: ev.title,
                     start: ev.start,
                     end: ev.end,
@@ -803,6 +818,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             });
         } catch(e) { return []; }
+    }
+
+    // ===== Synchronisation en ligne (Supabase) =====
+    function isUuid(value) {
+        return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    }
+    function calendarEventToRow(ev, teacherId) {
+        return {
+            teacher_id: teacherId,
+            title: ev.title,
+            event_type: ev.extendedProps.type || 'event',
+            lieu: ev.extendedProps.lieu || null,
+            description: ev.extendedProps.description || null,
+            start_at: ev.start ? ev.start.toISOString() : null,
+            end_at: ev.end ? ev.end.toISOString() : null,
+            all_day: !!ev.allDay
+        };
+    }
+    async function loadCalendarEvents() {
+        var online = window.EprofStore && await window.EprofStore.isOnlineReady();
+        if (!online) return loadEventsFromStorage();
+
+        var teacherId = await window.EprofStore.getTeacherId();
+        var result = await window.EprofStore.list('calendar_events', { filters: { teacher_id: teacherId }, orderBy: 'start_at' });
+        if (result.error || !result.data) {
+            console.warn('⚠️ Calendrier : bascule sur le cache local (Supabase indisponible).', result.error);
+            return loadEventsFromStorage();
+        }
+
+        var events = result.data.map(function(row) {
+            return {
+                id: row.id,
+                title: row.title,
+                start: row.start_at,
+                end: row.end_at || undefined,
+                allDay: row.all_day,
+                description: row.description || '',
+                type: row.event_type || 'event',
+                lieu: row.lieu || ''
+            };
+        });
+
+        try {
+            localStorage.setItem('eprof-events', JSON.stringify(events));
+        } catch (e) {}
+
+        return events;
+    }
+    async function syncCalendarEventAdd(ev) {
+        if (!isUserCalendarEvent(ev) || !window.EprofStore) return;
+        var teacherId = await window.EprofStore.getTeacherId();
+        if (!teacherId) return; // hors ligne : reste uniquement dans le cache local
+        var result = await window.EprofStore.insert('calendar_events', calendarEventToRow(ev, teacherId));
+        if (!result.error && result.data && result.data.id) {
+            ev.setProp('id', result.data.id); // aligne l'id local sur l'id Supabase pour les prochaines maj/suppr
+        }
+    }
+    async function syncCalendarEventChange(ev) {
+        if (!isUserCalendarEvent(ev) || !window.EprofStore) return;
+        var teacherId = await window.EprofStore.getTeacherId();
+        if (!teacherId) return;
+        if (!isUuid(ev.id)) return syncCalendarEventAdd(ev); // jamais synchronisé -> on le crée maintenant
+        await window.EprofStore.update('calendar_events', ev.id, calendarEventToRow(ev, teacherId));
+    }
+    async function syncCalendarEventRemove(ev) {
+        if (!isUserCalendarEvent(ev) || !window.EprofStore || !isUuid(ev.id)) return;
+        await window.EprofStore.remove('calendar_events', ev.id);
     }
 
     // Conversion fusionnée
@@ -5096,15 +5178,30 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             </div>
         `;
 
-        // Charger les jeux depuis le fichier JavaScript embarqué ou localStorage en fallback
+        // Charger les jeux : priorité Supabase (si connecté), puis fichier embarqué, puis localStorage
         let jeux = [];
-        
-        // Priorité 1: Charger depuis JEUX_PEDAGOGIQUES si défini
-        if (typeof JEUX_PEDAGOGIQUES !== 'undefined' && Array.isArray(JEUX_PEDAGOGIQUES) && JEUX_PEDAGOGIQUES.length > 0) {
-            jeux = [...JEUX_PEDAGOGIQUES];
-        } else {
-            // Priorité 2: localStorage en fallback
-            jeux = JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]');
+
+        async function loadJeux() {
+            const online = window.EprofStore && await window.EprofStore.isOnlineReady();
+            if (online) {
+                const teacherId = await window.EprofStore.getTeacherId();
+                const { data, error } = await window.EprofStore.list('pedagogical_games', {
+                    filters: { teacher_id: teacherId },
+                    orderBy: 'created_at'
+                });
+                if (!error && data) {
+                    jeux = data.map(function(row) { return { id: row.id, titre: row.title, url: row.url }; });
+                    try { localStorage.setItem('jeuxPedagogiques', JSON.stringify(jeux)); } catch (e) {}
+                    return;
+                }
+                console.warn('⚠️ Jeux pédagogiques : bascule sur le cache local (Supabase indisponible).', error);
+            }
+
+            if (typeof JEUX_PEDAGOGIQUES !== 'undefined' && Array.isArray(JEUX_PEDAGOGIQUES) && JEUX_PEDAGOGIQUES.length > 0) {
+                jeux = [...JEUX_PEDAGOGIQUES];
+            } else {
+                jeux = JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]');
+            }
         }
 
         function afficherJeux(filtreTexte = '') {
@@ -5129,7 +5226,7 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                             <div class="jeu-card">
                                 <div class="jeu-card-header">
                                     <h4>${jeu.titre}</h4>
-                                    <button class="btn-supprimer-jeu" data-titre="${jeu.titre}">🗑️</button>
+                                    <button class="btn-supprimer-jeu" data-titre="${jeu.titre}" data-id="${jeu.id || ''}">🗑️</button>
                                 </div>
                                 <a href="${jeu.url}" target="_blank" class="jeu-link">
                                     <div class="jeu-icon">🎮</div>
@@ -5143,12 +5240,16 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
 
                 // Boutons supprimer
                 container.querySelectorAll('.btn-supprimer-jeu').forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', async function() {
                         const titre = this.getAttribute('data-titre');
+                        const gameId = this.getAttribute('data-id');
                         const index = jeux.findIndex(j => j.titre === titre);
                         if (index !== -1 && confirm(`Supprimer le jeu "${jeux[index].titre}" ?`)) {
                             jeux.splice(index, 1);
                             sauvegarderJeux();
+                            if (gameId && window.EprofStore) {
+                                window.EprofStore.remove('pedagogical_games', gameId);
+                            }
                             const rechercheInput = container.querySelector('#recherche-jeu');
                             afficherJeux(rechercheInput ? rechercheInput.value : '');
                         }
@@ -5235,7 +5336,7 @@ if (typeof module !== 'undefined' && module.exports) {
         const titreInput = container.querySelector('#jeu-titre');
         const urlInput = container.querySelector('#jeu-url');
 
-        ajouterBtn.addEventListener('click', function() {
+        ajouterBtn.addEventListener('click', async function() {
             const titre = titreInput.value.trim();
             const url = urlInput.value.trim();
 
@@ -5249,9 +5350,23 @@ if (typeof module !== 'undefined' && module.exports) {
                 return;
             }
 
-            jeux.push({ titre, url });
+            const nouveauJeu = { titre, url };
+            jeux.push(nouveauJeu);
             sauvegarderJeux();
-            
+
+            if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
+                const teacherId = await window.EprofStore.getTeacherId();
+                const { data, error } = await window.EprofStore.insert('pedagogical_games', {
+                    teacher_id: teacherId,
+                    title: titre,
+                    url: url
+                });
+                if (!error && data && data.id) {
+                    nouveauJeu.id = data.id;
+                    sauvegarderJeux();
+                }
+            }
+
             titreInput.value = '';
             urlInput.value = '';
             
@@ -5271,13 +5386,13 @@ if (typeof module !== 'undefined' && module.exports) {
             afficherJeux(this.value);
         });
 
-        afficherJeux();
+        loadJeux().then(function() { afficherJeux(); });
     }
 
     // ========================================
     // PARAMÈTRES
     // ========================================
-    function renderParametres(container) {
+    async function renderParametres(container) {
         // Charger les paramètres depuis localStorage
         let parametres = JSON.parse(localStorage.getItem('parametres') || JSON.stringify({
             enseignant: { nom: '', prenom: '', matiere: '', etablissement: '', email: '' },
@@ -5288,6 +5403,21 @@ if (typeof module !== 'undefined' && module.exports) {
             notation: { systeme: 'sur20', seuilTresBien: 16, seuilBien: 14, seuilAssezBien: 12, seuilPassable: 10 },
             periodes: {} // Structure: { "2nde LCQ": { type: "trimestres", trimestres: [{nom, debut, fin}] }, ... }
         }));
+
+        // Si un enseignant est connecté en ligne, le profil Supabase fait foi pour ses infos perso
+        if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
+            const teacherId = await window.EprofStore.getTeacherId();
+            const { data, error } = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
+            const profile = !error && data && data[0];
+            if (profile) {
+                parametres.enseignant.nom = profile.nom || parametres.enseignant.nom;
+                parametres.enseignant.prenom = profile.prenom || parametres.enseignant.prenom;
+                parametres.enseignant.matiere = profile.matiere || parametres.enseignant.matiere;
+                parametres.enseignant.etablissement = profile.etablissement || parametres.enseignant.etablissement;
+                parametres.enseignant.email = profile.email || parametres.enseignant.email;
+                localStorage.setItem('parametres', JSON.stringify(parametres));
+            }
+        }
 
         container.innerHTML = `
             <div id="parametres-module">
@@ -5434,6 +5564,35 @@ if (typeof module !== 'undefined' && module.exports) {
                         </div>
                     </div>
 
+                    <!-- Section 8: Compte (identifiant / mot de passe) -->
+                    <div class="param-section">
+                        <h3>🔐 Mon compte</h3>
+                        <div class="param-form">
+                            <div class="param-row">
+                                <label>Nouvel identifiant :</label>
+                                <input type="text" id="param-nouvel-identifiant" placeholder="ex : adfrantelle" autocomplete="username">
+                            </div>
+                            <div class="param-actions">
+                                <button id="btn-changer-identifiant" class="btn-action btn-primary">✏️ Changer mon identifiant</button>
+                            </div>
+                            <div class="param-row" style="margin-top: 16px;">
+                                <label>Nouveau mot de passe :</label>
+                                <input type="password" id="param-nouveau-mdp" placeholder="8 caractères minimum" autocomplete="new-password">
+                            </div>
+                            <div class="param-row">
+                                <label>Confirmer le mot de passe :</label>
+                                <input type="password" id="param-confirmer-mdp" placeholder="Ressaisir le mot de passe" autocomplete="new-password">
+                            </div>
+                            <div class="param-actions">
+                                <button id="btn-changer-mdp" class="btn-action btn-primary">🔑 Changer mon mot de passe</button>
+                            </div>
+                            <div id="param-compte-message" style="margin-top: 10px; font-size: 0.9em;"></div>
+                            <div class="param-actions" style="margin-top: 16px;">
+                                <button id="btn-deconnexion" class="btn-action btn-danger">🚪 Se déconnecter</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Bouton de sauvegarde général -->
                     <div class="param-save">
                         <button id="btn-sauvegarder-parametres" class="btn-save">
@@ -5446,9 +5605,13 @@ if (typeof module !== 'undefined' && module.exports) {
         `;
 
         // ===== GESTION DES PÉRIODES PAR CLASSE =====
+        // Note : la sélection de classe (#param-classe-select) n'existe plus dans ce
+        // gabarit tant que les listes 2026-2027 ne sont pas importées ; on protège
+        // donc ce bloc pour ne pas casser le reste de la page Paramètres.
         const classeSelect = container.querySelector('#param-classe-select');
         const configPeriodesDiv = container.querySelector('#config-periodes-classe');
 
+        if (classeSelect && configPeriodesDiv) {
         classeSelect.addEventListener('change', function() {
             const classe = this.value;
             if (!classe) {
@@ -5583,10 +5746,77 @@ if (typeof module !== 'undefined' && module.exports) {
 
             afficherPeriodes();
         });
+        }
+
+        // ===== COMPTE (identifiant / mot de passe) =====
+        const compteMessage = container.querySelector('#param-compte-message');
+        function afficherMessageCompte(texte, succes) {
+            if (!compteMessage) return;
+            compteMessage.textContent = texte;
+            compteMessage.style.color = succes ? '#059669' : '#dc2626';
+        }
+
+        const btnChangerIdentifiant = container.querySelector('#btn-changer-identifiant');
+        if (btnChangerIdentifiant) {
+            btnChangerIdentifiant.addEventListener('click', async function() {
+                if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+                    afficherMessageCompte('☁️ Connectez-vous à votre compte eProf pour changer votre identifiant.', false);
+                    return;
+                }
+                const nouvelIdentifiant = container.querySelector('#param-nouvel-identifiant').value.trim().toLowerCase();
+                if (!nouvelIdentifiant) {
+                    afficherMessageCompte('⚠️ Saisissez un nouvel identifiant.', false);
+                    return;
+                }
+                try {
+                    await window.teacherManager.changeIdentifiant(nouvelIdentifiant);
+                    afficherMessageCompte(`✅ Identifiant changé pour "${nouvelIdentifiant}". Reconnectez-vous avec ce nouvel identifiant si nécessaire.`, true);
+                } catch (error) {
+                    afficherMessageCompte('❌ ' + error.message, false);
+                }
+            });
+        }
+
+        const btnChangerMdp = container.querySelector('#btn-changer-mdp');
+        if (btnChangerMdp) {
+            btnChangerMdp.addEventListener('click', async function() {
+                if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+                    afficherMessageCompte('☁️ Connectez-vous à votre compte eProf pour changer votre mot de passe.', false);
+                    return;
+                }
+                const nouveauMdp = container.querySelector('#param-nouveau-mdp').value;
+                const confirmMdp = container.querySelector('#param-confirmer-mdp').value;
+                if (!nouveauMdp || nouveauMdp.length < 8) {
+                    afficherMessageCompte('⚠️ Le mot de passe doit contenir au moins 8 caractères.', false);
+                    return;
+                }
+                if (nouveauMdp !== confirmMdp) {
+                    afficherMessageCompte('⚠️ Les deux mots de passe ne correspondent pas.', false);
+                    return;
+                }
+                try {
+                    await window.teacherManager.changePassword(nouveauMdp);
+                    container.querySelector('#param-nouveau-mdp').value = '';
+                    container.querySelector('#param-confirmer-mdp').value = '';
+                    afficherMessageCompte('✅ Mot de passe changé avec succès.', true);
+                } catch (error) {
+                    afficherMessageCompte('❌ ' + error.message, false);
+                }
+            });
+        }
+
+        const btnDeconnexion = container.querySelector('#btn-deconnexion');
+        if (btnDeconnexion) {
+            btnDeconnexion.addEventListener('click', function() {
+                if (window.teacherManager) {
+                    window.teacherManager.logout();
+                }
+            });
+        }
 
         // ===== SAUVEGARDE DES PARAMÈTRES =====
         const btnSauvegarder = container.querySelector('#btn-sauvegarder-parametres');
-        btnSauvegarder.addEventListener('click', function() {
+        btnSauvegarder.addEventListener('click', async function() {
             parametres.enseignant.nom = container.querySelector('#param-nom').value;
             parametres.enseignant.prenom = container.querySelector('#param-prenom').value;
             parametres.enseignant.matiere = container.querySelector('#param-matiere').value;
@@ -5617,9 +5847,22 @@ if (typeof module !== 'undefined' && module.exports) {
             // Appliquer le thème
             appliquerTheme(parametres.affichage.theme);
             appliquerTaillePolice(parametres.affichage.taillePolice);
-            
-            // Mettre à jour le header
-            updateHeaderUserInfo(parametres);
+
+            // Synchroniser le profil enseignant en ligne (si connecté)
+            if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
+                const teacherId = await window.EprofStore.getTeacherId();
+                const { error } = await window.EprofStore.upsert('profiles', [{
+                    id: teacherId,
+                    nom: parametres.enseignant.nom,
+                    prenom: parametres.enseignant.prenom,
+                    matiere: parametres.enseignant.matiere,
+                    etablissement: parametres.enseignant.etablissement,
+                    email: parametres.enseignant.email
+                }], { onConflict: 'id' });
+                if (error) {
+                    console.error('❌ Synchronisation du profil en ligne échouée', error);
+                }
+            }
             
             alert('✅ Paramètres enregistrés avec succès !');
         });
@@ -5697,25 +5940,6 @@ if (typeof module !== 'undefined' && module.exports) {
     }
 
     // Fonction pour mettre à jour les informations dans le header
-    function updateHeaderUserInfo(parametres) {
-        const userNameDisplay = document.getElementById('user-name-display');
-        if (userNameDisplay && parametres && parametres.enseignant) {
-            const nom = parametres.enseignant.nom || '';
-            const prenom = parametres.enseignant.prenom || '';
-            const matiere = parametres.enseignant.matiere || '';
-            
-            if (nom || prenom) {
-                let displayText = `${prenom} ${nom}`.trim();
-                if (matiere) {
-                    displayText += ` - ${matiere}`;
-                }
-                userNameDisplay.textContent = displayText;
-            } else {
-                userNameDisplay.textContent = 'Enseignant';
-            }
-        }
-    }
-
     // Fonctions pour appliquer le thème et la taille de police
     function appliquerTheme(theme) {
         if (theme === 'sombre') {
@@ -5833,9 +6057,11 @@ if (typeof module !== 'undefined' && module.exports) {
 
                 <div class="plan-actions">
                     <button id="reset-plan-btn" class="btn-secondary">🔄 Réinitialiser le plan</button>
-                    <button id="load-plan-btn" class="btn-secondary">📂 Charger un plan</button>
+                    <button id="load-plan-btn" class="btn-secondary">📂 Charger un plan (fichier)</button>
                     <input type="file" id="load-plan-input" accept=".json" style="display: none;">
-                    <button id="save-plan-btn" class="btn-primary">💾 Enregistrer le plan</button>
+                    <button id="save-plan-btn" class="btn-primary">💾 Enregistrer le plan (fichier)</button>
+                    <button id="save-plan-cloud-btn" class="btn-primary">☁️ Enregistrer en ligne</button>
+                    <button id="load-plan-cloud-btn" class="btn-secondary">📚 Mes plans en ligne</button>
                     <button id="export-plan-pdf-btn" class="btn-primary">📥 Exporter en PDF</button>
                 </div>
             </div>
@@ -5882,6 +6108,8 @@ if (typeof module !== 'undefined' && module.exports) {
         const savePlanBtn = container.querySelector('#save-plan-btn');
         const loadPlanBtn = container.querySelector('#load-plan-btn');
         const loadPlanInput = container.querySelector('#load-plan-input');
+        const savePlanCloudBtn = container.querySelector('#save-plan-cloud-btn');
+        const loadPlanCloudBtn = container.querySelector('#load-plan-cloud-btn');
         const exportPlanPdfBtn = container.querySelector('#export-plan-pdf-btn');
         const elevesDisponibles = container.querySelector('#eleves-disponibles');
         const ajoutEleveInput = container.querySelector('#ajout-eleve-input');
@@ -6132,6 +6360,113 @@ if (typeof module !== 'undefined' && module.exports) {
         loadPlanBtn.addEventListener('click', function() {
             loadPlanInput.click();
         });
+
+        // ===== Enregistrement / chargement en ligne (Supabase - table class_plans) =====
+        savePlanCloudBtn.addEventListener('click', async function() {
+            if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+                alert('☁️ Connectez-vous à votre compte eProf pour enregistrer un plan en ligne.');
+                return;
+            }
+            const nomPlan = prompt('📝 Nom du plan à enregistrer en ligne :', 'plan-classe-' + new Date().toISOString().slice(0, 10));
+            if (!nomPlan) return;
+
+            const plan = capturerPlan(container, modePersonnalise);
+            plan.nomPlan = nomPlan;
+
+            const teacherId = await window.EprofStore.getTeacherId();
+            const { error } = await window.EprofStore.insert('class_plans', {
+                teacher_id: teacherId,
+                name: nomPlan,
+                data: plan
+            });
+
+            if (error) {
+                alert('❌ Erreur lors de l\'enregistrement en ligne : ' + error.message);
+            } else {
+                alert(`✅ Plan "${nomPlan}" enregistré en ligne !`);
+            }
+        });
+
+        loadPlanCloudBtn.addEventListener('click', async function() {
+            if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+                alert('☁️ Connectez-vous à votre compte eProf pour accéder à vos plans en ligne.');
+                return;
+            }
+
+            const teacherId = await window.EprofStore.getTeacherId();
+            const { data, error } = await window.EprofStore.list('class_plans', {
+                filters: { teacher_id: teacherId },
+                orderBy: 'updated_at',
+                ascending: false
+            });
+
+            if (error) {
+                alert('❌ Impossible de récupérer vos plans en ligne : ' + error.message);
+                return;
+            }
+
+            showCloudPlansModal(data || []);
+        });
+
+        function showCloudPlansModal(plans) {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 2em;';
+
+            const listHtml = plans.length ? plans.map(function(row) {
+                const created = row.updated_at ? new Date(row.updated_at).toLocaleString('fr-FR') : '';
+                return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:1em;padding:0.8em 1em;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:0.6em;">
+                        <div>
+                            <div style="font-weight:600;color:#1a2236;">${row.name}</div>
+                            <div style="font-size:0.8em;color:#64748b;">${created}</div>
+                        </div>
+                        <div style="display:flex;gap:0.5em;">
+                            <button class="btn-primary cloud-plan-load" data-id="${row.id}">📂 Charger</button>
+                            <button class="btn-secondary cloud-plan-delete" data-id="${row.id}">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('') : '<p style="color:#888;font-style:italic;">Aucun plan enregistré en ligne pour le moment.</p>';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; max-width: 560px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 2em; position: relative;">
+                    <button id="close-cloud-plans-modal" style="position: absolute; top: 1em; right: 1em; background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1.2em;">×</button>
+                    <h2 style="margin: 0 0 1em 0; color: #1a2236;">📚 Mes plans en ligne</h2>
+                    ${listHtml}
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            modal.querySelector('#close-cloud-plans-modal').addEventListener('click', function() { modal.remove(); });
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+
+            modal.querySelectorAll('.cloud-plan-load').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const row = plans.find(function(p) { return p.id === btn.getAttribute('data-id'); });
+                    if (!row) return;
+                    modePersonnalise = !!row.data.modePersonnalise;
+                    restaurerPlan(row.data, container);
+                    modal.remove();
+                    alert(`✅ Plan "${row.name}" chargé !`);
+                });
+            });
+
+            modal.querySelectorAll('.cloud-plan-delete').forEach(function(btn) {
+                btn.addEventListener('click', async function() {
+                    const row = plans.find(function(p) { return p.id === btn.getAttribute('data-id'); });
+                    if (!row) return;
+                    if (!confirm(`Supprimer le plan "${row.name}" de votre espace en ligne ?`)) return;
+                    const { error } = await window.EprofStore.remove('class_plans', row.id);
+                    if (error) {
+                        alert('❌ Erreur lors de la suppression : ' + error.message);
+                        return;
+                    }
+                    modal.remove();
+                    showCloudPlansModal(plans.filter(function(p) { return p.id !== row.id; }));
+                });
+            });
+        }
 
         loadPlanInput.addEventListener('change', function(e) {
             const file = e.target.files[0];

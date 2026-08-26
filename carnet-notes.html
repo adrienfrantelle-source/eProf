@@ -7,9 +7,29 @@
     <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
     <link rel="stylesheet" href="css/carnet-notes.css">
     <link rel="stylesheet" href="css/electron-portable.css">
+    <link rel="stylesheet" href="css/auth-gate.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+    <div id="eprof-auth-gate" class="eprof-auth-gate">
+        <div class="eprof-auth-card">
+            <img src="images/logo eProf.jpg" alt="eProf" class="eprof-auth-logo">
+            <h1>Connexion</h1>
+            <p class="eprof-auth-subtitle">Accédez à votre espace eProf</p>
+            <form id="eprof-auth-form" class="eprof-auth-form">
+                <label for="eprof-auth-id">Identifiant</label>
+                <div class="eprof-auth-id-wrap">
+                    <input type="text" id="eprof-auth-id" autocomplete="username" placeholder="ex : adfrantelle" required>
+                    <span class="eprof-auth-domain">@jeannedelanoue.com</span>
+                </div>
+                <label for="eprof-auth-password">Mot de passe</label>
+                <input type="password" id="eprof-auth-password" autocomplete="current-password" placeholder="••••••••" required>
+                <div id="eprof-auth-error" class="eprof-auth-error" style="display:none;"></div>
+                <button type="submit" id="eprof-auth-submit" class="eprof-auth-submit">Se connecter</button>
+            </form>
+            <p class="eprof-auth-hint">Identifiant et mot de passe fournis par l'établissement. En cas d'oubli, contactez l'administration.</p>
+        </div>
+    </div>
     <header>
         <h1>📓 Carnet de Notes</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -35,6 +55,8 @@
                 <input type="file" id="restore-file-input" accept=".js" style="display: none;">
                 <button id="import-data-btn" class="btn-secondary" title="Importer les données depuis les fichiers CSV">📥 Import CSV</button>
                 <button id="export-data-btn" class="btn-secondary" title="Exporter les données en CSV">📤 Export CSV</button>
+                <button id="save-cloud-btn" class="btn-secondary" title="Sauvegarder les évaluations et notes en ligne" style="background: #0ea5e9; color: white;">☁️ Sauvegarder en ligne</button>
+                <button id="load-cloud-btn" class="btn-secondary" title="Charger les évaluations et notes depuis le cloud" style="background: #6366f1; color: white;">☁️ Charger depuis le cloud</button>
             </div>
         </div>
 
@@ -263,6 +285,10 @@
         </div>
     </div>
 
+    <!-- Supabase (mode en ligne) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/eprof-store.js"></script>
     <script src="js/listes-eleves.js"></script>
     <script src="js/teacher-manager.js"></script>
     <script src="js/electron-auto-save.js"></script>
