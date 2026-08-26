@@ -22,19 +22,35 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0003_profiles_name_fields.sql` : ajoute les colonnes `nom`/`prenom` au profil.
    - `0004_profiles_teacher_config.sql` : ajoute les colonnes `classes` et
      `subjects_by_class` (config choisie à la première connexion).
+   - `0005_allowed_teachers.sql` : liste blanche `allowed_teachers` + fonction
+     `is_identifiant_available` + mise à jour du trigger `handle_new_user`
+     pour restreindre l'auto-inscription aux identifiants autorisés.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
-4. Dans **Authentication → Providers**, garder uniquement **Email** activé.
-   `enable_signup` est désactivé dans `supabase/config.toml` : les comptes
-   enseignants sont créés manuellement (Authentication → Users → Add user)
-   ou via un script d'invitation, pas via une inscription publique.
+4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
+   sign up"** activé (l'auto-inscription est gérée et restreinte côté base de
+   données, pas ici) et désactiver **"Confirm email"** (sinon le compte reste
+   bloqué en attente de confirmation après l'inscription).
 
-## 2. Créer les comptes enseignants
+## 2. Autoriser des enseignants à créer leur compte
 
-Dans **Authentication → Users → Add user**, créer un compte par enseignant
-avec son email `@jeannedelanoue.com` et un mot de passe temporaire (à faire
-changer à la première connexion). Un trigger (`handle_new_user`) crée
-automatiquement la ligne `profiles` correspondante.
+L'inscription se fait en libre-service sur le site (écran de connexion →
+"Créer mon compte"), mais uniquement pour les identifiants que tu ajoutes
+toi-même à la liste blanche. Dans **SQL Editor** :
+
+```sql
+insert into public.allowed_teachers (identifiant, nom, prenom, matiere)
+values
+  ('adfrantelle', 'Frantelle', 'Adrien', 'Histoire-Géographie'),
+  ('anboulord', 'Boulord', 'Anne', 'Mathématiques');
+```
+
+- L'enseignant se connecte ensuite avec `identifiant` + le mot de passe de son
+  choix ; l'email envoyé à Supabase est toujours `identifiant@jeannedelanoue.com`.
+- Une fois l'inscription utilisée, `is_registered` passe à `true` et cet
+  identifiant ne peut plus servir à créer un second compte.
+- Le trigger `handle_new_user` crée automatiquement la ligne `profiles`
+  correspondante (pré-remplie avec nom/prénom/matière si fournis ci-dessus).
 
 ## 3. Déployer sur Vercel
 
@@ -128,9 +144,21 @@ l'email envoyé à Supabase est toujours `identifiant@jeannedelanoue.com`
 - **Gestion du compte** : changement de mot de passe et d'identifiant depuis
   **Paramètres → 🔐 Mon compte** (`window.teacherManager.changePassword(...)`
   / `changeIdentifiant(...)`), ainsi que la déconnexion.
-- Tant qu'aucun compte Supabase n'existe pour un identifiant donné, la
-  connexion échoue avec un message clair : créez le compte dans
-  **Authentication → Users** (section 2 ci-dessus) avant la première
-  utilisation. La session Supabase est ensuite mise en cache par le navigateur,
-  ce qui permet de rouvrir l'application hors connexion après une première
-  connexion réussie en ligne.
+- **Première connexion / inscription** : sur l'écran de connexion, un
+  enseignant clique sur "Créer mon compte", saisit son identifiant + un mot de
+  passe de son choix. L'inscription n'est acceptée que si l'identifiant a été
+  ajouté à `allowed_teachers` (section 2) et n'a pas déjà servi. Juste après,
+  la fenêtre de configuration des classes/matières s'ouvre automatiquement ;
+  le choix est sauvegardé en local **et** sur `profiles.classes` /
+  `profiles.subjects_by_class`, donc plus jamais redemandé ensuite.
+- **Header** : une fois connecté, l'identifiant s'affiche en haut à droite et
+  l'adresse mail (toujours `identifiant@jeannedelanoue.com`) en dessous, avec
+  un lien direct vers la messagerie web.
+- **Gestion du compte** : changement de mot de passe et d'identifiant depuis
+  **Paramètres → 🔐 Mon compte** (`window.teacherManager.changePassword(...)`
+  / `changeIdentifiant(...)`), ainsi que la déconnexion.
+- Tant qu'un identifiant n'a pas été ajouté à `allowed_teachers`, toute
+  tentative de création de compte échoue avec un message clair. La session
+  Supabase est ensuite mise en cache par le navigateur, ce qui permet de
+  rouvrir l'application hors connexion après une première connexion réussie
+  en ligne.

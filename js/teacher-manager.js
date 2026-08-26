@@ -42,26 +42,107 @@ class TeacherManager {
         const form = document.getElementById('eprof-auth-form');
         if (!form) return;
 
+        const toggleLink = document.getElementById('eprof-auth-toggle-mode');
+        const title = document.getElementById('eprof-auth-title');
+        const subtitle = document.getElementById('eprof-auth-subtitle');
+        const confirmWrap = document.getElementById('eprof-auth-confirm-wrap');
+        const submitBtn = document.getElementById('eprof-auth-submit');
+        const errorBox = document.getElementById('eprof-auth-error');
+
+        let mode = 'login';
+
+        const applyMode = () => {
+            if (errorBox) errorBox.style.display = 'none';
+            if (mode === 'signup') {
+                if (title) title.textContent = 'Créer mon compte';
+                if (subtitle) subtitle.textContent = 'Première connexion : choisissez votre mot de passe';
+                if (confirmWrap) confirmWrap.style.display = 'block';
+                if (submitBtn) submitBtn.textContent = 'Créer mon compte';
+                if (toggleLink) toggleLink.textContent = 'Déjà un compte ? Se connecter';
+            } else {
+                if (title) title.textContent = 'Connexion';
+                if (subtitle) subtitle.textContent = 'Accédez à votre espace eProf';
+                if (confirmWrap) confirmWrap.style.display = 'none';
+                if (submitBtn) submitBtn.textContent = 'Se connecter';
+                if (toggleLink) toggleLink.textContent = 'Pas encore de compte ? Créer mon compte';
+            }
+        };
+
+        if (toggleLink) {
+            toggleLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                mode = mode === 'login' ? 'signup' : 'login';
+                applyMode();
+            });
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const errorBox = document.getElementById('eprof-auth-error');
-            const submitBtn = document.getElementById('eprof-auth-submit');
             const idInput = document.getElementById('eprof-auth-id');
             const pwdInput = document.getElementById('eprof-auth-password');
+            const pwdConfirmInput = document.getElementById('eprof-auth-password-confirm');
             if (errorBox) errorBox.style.display = 'none';
 
             const identifiant = idInput.value.trim().toLowerCase();
             const password = pwdInput.value;
             if (!identifiant || !password) return;
 
+            const showError = (message) => {
+                if (!errorBox) return;
+                errorBox.textContent = '❌ ' + message;
+                errorBox.style.display = 'block';
+            };
+
+            if (!window.eprofAuth) {
+                showError('Service de connexion indisponible pour le moment.');
+                return;
+            }
+            const email = `${identifiant}@jeannedelanoue.com`;
+
+            if (mode === 'signup') {
+                if (password.length < 8) {
+                    showError('Le mot de passe doit contenir au moins 8 caractères.');
+                    return;
+                }
+                if (password !== (pwdConfirmInput ? pwdConfirmInput.value : '')) {
+                    showError('Les deux mots de passe ne correspondent pas.');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Création...';
+                try {
+                    const disponible = await window.eprofAuth.isIdentifiantAvailable(identifiant);
+                    if (!disponible) {
+                        throw new Error(`L'identifiant "${identifiant}" n'est pas autorisé ou a déjà été utilisé. Contactez l'administration.`);
+                    }
+
+                    const { data, error } = await window.eprofAuth.signUp(email, password);
+                    if (error) throw error;
+
+                    pwdInput.value = '';
+                    if (pwdConfirmInput) pwdConfirmInput.value = '';
+
+                    if (data && data.session) {
+                        this.hideAuthGate();
+                        await this.login(identifiant);
+                    } else {
+                        showError('Compte créé. Reconnectez-vous avec votre identifiant et mot de passe.');
+                        mode = 'login';
+                        applyMode();
+                    }
+                } catch (err) {
+                    showError((err && err.message) || 'Création de compte impossible.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = mode === 'signup' ? 'Créer mon compte' : 'Se connecter';
+                }
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.textContent = 'Connexion...';
-
             try {
-                if (!window.eprofAuth) {
-                    throw new Error('Service de connexion indisponible pour le moment.');
-                }
-                const email = `${identifiant}@jeannedelanoue.com`;
                 const { error } = await window.eprofAuth.signIn(email, password);
                 if (error) throw error;
 
@@ -69,13 +150,10 @@ class TeacherManager {
                 this.hideAuthGate();
                 await this.login(identifiant);
             } catch (err) {
-                if (errorBox) {
-                    const message = err && err.message === 'Invalid login credentials'
-                        ? 'Identifiant ou mot de passe incorrect.'
-                        : (err && err.message) || 'Connexion impossible.';
-                    errorBox.textContent = '❌ ' + message;
-                    errorBox.style.display = 'block';
-                }
+                const message = err && err.message === 'Invalid login credentials'
+                    ? 'Identifiant ou mot de passe incorrect.'
+                    : (err && err.message) || 'Connexion impossible.';
+                showError(message);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Se connecter';

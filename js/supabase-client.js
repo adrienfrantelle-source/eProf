@@ -61,6 +61,18 @@
             if (!client) throw new Error('Supabase non configuré.');
             return client.auth.signInWithPassword({ email, password });
         },
+        async signUp(email, password) {
+            const client = await window.getSupabaseClient();
+            if (!client) throw new Error('Supabase non configuré.');
+            return client.auth.signUp({ email, password });
+        },
+        async isIdentifiantAvailable(identifiant) {
+            const client = await window.getSupabaseClient();
+            if (!client) throw new Error('Supabase non configuré.');
+            const { data, error } = await client.rpc('is_identifiant_available', { p_identifiant: identifiant });
+            if (error) throw error;
+            return !!data;
+        },
         async signOut() {
             const client = await window.getSupabaseClient();
             if (!client) return;

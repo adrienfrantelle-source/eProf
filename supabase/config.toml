@@ -20,8 +20,12 @@ enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://eprof.vercel.app"]
 jwt_expiry = 3600
-enable_signup = false
+# L'inscription est ouverte côté GoTrue, mais restreinte en pratique par le
+# trigger handle_new_user() : seul un identifiant présent dans la table
+# allowed_teachers (et pas déjà utilisé) peut créer un compte.
+enable_signup = true
 
 [auth.email]
-enable_signup = false
+enable_signup = true
 enable_confirmations = false
+

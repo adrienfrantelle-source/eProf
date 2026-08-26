@@ -13,8 +13,8 @@
     <div id="eprof-auth-gate" class="eprof-auth-gate">
         <div class="eprof-auth-card">
             <img src="images/logo eProf.jpg" alt="eProf" class="eprof-auth-logo">
-            <h1>Connexion</h1>
-            <p class="eprof-auth-subtitle">Accédez à votre espace eProf</p>
+            <h1 id="eprof-auth-title">Connexion</h1>
+            <p class="eprof-auth-subtitle" id="eprof-auth-subtitle">Accédez à votre espace eProf</p>
             <form id="eprof-auth-form" class="eprof-auth-form">
                 <label for="eprof-auth-id">Identifiant</label>
                 <div class="eprof-auth-id-wrap">
@@ -23,9 +23,16 @@
                 </div>
                 <label for="eprof-auth-password">Mot de passe</label>
                 <input type="password" id="eprof-auth-password" autocomplete="current-password" placeholder="••••••••" required>
+                <div id="eprof-auth-confirm-wrap" style="display:none;">
+                    <label for="eprof-auth-password-confirm">Confirmer le mot de passe</label>
+                    <input type="password" id="eprof-auth-password-confirm" autocomplete="new-password" placeholder="••••••••">
+                </div>
                 <div id="eprof-auth-error" class="eprof-auth-error" style="display:none;"></div>
                 <button type="submit" id="eprof-auth-submit" class="eprof-auth-submit">Se connecter</button>
             </form>
+            <p class="eprof-auth-toggle">
+                <a href="#" id="eprof-auth-toggle-mode">Pas encore de compte ? Créer mon compte</a>
+            </p>
             <p class="eprof-auth-hint">Identifiant et mot de passe fournis par l'établissement. En cas d'oubli, contactez l'administration.</p>
         </div>
     </div>
