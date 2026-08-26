@@ -30,6 +30,10 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0007_agenda_calendar_events.sql` : ajoute `color`, `emoji`, `done`,
      `reminder_minutes` et `source` à `calendar_events` (module Agenda ; les
      éléments d'agenda sont des événements de calendrier avec `source = 'agenda'`).
+   - `0008_admin_mode.sql` : colonne `profiles.is_admin`, fonction `is_admin()`,
+     policies d'administration sur `allowed_teachers` et fonction
+     `admin_delete_teacher_account`. Le compte `adfrantelle` est promu
+     administrateur (panneau accessible via le bouton « 🔐 Admin » du footer).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
