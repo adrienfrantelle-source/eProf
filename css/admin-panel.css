@@ -404,3 +404,76 @@
 .admin-actions button:hover {
     background: #f1f5f9;
 }
+
+/* ----- Tableau des suggestions (todolist) ----- */
+.sugg-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.7em;
+    align-items: start;
+}
+
+.sugg-colonne {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.6em;
+}
+
+.sugg-colonne h4 {
+    margin: 0 0 0.5em;
+    font-size: 0.9em;
+    color: #334155;
+}
+
+.sugg-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.5em 0.6em;
+    margin-bottom: 0.5em;
+}
+
+.sugg-priorite-haute { border-left-color: #f59e0b; }
+.sugg-priorite-critique { border-left-color: #dc2626; }
+
+.sugg-card-title {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.sugg-card-meta {
+    font-size: 0.76em;
+    color: #64748b;
+    margin-top: 0.15em;
+}
+
+.sugg-card-details summary {
+    font-size: 0.8em;
+    color: #1d4ed8;
+    cursor: pointer;
+    margin-top: 0.4em;
+}
+
+.sugg-card-desc {
+    font-size: 0.85em;
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.sugg-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em;
+    align-items: center;
+}
+
+.sugg-card-actions select {
+    flex: 1 1 90px;
+    padding: 0.3em;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    font-size: 0.82em;
+}

@@ -10,25 +10,36 @@
         { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
     ];
 
-    function getMentions() {
+    function readParametres() {
         try {
-            const parametres = JSON.parse(localStorage.getItem('parametres') || '{}');
-            const mentions = parametres.notation && Array.isArray(parametres.notation.mentions)
-                ? parametres.notation.mentions
-                : null;
-            return (mentions && mentions.length > 0) ? mentions : DEFAULT_MENTIONS;
+            return JSON.parse(localStorage.getItem('parametres') || '{}');
         } catch (e) {
-            return DEFAULT_MENTIONS;
+            return {};
         }
+    }
+
+    // Échelle sur laquelle sont exprimés les seuils des mentions (20 ou 10).
+    function getEchelle() {
+        const notation = readParametres().notation || {};
+        if (notation.echelle) return Number(notation.echelle);
+        return notation.systeme === 'sur10' ? 10 : 20;
+    }
+
+    function getMentions() {
+        const notation = readParametres().notation || {};
+        const mentions = Array.isArray(notation.mentions) ? notation.mentions : null;
+        return (mentions && mentions.length > 0) ? mentions : DEFAULT_MENTIONS;
     }
 
     // note : la valeur obtenue par l'élève ; maxNote : barème de cette note (20 par défaut)
     function getMentionForNote(note, maxNote) {
         if (note === null || note === undefined || isNaN(note)) return null;
-        const noteSur20 = (maxNote && maxNote !== 20) ? (note / maxNote) * 20 : note;
+        const echelle = getEchelle();
+        const base = maxNote || 20;
+        const noteRamenee = base === echelle ? note : (note / base) * echelle;
         const mentions = getMentions().slice().sort((a, b) => b.seuilMin - a.seuilMin);
-        return mentions.find(m => noteSur20 >= m.seuilMin) || mentions[mentions.length - 1] || null;
+        return mentions.find(m => noteRamenee >= m.seuilMin) || mentions[mentions.length - 1] || null;
     }
 
-    window.EprofBareme = { DEFAULT_MENTIONS, getMentions, getMentionForNote };
+    window.EprofBareme = { DEFAULT_MENTIONS, getMentions, getMentionForNote, getEchelle };
 })();

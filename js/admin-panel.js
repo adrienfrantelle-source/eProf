@@ -1756,7 +1756,123 @@
         }
     };
 
-    const TABS = [whitelistTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
+    // ================= ONGLET : SUGGESTIONS (TODOLIST) =================
+    const SUGGESTION_COLONNES = [
+        { statut: 'nouveau', titre: '🆕 À trier' },
+        { statut: 'en_cours', titre: '🔧 En cours' },
+        { statut: 'planifie', titre: '📅 Planifié' },
+        { statut: 'termine', titre: '✅ Terminé' },
+        { statut: 'refuse', titre: '🚫 Non retenu' }
+    ];
+
+    const SUGGESTION_TYPES = { bug: '🐞', amelioration: '✨', nouveaute: '💡', autre: '💬' };
+    const SUGGESTION_PRIORITES = { basse: '', normale: '', haute: '❗', critique: '🔥' };
+
+    const suggestionsTab = {
+        id: 'suggestions',
+        label: '💬 Suggestions',
+        html: `
+            <div class="admin-toolbar">
+                <input type="search" class="sugg-search" placeholder="Filtrer par titre, auteur, module…">
+                <select class="sugg-filtre-type">
+                    <option value="">Tous types</option>
+                    <option value="bug">🐞 Bugs</option>
+                    <option value="amelioration">✨ Améliorations</option>
+                    <option value="nouveaute">💡 Nouveautés</option>
+                    <option value="autre">💬 Autres</option>
+                </select>
+                <button type="button" class="btn-secondary sugg-export-btn">📤 Exporter</button>
+                <span class="admin-counter sugg-counter"></span>
+            </div>
+            <div class="sugg-board"></div>`,
+
+        init: function (root, ctx) {
+            const board = root.querySelector('.sugg-board');
+            let items = [];
+
+            function carteHtml(s) {
+                return `<div class="sugg-card sugg-priorite-${escapeHtml(s.priorite)}" data-id="${escapeHtml(s.id)}">
+                    <div class="sugg-card-title">${SUGGESTION_TYPES[s.type] || '💬'} ${SUGGESTION_PRIORITES[s.priorite] || ''} ${escapeHtml(s.titre)}</div>
+                    <div class="sugg-card-meta"><code>${escapeHtml(s.auteur_identifiant || '—')}</code> · ${escapeHtml(s.module || 'Général')} · ${escapeHtml(formatDate(s.created_at))}${s.votes ? ' · 👍 ' + s.votes : ''}</div>
+                    <details class="sugg-card-details">
+                        <summary>Détail & traitement</summary>
+                        <p class="sugg-card-desc">${escapeHtml(s.description).replace(/\n/g, '<br>')}</p>
+                        <label class="admin-field"><span>Réponse à l'enseignant</span><textarea rows="2" class="sugg-reponse">${escapeHtml(s.reponse_admin || '')}</textarea></label>
+                        <div class="sugg-card-actions">
+                            <select class="sugg-statut">
+                                ${SUGGESTION_COLONNES.map(function (c) { return `<option value="${c.statut}"${c.statut === s.statut ? ' selected' : ''}>${c.titre}</option>`; }).join('')}
+                            </select>
+                            <select class="sugg-priorite">
+                                ${['basse', 'normale', 'haute', 'critique'].map(function (p) { return `<option value="${p}"${p === s.priorite ? ' selected' : ''}>${p}</option>`; }).join('')}
+                            </select>
+                            <button type="button" class="btn-primary sugg-save-btn">💾</button>
+                            <button type="button" class="btn-danger sugg-delete-btn">🗑️</button>
+                        </div>
+                    </details>
+                </div>`;
+            }
+
+            function draw() {
+                const term = root.querySelector('.sugg-search').value.trim().toLowerCase();
+                const type = root.querySelector('.sugg-filtre-type').value;
+                const visible = items.filter(function (s) {
+                    if (type && s.type !== type) return false;
+                    return !term || [s.titre, s.description, s.auteur_identifiant, s.module].join(' ').toLowerCase().includes(term);
+                });
+
+                root.querySelector('.sugg-counter').textContent =
+                    items.filter(function (s) { return s.statut === 'nouveau'; }).length + ' à trier sur ' + items.length;
+
+                board.innerHTML = SUGGESTION_COLONNES.map(function (col) {
+                    const cartes = visible.filter(function (s) { return s.statut === col.statut; });
+                    return `<section class="sugg-colonne">
+                        <h4>${col.titre} <span class="admin-badge">${cartes.length}</span></h4>
+                        ${cartes.map(carteHtml).join('') || '<p class="admin-hint">—</p>'}
+                    </section>`;
+                }).join('');
+
+                board.querySelectorAll('.sugg-card').forEach(function (card) {
+                    card.querySelector('.sugg-save-btn').addEventListener('click', async function () {
+                        const res = await window.EprofStore.update('suggestions', card.dataset.id, {
+                            statut: card.querySelector('.sugg-statut').value,
+                            priorite: card.querySelector('.sugg-priorite').value,
+                            reponse_admin: card.querySelector('.sugg-reponse').value.trim() || null
+                        });
+                        if (res.error) return ctx.notify('❌ ' + res.error.message, true);
+                        await logAction('suggestion_traitee', res.data.titre, { statut: res.data.statut });
+                        ctx.notify('✅ Suggestion mise à jour.');
+                        reload();
+                    });
+                    card.querySelector('.sugg-delete-btn').addEventListener('click', async function () {
+                        if (!confirm('Supprimer définitivement cette demande ?')) return;
+                        const res = await window.EprofStore.remove('suggestions', card.dataset.id);
+                        if (res.error) return ctx.notify('❌ ' + res.error.message, true);
+                        reload();
+                    });
+                });
+            }
+
+            async function reload() {
+                try {
+                    items = await rpc('admin_suggestions_board');
+                } catch (err) {
+                    board.innerHTML = '<p class="admin-error">Erreur : ' + escapeHtml(err.message) + '</p>';
+                    return;
+                }
+                draw();
+            }
+
+            root.querySelector('.sugg-search').addEventListener('input', draw);
+            root.querySelector('.sugg-filtre-type').addEventListener('change', draw);
+            root.querySelector('.sugg-export-btn').addEventListener('click', function () {
+                downloadJson('suggestions-eprof-' + new Date().toISOString().slice(0, 10) + '.json', items);
+            });
+
+            reload();
+        }
+    };
+
+    const TABS = [whitelistTab, suggestionsTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
 
     // ---------- Panneau ----------
     function openPanel() {

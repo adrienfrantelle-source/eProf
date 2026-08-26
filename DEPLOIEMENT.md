@@ -55,6 +55,10 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      prof ↔ classe ↔ matière (`teacher_assignments`), référentiels de
      compétences et modèles d'évaluation. Lecture ouverte aux enseignants
      connectés, écriture réservée à l'administrateur.
+   - `0013_suggestions.sql` : suggestions et signalements de bugs déposés par
+     les enseignants (`suggestions`, `suggestion_votes`), synthèse todolist
+     `admin_suggestions_board`. Refactore aussi la purge RGPD via
+     `purge_retention_target` pour ne plus la réécrire à chaque nouvelle table.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

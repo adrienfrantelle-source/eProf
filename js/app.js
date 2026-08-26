@@ -95,7 +95,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
     
     updateFooterVersion();
-    
+
+    // ===== Restriction des outils réservés à l'administrateur =====
+    let estAdministrateur = false;
+
+    function appliquerVisibiliteAdmin() {
+        document.querySelectorAll('[data-tool="archives"]').forEach(function (el) {
+            const cible = el.tagName === 'A' ? (el.closest('li') || el) : el;
+            cible.style.display = estAdministrateur ? '' : 'none';
+        });
+    }
+
+    async function rafraichirRoleAdmin() {
+        if (window.EprofAdmin) {
+            try {
+                estAdministrateur = await window.EprofAdmin.isCurrentUserAdmin();
+            } catch (e) {
+                estAdministrateur = false;
+            }
+        }
+        appliquerVisibiliteAdmin();
+    }
+
+    rafraichirRoleAdmin();
+    if (window.eprofAuth) window.eprofAuth.onAuthStateChange(rafraichirRoleAdmin);
+
+    // Les cartes d'outils sont recréées à chaque rendu : on réapplique la restriction.
+    new MutationObserver(appliquerVisibiliteAdmin).observe(mainContent, { childList: true, subtree: true });
+
     console.log('Appel de showDashboard...');
     showDashboard();
     highlightSidebar('dashboard-link');
@@ -277,6 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar('trombinoscopes');
                 break;
             case 'archives':
+                if (!estAdministrateur) {
+                    mainContent.innerHTML = '<h2>🔒 Accès restreint</h2><p>Les archives sont réservées à l’administrateur.</p>';
+                    break;
+                }
                 renderArchives(mainContent);
                 highlightSidebar('archives');
                 break;
@@ -5606,7 +5637,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                 </select>
                             </div>
                             <p style="font-size: 0.9em; color: #64748b; margin: 4px 0 12px;">
-                                Chaque mention s'applique à partir de sa note minimale (sur 20). Les mentions sont utilisées automatiquement dans le carnet de notes à côté des moyennes.
+                                Chaque mention s'applique à partir de sa note minimale, exprimée sur l'échelle choisie ci-dessus. Les mentions apparaissent automatiquement dans le carnet de notes à côté des moyennes. Cliquez sur un smiley pour le changer.
                             </p>
                             <div id="mentions-list"></div>
                             <div class="param-actions" style="margin-top: 10px;">
@@ -5883,39 +5914,93 @@ if (typeof module !== 'undefined' && module.exports) {
         }
 
         // ===== BARÈME DE NOTATION (mentions configurables) =====
+        const MENTION_EMOJIS = ['🏆', '🥇', '🌟', '⭐', '😃', '😊', '🙂', '😐', '😕', '😟', '📈', '📉', '📚', '💪', '👍', '👎', '✅', '⚠️', '🔥', '🎯'];
+
+        function getEchelleNotation() {
+            return container.querySelector('#param-systeme-notation').value === 'sur10' ? 10 : 20;
+        }
+
         function renderMentionsList() {
             const list = container.querySelector('#mentions-list');
             if (!list) return;
 
+            const echelle = getEchelleNotation();
             const mentions = parametres.notation.mentions
                 .slice()
                 .sort((a, b) => b.seuilMin - a.seuilMin);
+            parametres.notation.mentions = mentions;
 
             list.innerHTML = mentions.map((mention, index) => `
-                <div class="mention-row" data-index="${index}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
-                    <input type="text" class="mention-emoji" value="${mention.emoji}" maxlength="4" style="width:50px;text-align:center;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
-                    <input type="text" class="mention-label" value="${mention.label}" placeholder="Nom de la mention" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
+                <div class="mention-row" data-index="${index}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+                    <div class="mention-emoji-picker" style="position:relative;">
+                        <button type="button" class="mention-emoji-btn" title="Choisir un smiley" style="width:46px;height:40px;font-size:1.2em;border:2px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;">${mention.emoji}</button>
+                        <input type="hidden" class="mention-emoji" value="${mention.emoji}">
+                        <div class="mention-emoji-panel" style="display:none;position:absolute;z-index:20;top:44px;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:6px;box-shadow:0 8px 20px rgba(15,23,42,.18);width:210px;">
+                            ${MENTION_EMOJIS.map(e => `<button type="button" class="mention-emoji-choice" data-emoji="${e}" style="font-size:1.1em;border:none;background:none;cursor:pointer;padding:4px;border-radius:5px;">${e}</button>`).join('')}
+                        </div>
+                    </div>
+                    <input type="text" class="mention-label" value="${mention.label}" placeholder="Nom de la mention" style="flex:1;min-width:140px;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
                     <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:0.9em;">
                         à partir de
-                        <input type="number" class="mention-seuil" value="${mention.seuilMin}" min="0" max="20" step="0.5" style="width:70px;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
-                        / 20
+                        <input type="number" class="mention-seuil" value="${mention.seuilMin}" min="0" max="${echelle}" step="0.5" style="width:70px;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
+                        / ${echelle}
                     </label>
                     <button type="button" class="btn-supprimer-mention" title="Supprimer cette mention" style="background:#ef4444;color:white;border:none;border-radius:6px;padding:8px 10px;cursor:pointer;">🗑️</button>
                 </div>
             `).join('');
 
-            list.querySelectorAll('.btn-supprimer-mention').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const row = this.closest('.mention-row');
-                    const index = parseInt(row.dataset.index);
-                    mentions.splice(index, 1);
-                    parametres.notation.mentions = mentions;
+            list.querySelectorAll('.mention-row').forEach(row => {
+                const bouton = row.querySelector('.mention-emoji-btn');
+                const panneau = row.querySelector('.mention-emoji-panel');
+                const champ = row.querySelector('.mention-emoji');
+
+                bouton.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    const ouvert = panneau.style.display === 'block';
+                    list.querySelectorAll('.mention-emoji-panel').forEach(p => { p.style.display = 'none'; });
+                    panneau.style.display = ouvert ? 'none' : 'block';
+                });
+
+                panneau.querySelectorAll('.mention-emoji-choice').forEach(choix => {
+                    choix.addEventListener('click', function () {
+                        const emoji = this.dataset.emoji;
+                        champ.value = emoji;
+                        bouton.textContent = emoji;
+                        parametres.notation.mentions[parseInt(row.dataset.index, 10)].emoji = emoji;
+                        panneau.style.display = 'none';
+                    });
+                });
+
+                row.querySelector('.btn-supprimer-mention').addEventListener('click', function () {
+                    parametres.notation.mentions.splice(parseInt(row.dataset.index, 10), 1);
                     renderMentionsList();
                 });
             });
         }
 
+        // Un clic hors des palettes les referme toutes
+        document.addEventListener('click', function () {
+            container.querySelectorAll('.mention-emoji-panel').forEach(p => { p.style.display = 'none'; });
+        });
+
         renderMentionsList();
+
+        // Changer d'échelle convertit les seuils pour conserver le sens des mentions
+        const selectSysteme = container.querySelector('#param-systeme-notation');
+        let echelleCourante = getEchelleNotation();
+        selectSysteme.addEventListener('change', function () {
+            const nouvelleEchelle = getEchelleNotation();
+            if (nouvelleEchelle !== echelleCourante) {
+                const facteur = nouvelleEchelle / echelleCourante;
+                parametres.notation.mentions = parametres.notation.mentions.map(m => ({
+                    emoji: m.emoji,
+                    label: m.label,
+                    seuilMin: Math.round(m.seuilMin * facteur * 2) / 2
+                }));
+                echelleCourante = nouvelleEchelle;
+            }
+            renderMentionsList();
+        });
 
         const btnAjouterMention = container.querySelector('#btn-ajouter-mention');
         if (btnAjouterMention) {
@@ -5948,6 +6033,7 @@ if (typeof module !== 'undefined' && module.exports) {
             parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value);
             
             parametres.notation.systeme = container.querySelector('#param-systeme-notation').value;
+            parametres.notation.echelle = getEchelleNotation();
             parametres.notation.mentions = Array.from(container.querySelectorAll('.mention-row')).map(row => ({
                 emoji: row.querySelector('.mention-emoji').value.trim() || '⭐',
                 label: row.querySelector('.mention-label').value.trim() || 'Mention',

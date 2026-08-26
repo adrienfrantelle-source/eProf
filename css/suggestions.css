@@ -1,0 +1,171 @@
+/* ===== SUGGESTIONS & BUGS ===== */
+.footer-suggest-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    padding: 0.35em 0.8em;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.footer-suggest-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+/* Le bouton admin, quand il est visible, suit le bouton suggestions */
+.footer-admin-btn {
+    margin-left: 0.5rem;
+}
+
+.suggest-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 1rem;
+}
+
+.suggest-dialog {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5em;
+    width: 100%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+}
+
+.suggest-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.suggest-header h3 {
+    margin: 0;
+    color: #0f172a;
+}
+
+.suggest-close {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.suggest-hint {
+    color: #64748b;
+    font-size: 0.88em;
+    margin: 0.4em 0 1em;
+}
+
+.suggest-form {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1em;
+}
+
+.suggest-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7em;
+    margin-bottom: 0.7em;
+}
+
+.suggest-row label,
+.suggest-full {
+    flex: 1 1 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #334155;
+}
+
+.suggest-full {
+    display: block;
+    margin-bottom: 0.7em;
+}
+
+.suggest-form input,
+.suggest-form select,
+.suggest-form textarea {
+    width: 100%;
+    padding: 0.5em;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95em;
+    font-weight: 400;
+}
+
+.suggest-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+}
+
+.suggest-feedback {
+    font-size: 0.88em;
+    color: #166534;
+}
+
+.suggest-subtitle {
+    margin: 1.4em 0 0.6em;
+    color: #0f172a;
+}
+
+.suggest-item {
+    border-left: 4px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 0.6em 0.8em;
+    margin-bottom: 0.5em;
+}
+
+.suggest-item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6em;
+    align-items: flex-start;
+}
+
+.suggest-badge {
+    font-size: 0.78em;
+    white-space: nowrap;
+    color: #475569;
+}
+
+.suggest-item-meta {
+    font-size: 0.8em;
+    color: #64748b;
+    margin-top: 0.15em;
+}
+
+.suggest-reponse {
+    margin-top: 0.4em;
+    font-size: 0.88em;
+    color: #1e40af;
+    background: #eff6ff;
+    border-radius: 5px;
+    padding: 0.4em 0.6em;
+}
+
+.suggest-statut-en_cours { border-left-color: #f59e0b; }
+.suggest-statut-planifie { border-left-color: #6366f1; }
+.suggest-statut-termine { border-left-color: #16a34a; }
+.suggest-statut-refuse { border-left-color: #94a3b8; opacity: 0.7; }
