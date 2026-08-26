@@ -27,6 +27,9 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      pour restreindre l'auto-inscription aux identifiants autorisés.
    - `0006_profiles_custom_subjects.sql` : ajoute la colonne `custom_subjects`
      (catalogue de matières personnalisable, ajout/renommage par l'enseignant).
+   - `0007_agenda_calendar_events.sql` : ajoute `color`, `emoji`, `done`,
+     `reminder_minutes` et `source` à `calendar_events` (module Agenda ; les
+     éléments d'agenda sont des événements de calendrier avec `source = 'agenda'`).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

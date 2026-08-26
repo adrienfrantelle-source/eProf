@@ -37,6 +37,9 @@
             <p class="eprof-auth-hint">Identifiant et mot de passe fournis par l'établissement. En cas d'oubli, contactez l'administration.</p>
         </div>
     </div>
+    <div id="unsaved-cloud-banner" class="unsaved-cloud-banner" style="display:none;">
+        ⚠️ Modifications non sauvegardées en ligne — cliquez sur "☁️ Sauvegarder en ligne" avant de fermer cet onglet.
+    </div>
     <header>
         <h1>📓 Carnet de Notes</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -296,6 +299,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/eprof-store.js"></script>
+    <script src="js/bareme.js"></script>
     <script src="js/listes-eleves.js"></script>
     <script src="js/teacher-manager.js"></script>
     <script src="js/electron-auto-save.js"></script>

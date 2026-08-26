@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/electron-portable.css">
     <link rel="stylesheet" href="css/auth-gate.css">
+    <link rel="stylesheet" href="css/agenda.css">
 </head>
 <body>
     <div id="eprof-auth-gate" class="eprof-auth-gate">
@@ -76,6 +77,7 @@
                     <li><a href="#" data-tool="trombinoscopes">📸 Trombinoscopes</a></li>
                     <li><a href="#" data-tool="eleves">👨‍🎓 Suivi des élèves</a></li>
                     <li><a href="#" data-tool="notes">📒 Carnet de notes</a></li>
+                    <li><a href="#" data-tool="agenda">🗓️ Agenda</a></li>
                     <li><a href="#" data-tool="converter">🔄 Conversion de fichier</a></li>
                     <li><a href="#" data-tool="archives">📦 Archives</a></li>
                     <li><a href="#" data-tool="ressources">📚 Ressources pédagogiques</a></li>
@@ -178,6 +180,8 @@
     <script src="js/supabase-client.js"></script>
     <!-- Socle générique d'accès aux données (Supabase + repli local) -->
     <script src="js/eprof-store.js"></script>
+    <script src="js/bareme.js"></script>
+    <script src="js/agenda.js"></script>
     <!-- Bibliothèques locales pour conversions (mode portable 100%) -->
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/mammoth.browser.min.js"></script>

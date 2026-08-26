@@ -3,23 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('DOM chargé, mainContent:', mainContent);
 
-    function clearLegacyYearData() {
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (!key) continue;
-            if (
-                key.includes('carnetNotes') ||
-                key.includes('suiviEleves') ||
-                key.includes('eprof-events') ||
-                key.startsWith('eprof_teacherConfig_') ||
-                key.includes('eprof_')
-            ) {
-                keysToRemove.push(key);
-            }
-        }
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-    }
+    // Ancienne routine de nettoyage (migration ponctuelle, désormais désactivée :
+    // elle supprimait aussi des clés légitimes en cours d'utilisation comme
+    // eprof_teacherConfig_* et le cache local du carnet de notes).
+    function clearLegacyYearData() {}
 
     clearLegacyYearData();
 
@@ -43,6 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.classList.toggle('online-status-online', online);
         badge.classList.toggle('online-status-offline', !online);
     }
+
+    // Applique le mode d'affichage mobile choisi dans les Paramètres, dès le chargement
+    (function applyStoredMobileModeOnBoot() {
+        try {
+            const parametresBoot = JSON.parse(localStorage.getItem('parametres') || '{}');
+            const mode = parametresBoot.affichage && parametresBoot.affichage.modeMobile;
+            document.body.classList.remove('mode-mobile-force', 'mode-mobile-off');
+            if (mode === 'active') document.body.classList.add('mode-mobile-force');
+            else if (mode === 'inactive') document.body.classList.add('mode-mobile-off');
+        } catch (e) {}
+    })();
     updateOnlineStatusBadge();
     if (window.eprofAuth) {
         window.eprofAuth.onAuthStateChange(() => updateOnlineStatusBadge());
@@ -290,6 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.open('carnet-notes.html', '_blank');
                 highlightSidebar('notes');
                 break;
+            case 'agenda':
+                if (window.EprofAgenda) window.EprofAgenda.render(mainContent);
+                else mainContent.innerHTML = '<h2>Agenda indisponible</h2><p>Le module agenda n’a pas pu être chargé.</p>';
+                highlightSidebar('agenda');
+                break;
             case 'ressources':
                 mainContent.innerHTML = '<h2>Ressources pédagogiques</h2><p>Fonctionnalité à venir.</p>';
                 highlightSidebar('ressources');
@@ -385,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
-            var events = await loadCalendarEvents();
+            var events = (await loadCalendarEvents()).map(toDisplayEvent);
 
             var joursFeries = [
                 { title: '🎉 Jour de l\'An', start: '2026-01-01', allDay: true },
@@ -787,15 +790,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function saveEventsToStorage(events) {
         var data = events.filter(isUserCalendarEvent).map(function(ev) {
+            var emoji = ev.extendedProps.emoji || '';
             return {
                 id: ev.id || null,
-                title: ev.title,
+                title: (emoji && ev.title.indexOf(emoji + ' ') === 0) ? ev.title.slice(emoji.length + 1) : ev.title,
                 start: ev.start ? ev.start.toISOString() : null,
                 end: ev.end ? ev.end.toISOString() : null,
                 allDay: ev.allDay,
                 description: ev.extendedProps.description || '',
                 type: ev.extendedProps.type || 'event',
-                lieu: ev.extendedProps.lieu || ''
+                lieu: ev.extendedProps.lieu || '',
+                color: ev.extendedProps.color || '',
+                emoji: emoji,
+                done: !!ev.extendedProps.done,
+                reminderMinutes: (ev.extendedProps.reminderMinutes === null || ev.extendedProps.reminderMinutes === undefined) ? null : Number(ev.extendedProps.reminderMinutes),
+                source: ev.extendedProps.source || 'calendar'
             };
         });
         try {
@@ -814,10 +823,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     allDay: ev.allDay,
                     description: ev.description,
                     type: ev.type,
-                    lieu: ev.lieu
+                    lieu: ev.lieu,
+                    color: ev.color || '',
+                    emoji: ev.emoji || '',
+                    done: !!ev.done,
+                    reminderMinutes: (ev.reminderMinutes === null || ev.reminderMinutes === undefined) ? null : Number(ev.reminderMinutes),
+                    source: ev.source || 'calendar'
                 };
             });
         } catch(e) { return []; }
+    }
+
+    // L'emoji et la couleur sont stockés à part : on ne les applique qu'à l'affichage FullCalendar
+    function toDisplayEvent(ev) {
+        return Object.assign({}, ev, {
+            title: (ev.emoji ? ev.emoji + ' ' : '') + ev.title,
+            backgroundColor: ev.color || undefined,
+            borderColor: ev.color || undefined
+        });
     }
 
     // ===== Synchronisation en ligne (Supabase) =====
@@ -825,15 +848,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
     }
     function calendarEventToRow(ev, teacherId) {
+        var emoji = ev.extendedProps.emoji || null;
+        // Le titre affiché est préfixé de l'emoji : on le retire avant enregistrement pour ne pas l'empiler
+        var rawTitle = (emoji && ev.title.indexOf(emoji + ' ') === 0) ? ev.title.slice(emoji.length + 1) : ev.title;
         return {
             teacher_id: teacherId,
-            title: ev.title,
+            title: rawTitle,
             event_type: ev.extendedProps.type || 'event',
             lieu: ev.extendedProps.lieu || null,
             description: ev.extendedProps.description || null,
             start_at: ev.start ? ev.start.toISOString() : null,
             end_at: ev.end ? ev.end.toISOString() : null,
-            all_day: !!ev.allDay
+            all_day: !!ev.allDay,
+            color: ev.extendedProps.color || null,
+            emoji: emoji,
+            done: !!ev.extendedProps.done,
+            reminder_minutes: (ev.extendedProps.reminderMinutes === null || ev.extendedProps.reminderMinutes === undefined) ? null : Number(ev.extendedProps.reminderMinutes),
+            source: ev.extendedProps.source || 'calendar'
         };
     }
     async function loadCalendarEvents() {
@@ -856,7 +887,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 allDay: row.all_day,
                 description: row.description || '',
                 type: row.event_type || 'event',
-                lieu: row.lieu || ''
+                lieu: row.lieu || '',
+                color: row.color || '',
+                emoji: row.emoji || '',
+                done: !!row.done,
+                reminderMinutes: (row.reminder_minutes === null || row.reminder_minutes === undefined) ? null : Number(row.reminder_minutes),
+                source: row.source || 'calendar'
             };
         });
 
@@ -5395,14 +5431,39 @@ if (typeof module !== 'undefined' && module.exports) {
     async function renderParametres(container) {
         // Charger les paramètres depuis localStorage
         let parametres = JSON.parse(localStorage.getItem('parametres') || JSON.stringify({
-            enseignant: { nom: '', prenom: '', matiere: '', etablissement: '', email: '' },
-            anneeScolaire: '2025-2026',
+            enseignant: { nom: '', prenom: '', matiere: '', email: '' },
+            anneeScolaire: '2026-2027',
             calendrier: { heureDebut: '08:00', heureFin: '20:00', dureeCoursDefaut: 60, afficherSamedi: false },
-            affichage: { theme: 'clair', taillePolice: 'moyen' },
+            affichage: { theme: 'clair', taillePolice: 'moyen', modeMobile: 'auto' },
             alertes: { seuilOublis: 3, seuilMots: 5 },
-            notation: { systeme: 'sur20', seuilTresBien: 16, seuilBien: 14, seuilAssezBien: 12, seuilPassable: 10 },
+            notation: {
+                systeme: 'sur20',
+                mentions: [
+                    { emoji: '🏆', label: 'Très bien', seuilMin: 16 },
+                    { emoji: '😊', label: 'Bien', seuilMin: 14 },
+                    { emoji: '🙂', label: 'Assez bien', seuilMin: 12 },
+                    { emoji: '😐', label: 'Passable', seuilMin: 10 },
+                    { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
+                ]
+            },
             periodes: {} // Structure: { "2nde LCQ": { type: "trimestres", trimestres: [{nom, debut, fin}] }, ... }
         }));
+
+        // Migration douce : anciens seuils fixes -> liste de mentions configurable
+        if (!Array.isArray(parametres.notation.mentions) || parametres.notation.mentions.length === 0) {
+            const n = parametres.notation;
+            parametres.notation.mentions = [
+                { emoji: '🏆', label: 'Très bien', seuilMin: n.seuilTresBien ?? 16 },
+                { emoji: '😊', label: 'Bien', seuilMin: n.seuilBien ?? 14 },
+                { emoji: '🙂', label: 'Assez bien', seuilMin: n.seuilAssezBien ?? 12 },
+                { emoji: '😐', label: 'Passable', seuilMin: n.seuilPassable ?? 10 },
+                { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
+            ];
+        }
+        if (!parametres.affichage.modeMobile) {
+            parametres.affichage.modeMobile = 'auto';
+        }
+        delete parametres.enseignant.etablissement;
 
         // Si un enseignant est connecté en ligne, le profil Supabase fait foi pour ses infos perso
         if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
@@ -5413,7 +5474,6 @@ if (typeof module !== 'undefined' && module.exports) {
                 parametres.enseignant.nom = profile.nom || parametres.enseignant.nom;
                 parametres.enseignant.prenom = profile.prenom || parametres.enseignant.prenom;
                 parametres.enseignant.matiere = profile.matiere || parametres.enseignant.matiere;
-                parametres.enseignant.etablissement = profile.etablissement || parametres.enseignant.etablissement;
                 parametres.enseignant.email = profile.email || parametres.enseignant.email;
                 localStorage.setItem('parametres', JSON.stringify(parametres));
             }
@@ -5442,10 +5502,6 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <input type="text" id="param-matiere" value="${parametres.enseignant.matiere}" placeholder="Ex: Mathématiques, SVT">
                             </div>
                             <div class="param-row">
-                                <label>Établissement :</label>
-                                <input type="text" id="param-etablissement" value="${parametres.enseignant.etablissement}" placeholder="Nom de l'établissement">
-                            </div>
-                            <div class="param-row">
                                 <label>Email :</label>
                                 <input type="email" id="param-email" value="${parametres.enseignant.email}" placeholder="email@exemple.fr">
                             </div>
@@ -5458,7 +5514,11 @@ if (typeof module !== 'undefined' && module.exports) {
                         <div class="param-form">
                             <div class="param-row">
                                 <label>Année scolaire :</label>
-                                <input type="text" id="param-annee" value="${parametres.anneeScolaire}" placeholder="2025-2026">
+                                <select id="param-annee">
+                                    <option value="2025-2026" ${parametres.anneeScolaire === '2025-2026' ? 'selected' : ''}>2025-2026</option>
+                                    <option value="2026-2027" ${parametres.anneeScolaire === '2026-2027' ? 'selected' : ''}>2026-2027</option>
+                                    <option value="2027-2028" ${parametres.anneeScolaire === '2027-2028' ? 'selected' : ''}>2027-2028</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -5507,6 +5567,14 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="grand" ${parametres.affichage.taillePolice === 'grand' ? 'selected' : ''}>Grand</option>
                                 </select>
                             </div>
+                            <div class="param-row">
+                                <label>Affichage mobile :</label>
+                                <select id="param-mode-mobile">
+                                    <option value="auto" ${parametres.affichage.modeMobile === 'auto' ? 'selected' : ''}>Automatique (recommandé)</option>
+                                    <option value="active" ${parametres.affichage.modeMobile === 'active' ? 'selected' : ''}>Toujours activé</option>
+                                    <option value="inactive" ${parametres.affichage.modeMobile === 'inactive' ? 'selected' : ''}>Toujours désactivé</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -5537,12 +5605,12 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="lettres" ${parametres.notation.systeme === 'lettres' ? 'selected' : ''}>Lettres (A-F)</option>
                                 </select>
                             </div>
-                            <div class="bareme-info">
-                                <p><strong>🏆 Très bien :</strong> à partir de <input type="number" id="param-seuil-tres-bien" value="${parametres.notation.seuilTresBien}" min="0" max="20" step="0.5" style="width: 60px;"> / 20</p>
-                                <p><strong>😊 Bien :</strong> de <input type="number" id="param-seuil-bien" value="${parametres.notation.seuilBien}" min="0" max="20" step="0.5" style="width: 60px;"> à ${parametres.notation.seuilTresBien}</p>
-                                <p><strong>🙂 Assez bien :</strong> de <input type="number" id="param-seuil-assez-bien" value="${parametres.notation.seuilAssezBien}" min="0" max="20" step="0.5" style="width: 60px;"> à ${parametres.notation.seuilBien}</p>
-                                <p><strong>😐 Passable :</strong> de <input type="number" id="param-seuil-passable" value="${parametres.notation.seuilPassable}" min="0" max="20" step="0.5" style="width: 60px;"> à ${parametres.notation.seuilAssezBien}</p>
-                                <p><strong>📚 À retravailler :</strong> en dessous de ${parametres.notation.seuilPassable}</p>
+                            <p style="font-size: 0.9em; color: #64748b; margin: 4px 0 12px;">
+                                Chaque mention s'applique à partir de sa note minimale (sur 20). Les mentions sont utilisées automatiquement dans le carnet de notes à côté des moyennes.
+                            </p>
+                            <div id="mentions-list"></div>
+                            <div class="param-actions" style="margin-top: 10px;">
+                                <button id="btn-ajouter-mention" type="button" class="btn-action btn-primary">➕ Ajouter une mention</button>
                             </div>
                         </div>
                     </div>
@@ -5814,13 +5882,55 @@ if (typeof module !== 'undefined' && module.exports) {
             });
         }
 
+        // ===== BARÈME DE NOTATION (mentions configurables) =====
+        function renderMentionsList() {
+            const list = container.querySelector('#mentions-list');
+            if (!list) return;
+
+            const mentions = parametres.notation.mentions
+                .slice()
+                .sort((a, b) => b.seuilMin - a.seuilMin);
+
+            list.innerHTML = mentions.map((mention, index) => `
+                <div class="mention-row" data-index="${index}" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                    <input type="text" class="mention-emoji" value="${mention.emoji}" maxlength="4" style="width:50px;text-align:center;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
+                    <input type="text" class="mention-label" value="${mention.label}" placeholder="Nom de la mention" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
+                    <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:0.9em;">
+                        à partir de
+                        <input type="number" class="mention-seuil" value="${mention.seuilMin}" min="0" max="20" step="0.5" style="width:70px;padding:8px;border:2px solid #e2e8f0;border-radius:8px;">
+                        / 20
+                    </label>
+                    <button type="button" class="btn-supprimer-mention" title="Supprimer cette mention" style="background:#ef4444;color:white;border:none;border-radius:6px;padding:8px 10px;cursor:pointer;">🗑️</button>
+                </div>
+            `).join('');
+
+            list.querySelectorAll('.btn-supprimer-mention').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const row = this.closest('.mention-row');
+                    const index = parseInt(row.dataset.index);
+                    mentions.splice(index, 1);
+                    parametres.notation.mentions = mentions;
+                    renderMentionsList();
+                });
+            });
+        }
+
+        renderMentionsList();
+
+        const btnAjouterMention = container.querySelector('#btn-ajouter-mention');
+        if (btnAjouterMention) {
+            btnAjouterMention.addEventListener('click', function() {
+                parametres.notation.mentions.push({ emoji: '⭐', label: 'Nouvelle mention', seuilMin: 0 });
+                renderMentionsList();
+            });
+        }
+
         // ===== SAUVEGARDE DES PARAMÈTRES =====
         const btnSauvegarder = container.querySelector('#btn-sauvegarder-parametres');
         btnSauvegarder.addEventListener('click', async function() {
             parametres.enseignant.nom = container.querySelector('#param-nom').value;
             parametres.enseignant.prenom = container.querySelector('#param-prenom').value;
             parametres.enseignant.matiere = container.querySelector('#param-matiere').value;
-            parametres.enseignant.etablissement = container.querySelector('#param-etablissement').value;
             parametres.enseignant.email = container.querySelector('#param-email').value;
             
             parametres.anneeScolaire = container.querySelector('#param-annee').value;
@@ -5832,21 +5942,24 @@ if (typeof module !== 'undefined' && module.exports) {
             
             parametres.affichage.theme = container.querySelector('#param-theme').value;
             parametres.affichage.taillePolice = container.querySelector('#param-taille-police').value;
+            parametres.affichage.modeMobile = container.querySelector('#param-mode-mobile').value;
             
             parametres.alertes.seuilOublis = parseInt(container.querySelector('#param-seuil-oublis').value);
             parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value);
             
             parametres.notation.systeme = container.querySelector('#param-systeme-notation').value;
-            parametres.notation.seuilTresBien = parseFloat(container.querySelector('#param-seuil-tres-bien').value);
-            parametres.notation.seuilBien = parseFloat(container.querySelector('#param-seuil-bien').value);
-            parametres.notation.seuilAssezBien = parseFloat(container.querySelector('#param-seuil-assez-bien').value);
-            parametres.notation.seuilPassable = parseFloat(container.querySelector('#param-seuil-passable').value);
+            parametres.notation.mentions = Array.from(container.querySelectorAll('.mention-row')).map(row => ({
+                emoji: row.querySelector('.mention-emoji').value.trim() || '⭐',
+                label: row.querySelector('.mention-label').value.trim() || 'Mention',
+                seuilMin: parseFloat(row.querySelector('.mention-seuil').value) || 0
+            }));
 
             localStorage.setItem('parametres', JSON.stringify(parametres));
             
             // Appliquer le thème
             appliquerTheme(parametres.affichage.theme);
             appliquerTaillePolice(parametres.affichage.taillePolice);
+            appliquerModeMobile(parametres.affichage.modeMobile);
 
             // Synchroniser le profil enseignant en ligne (si connecté)
             if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
@@ -5856,7 +5969,6 @@ if (typeof module !== 'undefined' && module.exports) {
                     nom: parametres.enseignant.nom,
                     prenom: parametres.enseignant.prenom,
                     matiere: parametres.enseignant.matiere,
-                    etablissement: parametres.enseignant.etablissement,
                     email: parametres.enseignant.email
                 }], { onConflict: 'id' });
                 if (error) {
@@ -5937,6 +6049,7 @@ if (typeof module !== 'undefined' && module.exports) {
         // Appliquer le thème et la taille actuelle
         appliquerTheme(parametres.affichage.theme);
         appliquerTaillePolice(parametres.affichage.taillePolice);
+        appliquerModeMobile(parametres.affichage.modeMobile);
     }
 
     // Fonction pour mettre à jour les informations dans le header
@@ -5952,6 +6065,16 @@ if (typeof module !== 'undefined' && module.exports) {
     function appliquerTaillePolice(taille) {
         document.body.classList.remove('taille-petit', 'taille-moyen', 'taille-grand');
         document.body.classList.add(`taille-${taille}`);
+    }
+
+    function appliquerModeMobile(mode) {
+        document.body.classList.remove('mode-mobile-force', 'mode-mobile-off');
+        if (mode === 'active') {
+            document.body.classList.add('mode-mobile-force');
+        } else if (mode === 'inactive') {
+            document.body.classList.add('mode-mobile-off');
+        }
+        // mode 'auto' : aucune classe forcée, les media queries gèrent l'adaptation
     }
 
     // ========================================

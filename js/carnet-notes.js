@@ -222,7 +222,35 @@ function saveData() {
     if (window.dataManager) {
         window.dataManager.triggerAutoSave();
     }
+
+    markUnsavedCloudChanges();
 }
+
+// ===== Rappel de sauvegarde en ligne (bannière + liseré + confirmation avant fermeture) =====
+let hasUnsavedCloudChanges = false;
+
+function updateCloudSaveIndicator() {
+    const banner = document.getElementById('unsaved-cloud-banner');
+    const saveCloudBtn = document.getElementById('save-cloud-btn');
+    if (banner) banner.style.display = hasUnsavedCloudChanges ? 'block' : 'none';
+    if (saveCloudBtn) saveCloudBtn.classList.toggle('needs-cloud-save', hasUnsavedCloudChanges);
+}
+
+function markUnsavedCloudChanges() {
+    hasUnsavedCloudChanges = true;
+    updateCloudSaveIndicator();
+}
+
+function clearUnsavedCloudChanges() {
+    hasUnsavedCloudChanges = false;
+    updateCloudSaveIndicator();
+}
+
+window.addEventListener('beforeunload', (e) => {
+    if (!hasUnsavedCloudChanges) return;
+    e.preventDefault();
+    e.returnValue = '';
+});
 
 // ===== GESTION DES CLASSES =====
 function handleClassChange(e) {
@@ -249,9 +277,16 @@ function handleClassChange(e) {
     }
 }
 
+// Une classe est en semestres (1ère et Terminale) plutôt qu'en trimestres
+function usesSemestres(className) {
+    if (!className) return false;
+    const lower = className.toLowerCase();
+    return lower.includes('1ère') || lower.includes('1ere') || lower.includes('terminale') || lower.includes('tle');
+}
+
 // Générer les boutons de période selon le type de classe
 function generatePeriodButtons() {
-    const isTerminale = currentClass && (currentClass.toLowerCase().includes('terminale') || currentClass.toLowerCase().includes('tle'));
+    const isTerminale = usesSemestres(currentClass);
     
     const periodButtonsContainer = document.getElementById('period-buttons');
     if (!periodButtonsContainer) return;
@@ -299,7 +334,7 @@ function getSelectedPeriod() {
 
 // Générer les boutons de période dans le formulaire
 function generateFormPeriodButtons() {
-    const isTerminale = currentClass && (currentClass.toLowerCase().includes('terminale') || currentClass.toLowerCase().includes('tle'));
+    const isTerminale = usesSemestres(currentClass);
     
     const periodButtonsContainer = document.getElementById('eval-period-buttons');
     if (!periodButtonsContainer) return;
@@ -427,7 +462,7 @@ function openEvalModal(evalId = null) {
         // Date par défaut : aujourd'hui
         document.getElementById('eval-date').value = new Date().toISOString().split('T')[0];
         // Sélectionner la première période par défaut
-        const isTerminale = currentClass && (currentClass.toLowerCase().includes('terminale') || currentClass.toLowerCase().includes('tle'));
+        const isTerminale = usesSemestres(currentClass);
         const defaultPeriod = isTerminale ? 'semestre1' : 'trimestre1';
         document.getElementById('eval-period').value = defaultPeriod;
         setFormPeriodActive(defaultPeriod);
@@ -638,7 +673,8 @@ function renderNotesTable() {
             
             // Moyenne pour cette matière
             const subjectAverage = calculateStudentAverageBySubject(studentName, subjectEvals);
-            html += `<td class="student-average" style="background: #f8fafc; font-weight: 600;">${subjectAverage !== null ? subjectAverage.toFixed(2) : '-'}</td>`;
+            const subjectMention = (subjectAverage !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(subjectAverage, 20) : null;
+            html += `<td class="student-average" style="background: #f8fafc; font-weight: 600;">${subjectAverage !== null ? subjectAverage.toFixed(2) : '-'}${subjectMention ? ' ' + subjectMention.emoji : ''}</td>`;
         });
         
         html += '</tr>';
@@ -659,7 +695,8 @@ function renderNotesTable() {
         
         // Moyenne générale de la classe pour cette matière
         const classSubjectAvg = calculateClassAverageBySubject(students, subjectEvals);
-        html += `<td class="student-average" style="background: #e0e7ff; font-weight: 700;">${classSubjectAvg !== null ? classSubjectAvg.toFixed(2) : '-'}</td>`;
+        const classMention = (classSubjectAvg !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(classSubjectAvg, 20) : null;
+        html += `<td class="student-average" style="background: #e0e7ff; font-weight: 700;">${classSubjectAvg !== null ? classSubjectAvg.toFixed(2) : '-'}${classMention ? ' ' + classMention.emoji : ''}</td>`;
     });
     
     html += '</tr>';
@@ -1167,6 +1204,7 @@ async function handleSaveCloud() {
     }
 
     const totalEvals = Object.values(evaluations).reduce((sum, evals) => sum + evals.length, 0);
+    clearUnsavedCloudChanges();
     alert(`✅ Carnet de notes sauvegardé en ligne !\n\n📊 ${Object.keys(evaluations).length} classe(s), ${totalEvals} évaluation(s).`);
 }
 
@@ -1199,6 +1237,7 @@ async function handleLoadCloud() {
     evaluations = doc.data.evaluations || {};
     notes = doc.data.notes || {};
     saveData();
+    clearUnsavedCloudChanges();
 
     if (currentClass) {
         renderEvaluations();

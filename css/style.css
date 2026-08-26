@@ -429,6 +429,63 @@ main#main-content {
     }
 }
 
+/* ===== MODE D'AFFICHAGE MOBILE (auto / forcé / désactivé) ===== */
+@media (max-width: 900px) {
+    body:not(.mode-mobile-off) .layout {
+        flex-direction: column;
+    }
+    body:not(.mode-mobile-off) .sidebar {
+        width: 100%;
+        min-height: auto;
+        padding-top: 0.5em;
+    }
+    body:not(.mode-mobile-off) .sidebar nav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3em;
+        padding: 0.5em;
+    }
+    body:not(.mode-mobile-off) .sidebar nav ul > li {
+        margin-bottom: 0;
+    }
+    body:not(.mode-mobile-off) .tools-title {
+        width: 100%;
+    }
+    body:not(.mode-mobile-off) .header-quick-links {
+        flex-wrap: wrap;
+    }
+}
+
+body.mode-mobile-force .layout {
+    flex-direction: column;
+}
+body.mode-mobile-force .sidebar {
+    width: 100%;
+    min-height: auto;
+    padding-top: 0.5em;
+}
+body.mode-mobile-force .sidebar nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3em;
+    padding: 0.5em;
+}
+body.mode-mobile-force .sidebar nav ul > li {
+    margin-bottom: 0;
+}
+
+body.mode-mobile-off .layout {
+    min-width: 1024px;
+    overflow-x: auto;
+}
+
+/* Mentions du barème de notation (Paramètres) */
+.mention-row input.mention-emoji,
+.mention-row input.mention-label,
+.mention-row input.mention-seuil {
+    font-size: 0.95em;
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
