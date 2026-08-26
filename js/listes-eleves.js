@@ -1,7 +1,8 @@
 // Listes des élèves par classe
 // Généré automatiquement depuis les fichiers CSV
+// ARCHIVE de l'année 2025-2026 : consultable uniquement via le module Archives.
 
-const LISTES_ELEVES = {
+const ARCHIVE_LISTES_ELEVES = {
     "2nde LCQ": [
         { nom: "BODARD--COLAS", prenom: "Lili", sexe: "F" },
         { nom: "BOURRAT", prenom: "Daphné", sexe: "F" },
@@ -210,9 +211,20 @@ const LISTES_ELEVES = {
     ]
 };
 
-window.__ARCHIVE_LISTES_ELEVES = Object.assign({}, LISTES_ELEVES);
+window.__ARCHIVE_LISTES_ELEVES = Object.assign({}, ARCHIVE_LISTES_ELEVES);
+
+// Listes de l'année en cours (2026-2027). Elles proviennent du référentiel de
+// l'établissement (table school_students, administrée par l'admin). Cet objet
+// reste vide : servir l'archive ici afficherait les élèves de l'an dernier,
+// les noms de classe se répétant d'une année sur l'autre.
+const LISTES_ELEVES = {};
+
 window.getAvailableStudentLists = function () {
-    return {};
+    if (window.EprofReferentiel) {
+        const listes = window.EprofReferentiel.getStudentLists();
+        if (Object.keys(listes).length) return listes;
+    }
+    return LISTES_ELEVES;
 };
 window.getArchiveStudentLists = function () {
     return window.__ARCHIVE_LISTES_ELEVES || {};

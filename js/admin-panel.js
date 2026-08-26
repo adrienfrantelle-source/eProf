@@ -1872,7 +1872,390 @@
         }
     };
 
-    const TABS = [whitelistTab, suggestionsTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
+    // ================= ONGLET : LISTES D'ÉLÈVES =================
+    const ANNEE_COURANTE = '2026-2027';
+
+    // Import tolérant : séparateur ; ou , et entêtes optionnelles.
+    function parseCsvEleves(texte, classeParDefaut) {
+        const lignes = texte.split(/\r?\n/).filter(function (l) { return l.trim(); });
+        if (!lignes.length) return [];
+
+        const separateur = (lignes[0].match(/;/g) || []).length >= (lignes[0].match(/,/g) || []).length ? ';' : ',';
+        const entete = lignes[0].toLowerCase();
+        const aEntete = /nom/.test(entete) && /pr[ée]nom/.test(entete);
+
+        let colNom = 0, colPrenom = 1, colSexe = 2, colClasse = 3;
+        if (aEntete) {
+            const cols = lignes[0].split(separateur).map(function (c) { return c.trim().toLowerCase(); });
+            colNom = cols.findIndex(function (c) { return c === 'nom'; });
+            colPrenom = cols.findIndex(function (c) { return c === 'prenom' || c === 'prénom'; });
+            colSexe = cols.findIndex(function (c) { return c === 'sexe' || c === 'genre'; });
+            colClasse = cols.findIndex(function (c) { return c === 'classe'; });
+        }
+
+        return lignes.slice(aEntete ? 1 : 0).map(function (ligne) {
+            const cols = ligne.split(separateur).map(function (c) { return c.trim().replace(/^"|"$/g, ''); });
+            const sexe = colSexe >= 0 ? (cols[colSexe] || '').toUpperCase().charAt(0) : '';
+            return {
+                nom: (cols[colNom] || '').toUpperCase(),
+                prenom: cols[colPrenom] || '',
+                sexe: (sexe === 'F' || sexe === 'M') ? sexe : null,
+                classe: (colClasse >= 0 && cols[colClasse]) ? cols[colClasse] : classeParDefaut
+            };
+        }).filter(function (e) { return e.nom && e.classe; });
+    }
+
+    const elevesTab = {
+        id: 'eleves',
+        label: '👨‍🎓 Élèves',
+        html: `
+            <div class="admin-card">
+                <h4>📥 Importer une liste (CSV)</h4>
+                <p class="admin-hint">Colonnes attendues : <code>nom ; prenom ; sexe ; classe</code> (séparateur <code>;</code> ou <code>,</code>, entête facultative). Si le fichier ne contient pas de colonne classe, celle sélectionnée ci-dessous est utilisée. <strong>L'import remplace intégralement la liste de la classe.</strong></p>
+                <div class="admin-inline-form">
+                    <select class="eleves-classe-import"></select>
+                    <input type="file" class="eleves-csv" accept=".csv,.txt">
+                    <button type="button" class="btn-primary eleves-import-btn">Importer</button>
+                </div>
+                <div class="eleves-apercu"></div>
+            </div>
+
+            <form class="admin-add-form eleve-add-form">
+                <input type="text" class="eleve-nom" placeholder="NOM" required>
+                <input type="text" class="eleve-prenom" placeholder="Prénom" required>
+                <select class="eleve-sexe">
+                    <option value="">Sexe</option>
+                    <option value="F">F</option>
+                    <option value="M">M</option>
+                </select>
+                <select class="eleve-classe"></select>
+                <button type="submit" class="btn-primary">➕ Ajouter</button>
+            </form>
+
+            <div class="admin-toolbar">
+                <input type="search" class="eleves-search" placeholder="Rechercher un élève…">
+                <select class="eleves-filtre-classe"><option value="">Toutes les classes</option></select>
+                <button type="button" class="btn-secondary eleves-export-btn">📤 Exporter (CSV)</button>
+                <button type="button" class="btn-danger eleves-vider-btn">🗑️ Vider la classe filtrée</button>
+                <span class="admin-counter eleves-counter"></span>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Nom</th><th>Prénom</th><th>Sexe</th><th>Classe</th><th></th></tr></thead>
+                    <tbody class="eleves-tbody"><tr><td colspan="5">Chargement…</td></tr></tbody>
+                </table>
+            </div>`,
+
+        init: function (root, ctx) {
+            const tbody = root.querySelector('.eleves-tbody');
+            let eleves = [];
+            let classes = [];
+
+            function remplirSelectsClasses() {
+                const options = classes.map(function (c) { return `<option value="${escapeHtml(c.nom)}">${escapeHtml(c.nom)}</option>`; }).join('');
+                root.querySelector('.eleves-classe-import').innerHTML = options;
+                root.querySelector('.eleve-classe').innerHTML = options;
+                root.querySelector('.eleves-filtre-classe').innerHTML = '<option value="">Toutes les classes</option>' + options;
+            }
+
+            function draw() {
+                const term = root.querySelector('.eleves-search').value.trim().toLowerCase();
+                const classe = root.querySelector('.eleves-filtre-classe').value;
+                const visible = eleves.filter(function (e) {
+                    if (classe && e.classe !== classe) return false;
+                    return !term || (e.nom + ' ' + e.prenom).toLowerCase().includes(term);
+                });
+                root.querySelector('.eleves-counter').textContent = visible.length + ' / ' + eleves.length + ' élève(s)';
+                tbody.innerHTML = visible.map(function (e) {
+                    return `<tr data-id="${escapeHtml(e.id)}">
+                        <td><input type="text" class="admin-cell e-nom" value="${escapeHtml(e.nom)}"></td>
+                        <td><input type="text" class="admin-cell e-prenom" value="${escapeHtml(e.prenom)}"></td>
+                        <td><select class="admin-cell e-sexe">
+                            <option value=""${!e.sexe ? ' selected' : ''}>—</option>
+                            <option value="F"${e.sexe === 'F' ? ' selected' : ''}>F</option>
+                            <option value="M"${e.sexe === 'M' ? ' selected' : ''}>M</option>
+                        </select></td>
+                        <td><select class="admin-cell e-classe">${classes.map(function (c) { return `<option value="${escapeHtml(c.nom)}"${c.nom === e.classe ? ' selected' : ''}>${escapeHtml(c.nom)}</option>`; }).join('')}</select></td>
+                        <td class="admin-actions">
+                            <button type="button" class="eleve-save-btn" title="Enregistrer">💾</button>
+                            <button type="button" class="eleve-delete-btn" title="Supprimer">🗑️</button>
+                        </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="5">Aucun élève. Importez une liste CSV pour commencer.</td></tr>';
+
+                tbody.querySelectorAll('tr[data-id]').forEach(function (row) {
+                    row.querySelector('.eleve-save-btn').addEventListener('click', async function () {
+                        const res = await window.EprofStore.update('school_students', row.dataset.id, {
+                            nom: row.querySelector('.e-nom').value.trim().toUpperCase(),
+                            prenom: row.querySelector('.e-prenom').value.trim(),
+                            sexe: row.querySelector('.e-sexe').value || null,
+                            classe: row.querySelector('.e-classe').value
+                        });
+                        if (res.error) return ctx.notify('❌ ' + res.error.message, true);
+                        if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                        ctx.notify('✅ Élève mis à jour.');
+                        reload();
+                    });
+                    row.querySelector('.eleve-delete-btn').addEventListener('click', async function () {
+                        if (!confirm('Supprimer cet élève de la liste ?')) return;
+                        const res = await window.EprofStore.remove('school_students', row.dataset.id);
+                        if (res.error) return ctx.notify('❌ ' + res.error.message, true);
+                        if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                        reload();
+                    });
+                });
+            }
+
+            async function reload() {
+                const [elevesRes, classesRes] = await Promise.all([
+                    window.EprofStore.list('school_students', { filters: { annee_scolaire: ANNEE_COURANTE }, orderBy: 'nom' }),
+                    window.EprofStore.list('school_classes', { orderBy: 'ordre' })
+                ]);
+                if (elevesRes.error) {
+                    tbody.innerHTML = '<tr><td colspan="5">Erreur : ' + escapeHtml(elevesRes.error.message) + '</td></tr>';
+                    return;
+                }
+                eleves = elevesRes.data || [];
+                classes = (classesRes.data || []).filter(function (c) { return c.actif; });
+                remplirSelectsClasses();
+                draw();
+            }
+
+            root.querySelector('.eleves-search').addEventListener('input', draw);
+            root.querySelector('.eleves-filtre-classe').addEventListener('change', draw);
+
+            root.querySelector('.eleve-add-form').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const res = await window.EprofStore.insert('school_students', {
+                    nom: root.querySelector('.eleve-nom').value.trim().toUpperCase(),
+                    prenom: root.querySelector('.eleve-prenom').value.trim(),
+                    sexe: root.querySelector('.eleve-sexe').value || null,
+                    classe: root.querySelector('.eleve-classe').value,
+                    annee_scolaire: ANNEE_COURANTE
+                });
+                if (res.error) return ctx.notify('❌ ' + res.error.message, true);
+                if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                e.target.reset();
+                remplirSelectsClasses();
+                reload();
+            });
+
+            root.querySelector('.eleves-import-btn').addEventListener('click', function () {
+                const fichier = root.querySelector('.eleves-csv').files[0];
+                const classe = root.querySelector('.eleves-classe-import').value;
+                if (!fichier) return ctx.notify('❌ Choisissez un fichier CSV.', true);
+                if (!classe) return ctx.notify('❌ Aucune classe disponible : créez-en une dans l\'onglet Pédagogie.', true);
+
+                const reader = new FileReader();
+                reader.onload = async function (event) {
+                    const lignes = parseCsvEleves(event.target.result, classe);
+                    if (!lignes.length) return ctx.notify('❌ Aucun élève exploitable dans ce fichier.', true);
+
+                    const apercu = root.querySelector('.eleves-apercu');
+                    apercu.innerHTML = `<p class="admin-hint">${lignes.length} élève(s) détecté(s) : ${escapeHtml(lignes.slice(0, 5).map(function (e) { return e.prenom + ' ' + e.nom; }).join(', '))}${lignes.length > 5 ? '…' : ''}</p>`;
+
+                    if (!confirm('Remplacer la liste de « ' + classe + ' » par ces ' + lignes.length + ' élève(s) ?')) return;
+                    try {
+                        const inseres = await rpc('admin_replace_class_students', {
+                            p_classe: classe,
+                            p_annee: ANNEE_COURANTE,
+                            p_eleves: lignes
+                        });
+                        if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                        ctx.notify('✅ ' + inseres + ' élève(s) importé(s) dans ' + classe + '.');
+                        root.querySelector('.eleves-csv').value = '';
+                        reload();
+                    } catch (err) {
+                        ctx.notify('❌ ' + err.message, true);
+                    }
+                };
+                reader.readAsText(fichier, 'UTF-8');
+            });
+
+            root.querySelector('.eleves-export-btn').addEventListener('click', function () {
+                const classe = root.querySelector('.eleves-filtre-classe').value;
+                const lignes = eleves.filter(function (e) { return !classe || e.classe === classe; });
+                const csv = 'nom;prenom;sexe;classe\n' + lignes.map(function (e) {
+                    return [e.nom, e.prenom, e.sexe || '', e.classe].join(';');
+                }).join('\n');
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'eleves-' + (classe || 'toutes-classes').replace(/\s+/g, '-') + '.csv';
+                link.click();
+                URL.revokeObjectURL(link.href);
+            });
+
+            root.querySelector('.eleves-vider-btn').addEventListener('click', async function () {
+                const classe = root.querySelector('.eleves-filtre-classe').value;
+                if (!classe) return ctx.notify('❌ Sélectionnez d\'abord une classe dans le filtre.', true);
+                if (!confirm('Supprimer tous les élèves de « ' + classe + ' » ?')) return;
+                try {
+                    await rpc('admin_replace_class_students', { p_classe: classe, p_annee: ANNEE_COURANTE, p_eleves: [] });
+                    if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                    ctx.notify('✅ Liste de ' + classe + ' vidée.');
+                    reload();
+                } catch (err) {
+                    ctx.notify('❌ ' + err.message, true);
+                }
+            });
+
+            reload();
+        }
+    };
+
+    // ================= ONGLET : COMPTES =================
+    async function callAdminApi(payload) {
+        const session = await window.EprofStore.getSession();
+        if (!session) throw new Error('Session expirée.');
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + session.access_token
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(function () { return {}; });
+        if (!response.ok) throw new Error(data.error || 'Erreur serveur.');
+        return data;
+    }
+
+    const comptesTab = {
+        id: 'comptes',
+        label: '🔑 Comptes',
+        html: `
+            <p class="admin-hint">Les actions sur les mots de passe et les identifiants passent par une fonction serveur sécurisée (<code>/api/admin/users</code>). Elles nécessitent la variable d'environnement <code>SUPABASE_SERVICE_ROLE_KEY</code> sur Vercel.</p>
+            <div class="admin-toolbar">
+                <input type="search" class="comptes-search" placeholder="Rechercher un compte…">
+                <button type="button" class="btn-secondary comptes-refresh-btn">🔄 Rafraîchir</button>
+                <span class="admin-counter comptes-counter"></span>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Identifiant</th><th>Enseignant</th><th>Dernière connexion</th><th>État</th><th>Rôle</th><th>Actions</th></tr></thead>
+                    <tbody class="comptes-tbody"><tr><td colspan="6">Chargement…</td></tr></tbody>
+                </table>
+            </div>
+            <div class="admin-card comptes-lien" style="display:none;"></div>`,
+
+        init: function (root, ctx) {
+            const tbody = root.querySelector('.comptes-tbody');
+            let comptes = [];
+
+            function afficherLien(titre, lien) {
+                const zone = root.querySelector('.comptes-lien');
+                zone.style.display = 'block';
+                zone.innerHTML = `<h4>${escapeHtml(titre)}</h4>
+                    <p class="admin-hint">Transmettez ce lien à l'enseignant (il est à usage unique et expire).</p>
+                    <textarea rows="3" readonly style="width:100%;">${escapeHtml(lien)}</textarea>`;
+            }
+
+            function draw() {
+                const term = root.querySelector('.comptes-search').value.trim().toLowerCase();
+                const visible = comptes.filter(function (c) {
+                    return !term || [c.identifiant, c.nom, c.prenom, c.matiere].join(' ').toLowerCase().includes(term);
+                });
+                root.querySelector('.comptes-counter').textContent =
+                    comptes.length + ' compte(s) · ' + comptes.filter(function (c) { return c.bloque || !c.actif; }).length + ' bloqué(s)';
+
+                tbody.innerHTML = visible.map(function (c) {
+                    const inactif = c.bloque || !c.actif;
+                    return `<tr data-identifiant="${escapeHtml(c.identifiant)}">
+                        <td><code>${escapeHtml(c.identifiant)}</code></td>
+                        <td>${escapeHtml(((c.prenom || '') + ' ' + (c.nom || '')).trim() || '—')}<br><small>${escapeHtml(c.matiere || '')}</small></td>
+                        <td><small>${escapeHtml(formatDate(c.last_sign_in_at))}</small></td>
+                        <td>${inactif ? '<span class="admin-badge admin-badge-off">bloqué</span>' : '<span class="admin-badge admin-badge-on">actif</span>'}</td>
+                        <td>${c.is_admin ? '<span class="admin-badge admin-badge-info">admin</span>' : 'enseignant'}</td>
+                        <td class="admin-actions">
+                            <button type="button" class="compte-mdp-btn" title="Définir un nouveau mot de passe">🔑</button>
+                            <button type="button" class="compte-lien-btn" title="Générer un lien de réinitialisation">🔗</button>
+                            <button type="button" class="compte-id-btn" title="Changer l'identifiant">✏️</button>
+                            <button type="button" class="compte-ban-btn" title="${inactif ? 'Débloquer' : 'Bloquer'} le compte">${inactif ? '🔓' : '🔒'}</button>
+                            <button type="button" class="compte-role-btn" title="${c.is_admin ? 'Retirer' : 'Accorder'} le rôle admin">${c.is_admin ? '⬇️' : '⬆️'}</button>
+                        </td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="6">Aucun compte.</td></tr>';
+
+                tbody.querySelectorAll('tr[data-identifiant]').forEach(function (row) {
+                    const identifiant = row.dataset.identifiant;
+                    const compte = comptes.find(function (c) { return c.identifiant === identifiant; });
+
+                    row.querySelector('.compte-mdp-btn').addEventListener('click', async function () {
+                        const mdp = prompt('Nouveau mot de passe pour « ' + identifiant +' » (8 caractères minimum) :');
+                        if (!mdp) return;
+                        try {
+                            await callAdminApi({ action: 'reset_password', identifiant: identifiant, password: mdp });
+                            ctx.notify('✅ Mot de passe redéfini pour ' + identifiant + '. Communiquez-le à l\'enseignant.');
+                        } catch (err) {
+                            ctx.notify('❌ ' + err.message, true);
+                        }
+                    });
+
+                    row.querySelector('.compte-lien-btn').addEventListener('click', async function () {
+                        try {
+                            const res = await callAdminApi({ action: 'recovery_link', identifiant: identifiant });
+                            afficherLien('Lien de réinitialisation pour ' + identifiant, res.link || '');
+                        } catch (err) {
+                            ctx.notify('❌ ' + err.message, true);
+                        }
+                    });
+
+                    row.querySelector('.compte-id-btn').addEventListener('click', async function () {
+                        const nouveau = prompt('Nouvel identifiant pour « ' + identifiant + ' » :', identifiant);
+                        if (!nouveau || nouveau === identifiant) return;
+                        try {
+                            await callAdminApi({ action: 'change_identifiant', identifiant: identifiant, nouvelIdentifiant: nouveau });
+                            ctx.notify('✅ Identifiant modifié : ' + identifiant + ' → ' + nouveau);
+                            reload();
+                        } catch (err) {
+                            ctx.notify('❌ ' + err.message, true);
+                        }
+                    });
+
+                    row.querySelector('.compte-ban-btn').addEventListener('click', async function () {
+                        const bloquer = !(compte.bloque || !compte.actif);
+                        if (!confirm((bloquer ? 'Bloquer' : 'Débloquer') + ' le compte « ' + identifiant + ' » ?')) return;
+                        try {
+                            await callAdminApi({ action: 'set_ban', identifiant: identifiant, bloquer: bloquer });
+                            ctx.notify('✅ Compte ' + identifiant + (bloquer ? ' bloqué.' : ' débloqué.'));
+                            reload();
+                        } catch (err) {
+                            ctx.notify('❌ ' + err.message, true);
+                        }
+                    });
+
+                    row.querySelector('.compte-role-btn').addEventListener('click', async function () {
+                        const accorder = !compte.is_admin;
+                        if (!confirm((accorder ? 'Accorder' : 'Retirer') + ' le rôle administrateur à « ' + identifiant + ' » ?')) return;
+                        try {
+                            await rpc('admin_set_admin_role', { p_identifiant: identifiant, p_is_admin: accorder });
+                            ctx.notify('✅ Rôle mis à jour pour ' + identifiant + '.');
+                            reload();
+                        } catch (err) {
+                            ctx.notify('❌ ' + err.message, true);
+                        }
+                    });
+                });
+            }
+
+            async function reload() {
+                try {
+                    comptes = await rpc('admin_list_accounts');
+                } catch (err) {
+                    tbody.innerHTML = '<tr><td colspan="6">Erreur : ' + escapeHtml(err.message) + '</td></tr>';
+                    return;
+                }
+                draw();
+            }
+
+            root.querySelector('.comptes-search').addEventListener('input', draw);
+            root.querySelector('.comptes-refresh-btn').addEventListener('click', reload);
+            reload();
+        }
+    };
+
+    const TABS = [whitelistTab, comptesTab, elevesTab, suggestionsTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
 
     // ---------- Panneau ----------
     function openPanel() {

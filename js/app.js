@@ -3343,13 +3343,14 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
 
     // ========================================
     function renderArchives(container) {
+        const archiveLists = window.getArchiveStudentLists ? window.getArchiveStudentLists() : {};
         const archiveYears = [
             {
                 year: '2025-2026',
                 description: 'Données historiques de l’année scolaire précédente.',
-                classes: Object.keys(typeof LISTES_ELEVES !== 'undefined' ? LISTES_ELEVES : {}).map(classe => ({
+                classes: Object.keys(archiveLists).map(classe => ({
                     name: classe,
-                    students: (LISTES_ELEVES[classe] || []).map((eleve) => ({
+                    students: (archiveLists[classe] || []).map((eleve) => ({
                         name: `${eleve.prenom || ''} ${eleve.nom || ''}`.trim(),
                         sexe: eleve.sexe || ''
                     }))

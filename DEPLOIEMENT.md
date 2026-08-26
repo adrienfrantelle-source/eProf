@@ -59,6 +59,10 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      les enseignants (`suggestions`, `suggestion_votes`), synthèse todolist
      `admin_suggestions_board`. Refactore aussi la purge RGPD via
      `purge_retention_target` pour ne plus la réécrire à chaque nouvelle table.
+   - `0014_eleves_et_comptes.sql` : listes d'élèves de l'établissement
+     (`school_students`, import CSV via `admin_replace_class_students`),
+     drapeau `profiles.actif`, et fonctions de gestion des comptes
+     (`admin_list_accounts`, `admin_set_account_active`, `admin_set_admin_role`).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
@@ -97,8 +101,12 @@ values
    |---|---|---|
    | `SUPABASE_URL` | URL du projet Supabase | Production, Preview, Development |
    | `SUPABASE_ANON_KEY` | clé anonyme Supabase | Production, Preview, Development |
-   (Ne pas ajouter la clé `service_role` sur Vercel : elle n'est jamais utilisée
-   côté serveur/navigateur pour ce projet.)
+   | `SUPABASE_SERVICE_ROLE_KEY` | clé `service_role` Supabase | Production, Preview, Development |
+
+   La clé `service_role` est utilisée **uniquement** par la fonction serveur
+   `api/admin/users.js` (gestion des mots de passe et identifiants depuis le
+   panneau d'administration). Elle n'est jamais renvoyée au navigateur :
+   `/api/config` n'expose que l'URL et la clé anonyme.
 4. Déployer. Le site est servi à la racine, la fonction `/api/config` renvoie
    `{ supabaseUrl, supabaseAnonKey }` au navigateur, qui initialise
    `js/supabase-client.js`.

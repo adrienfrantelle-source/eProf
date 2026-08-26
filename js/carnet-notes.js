@@ -277,6 +277,13 @@ function handleClassChange(e) {
     }
 }
 
+// Liste d'élèves de l'année en cours pour une classe (jamais l'archive : les noms
+// de classe se répètent d'une année sur l'autre).
+function getStudentsForClass(className) {
+    if (!className || !window.getAvailableStudentLists) return [];
+    return window.getAvailableStudentLists()[className] || [];
+}
+
 // Une classe est en semestres ou en trimestres selon le référentiel de
 // l'établissement ; à défaut, 1ère et Terminale sont en semestres.
 function usesSemestres(className) {
@@ -602,12 +609,10 @@ function renderNotesTable() {
     }
     
     // Récupérer la liste des élèves
-    const students = (typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[currentClass]) 
-        ? LISTES_ELEVES[currentClass] 
-        : [];
+    const students = getStudentsForClass(currentClass);
     
     if (students.length === 0) {
-        wrapper.innerHTML = '<div class="empty-state"><p>Aucun élève dans cette classe.</p></div>';
+        wrapper.innerHTML = '<div class="empty-state"><p>Aucune liste d’élèves n’est encore disponible pour <strong>' + currentClass + '</strong> en 2026-2027.</p><p>Les listes de l’année précédente restent consultables dans le module Archives.</p></div>';
         return;
     }
     
@@ -778,9 +783,7 @@ function updateAveragesDisplay() {
     
     filteredEvals = [...filteredEvals].sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    const students = (typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[currentClass]) 
-        ? LISTES_ELEVES[currentClass] 
-        : [];
+    const students = getStudentsForClass(currentClass);
     
     // Mettre à jour les moyennes des élèves
     const rows = document.querySelectorAll('.notes-table tbody tr:not(.class-average-row)');
@@ -1351,7 +1354,7 @@ function setupStatsPeriodButtons() {
     container.appendChild(btnAll);
     
     // Déterminer les périodes selon la classe
-    const classData = typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[currentClass];
+    const classData = getStudentsForClass(currentClass);
     if (classData && classData.length > 0) {
         const firstStudent = classData[0];
         const isPro = firstStudent.classe && (firstStudent.classe.includes('Bac Pro') || firstStudent.classe.includes('CAP'));
@@ -1720,7 +1723,7 @@ function setupClassStatsPeriodButtons() {
     container.appendChild(btnAll);
     
     // Déterminer les périodes selon la classe
-    const classData = typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[currentClass];
+    const classData = getStudentsForClass(currentClass);
     if (classData && classData.length > 0) {
         const firstStudent = classData[0];
         const isPro = firstStudent.classe && (firstStudent.classe.includes('Bac Pro') || firstStudent.classe.includes('CAP'));
@@ -1819,7 +1822,7 @@ function setupClassStatsTabs() {
 
 function calculateClassStats(period = 'all') {
     let evals = evaluations[currentClass] || [];
-    const students = (typeof LISTES_ELEVES !== 'undefined' && LISTES_ELEVES[currentClass]) || [];
+    const students = getStudentsForClass(currentClass);
     
     if (period !== 'all') {
         const normalizedTargetPeriod = normalizePeriod(period);

@@ -24,16 +24,18 @@
 
         try {
             if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
-                const [classes, matieres, modeles] = await Promise.all([
+                const [classes, matieres, modeles, eleves] = await Promise.all([
                     window.EprofStore.list('school_classes', { orderBy: 'ordre' }),
                     window.EprofStore.list('school_subjects', { orderBy: 'ordre' }),
-                    window.EprofStore.list('evaluation_templates', { orderBy: 'nom' })
+                    window.EprofStore.list('evaluation_templates', { orderBy: 'nom' }),
+                    window.EprofStore.list('school_students', { orderBy: 'nom' })
                 ]);
                 if (!classes.error && classes.data) {
                     cache = {
                         classes: classes.data.filter(function (c) { return c.actif; }),
                         matieres: (matieres.data || []).filter(function (m) { return m.actif; }),
                         modeles: (modeles.data || []).filter(function (m) { return m.actif; }),
+                        eleves: eleves.error ? [] : (eleves.data || []),
                         maj: new Date().toISOString()
                     };
                     writeCache(cache);
@@ -87,6 +89,17 @@
         return data && data.modeles ? data.modeles.slice() : [];
     }
 
+    // Listes d'élèves de l'année en cours, au format attendu par les modules
+    // ({ "2nde LCQ": [{ nom, prenom, sexe }, ...] }).
+    function getStudentLists() {
+        const data = cache || readCache();
+        const eleves = (data && data.eleves) || [];
+        return eleves.reduce(function (acc, e) {
+            (acc[e.classe] = acc[e.classe] || []).push({ nom: e.nom, prenom: e.prenom, sexe: e.sexe || '' });
+            return acc;
+        }, {});
+    }
+
     window.EprofReferentiel = {
         load,
         getClasses,
@@ -94,7 +107,8 @@
         getPeriodType,
         getPeriodCount,
         getSubjectNames,
-        getEvaluationTemplates
+        getEvaluationTemplates,
+        getStudentLists
     };
 
     document.addEventListener('DOMContentLoaded', async function () {
