@@ -1,4 +1,10 @@
 // ===== GESTION GLOBALE DES ENSEIGNANTS =====
+const DEFAULT_SUBJECT_CATALOG = [
+    'Histoire', 'Géographie', 'TIM', 'EMC', 'MP9-10', 'MP5-10 HG', 'MP8',
+    'Lettres', 'Mathématiques', 'Animation', 'Physique-Chimie', 'Biologie Ecologie',
+    'SESG', 'Anglais', 'ESC', 'EPS', 'ESF', 'EIE PFMP', 'EIE', 'Nutrition', 'Cadre de vie'
+];
+
 class TeacherManager {
     constructor() {
         this.currentTeacher = null;
@@ -197,7 +203,10 @@ class TeacherManager {
             if (profile && Array.isArray(profile.classes) && profile.classes.length > 0) {
                 this.teacherConfig = {
                     classes: profile.classes,
-                    subjectsByClass: profile.subjects_by_class || {}
+                    subjectsByClass: profile.subjects_by_class || {},
+                    customSubjects: (Array.isArray(profile.custom_subjects) && profile.custom_subjects.length > 0)
+                        ? profile.custom_subjects
+                        : [...DEFAULT_SUBJECT_CATALOG]
                 };
                 localStorage.setItem(configKey, JSON.stringify(this.teacherConfig));
                 return;
@@ -210,12 +219,12 @@ class TeacherManager {
         } else {
             // Configuration par défaut pour adfrantelle
             if (this.currentTeacher === 'adfrantelle') {
-                const activeLists = window.getAvailableStudentLists ? window.getAvailableStudentLists() : (typeof LISTES_ELEVES !== 'undefined' ? LISTES_ELEVES : {});
+                const currentClasses = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
                 this.teacherConfig = {
-                    classes: Object.keys(activeLists),
+                    classes: currentClasses,
                     subjectsByClass: {}
                 };
-                Object.keys(activeLists).forEach(className => {
+                currentClasses.forEach(className => {
                     this.teacherConfig.subjectsByClass[className] = this.getDefaultSubjectsForClass(className);
                 });
                 this.saveTeacherConfig();
@@ -240,7 +249,8 @@ class TeacherManager {
                 const { error } = await window.EprofStore.upsert('profiles', [{
                     id: teacherId,
                     classes: this.teacherConfig.classes,
-                    subjects_by_class: this.teacherConfig.subjectsByClass
+                    subjects_by_class: this.teacherConfig.subjectsByClass,
+                    custom_subjects: this.teacherConfig.customSubjects || []
                 }], { onConflict: 'id' });
                 if (error) {
                     console.error('❌ Synchronisation de la configuration enseignant échouée', error);
@@ -269,30 +279,59 @@ class TeacherManager {
 
     getDefaultSubjectsForClass(className) {
         const subjects = ['Histoire', 'Géographie'];
-        
-        // TIM pour 4e, 3e, 2nde
-        if (className.includes('4') || className.includes('3') || className.includes('2nde')) {
-            subjects.push('TIM');
+        const lower = className.toLowerCase();
+
+        // TIM + EMC pour 4e, 3e, 2nde
+        if (lower.includes('4e') || lower.includes('3e') || lower.includes('2nde')) {
+            subjects.push('TIM', 'EMC');
         }
-        
-        // EMC pour 3e, 4e, 2nde
-        if (className.includes('3') || className.includes('4') || className.includes('2nde')) {
-            subjects.push('EMC');
-        }
-        
-        // MP9-10 et MP5-10 HG pour Terminale/Tle
-        if (className.toLowerCase().includes('terminale') || className.toLowerCase().includes('tle')) {
+
+        // MP9-10 et MP5-10 HG pour 1ère et Terminale/Tle
+        if (lower.includes('1ère') || lower.includes('1ere') || lower.includes('terminale') || lower.includes('tle')) {
             subjects.push('MP9-10', 'MP5-10 HG');
         }
-        
-        // Spécial pour adfrantelle : EIE pour 2nde SAPAT AB1
-        if (this.currentTeacher === 'adfrantelle' && className === '2nde SAPAT AB1') {
-            subjects.push('EIE');
-        }
-        
+
         return subjects;
     }
 
+    // ===== Catalogue de matières personnalisable par enseignant =====
+    getSubjectCatalog() {
+        if (!Array.isArray(this.teacherConfig.customSubjects) || this.teacherConfig.customSubjects.length === 0) {
+            this.teacherConfig.customSubjects = [...DEFAULT_SUBJECT_CATALOG];
+        }
+        return this.teacherConfig.customSubjects;
+    }
+
+    addSubjectToCatalog(name) {
+        const trimmed = (name || '').trim();
+        if (!trimmed) return false;
+        const catalog = this.getSubjectCatalog();
+        if (catalog.some(s => s.toLowerCase() === trimmed.toLowerCase())) return false;
+        catalog.push(trimmed);
+        this.saveTeacherConfig();
+        return true;
+    }
+
+    renameSubjectInCatalog(oldName, newName) {
+        const trimmed = (newName || '').trim();
+        if (!trimmed || trimmed === oldName) return false;
+        const catalog = this.getSubjectCatalog();
+        const index = catalog.indexOf(oldName);
+        if (index === -1) return false;
+        catalog[index] = trimmed;
+
+        // Répercute le renommage partout où la matière était déjà cochée pour une classe
+        Object.keys(this.teacherConfig.subjectsByClass || {}).forEach(className => {
+            const subjects = this.teacherConfig.subjectsByClass[className];
+            const subjectIndex = subjects.indexOf(oldName);
+            if (subjectIndex !== -1) {
+                subjects[subjectIndex] = trimmed;
+            }
+        });
+
+        this.saveTeacherConfig();
+        return true;
+    }
     showInitialConfig() {
         const modal = document.getElementById('initial-config-modal');
         if (!modal) {
@@ -304,12 +343,6 @@ class TeacherManager {
     }
 
     createConfigModal() {
-        const ALL_SUBJECTS = [
-            'Histoire', 'Géographie', 'TIM', 'EMC', 'MP9-10', 'MP5-10 HG', 'MP8',
-            'Lettres', 'Mathématiques', 'Animation', 'Physique-Chimie', 'Biologie Ecologie',
-            'SESG', 'Anglais', 'ESC', 'EPS', 'ESF', 'EIE PFMP', 'EIE', 'Nutrition', 'Cadre de vie'
-        ];
-
         const modalHTML = `
             <div id="initial-config-modal" class="modal" style="display: block; backdrop-filter: blur(8px); background: rgba(0,0,0,0.5);">
                 <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto; animation: slideDown 0.3s ease;">
@@ -338,8 +371,17 @@ class TeacherManager {
                                 🎓 Configuration des matières par classe :
                             </label>
                             <p style="font-size: 0.95em; color: #666; margin-bottom: 15px; padding-left: 5px;">
-                                Pour chaque classe sélectionnée, choisissez les matières que vous enseignez
+                                Pour chaque classe sélectionnée, choisissez les matières que vous enseignez.
+                                Cliquez sur ✏️ pour renommer une matière (partout où elle est utilisée).
                             </p>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <input type="text" id="new-subject-input" placeholder="Ajouter une matière (ex : SVT)"
+                                       style="flex: 1; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95em;">
+                                <button id="add-subject-btn" type="button"
+                                        style="padding: 10px 18px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                    ➕ Ajouter
+                                </button>
+                            </div>
                             <div id="subjects-by-class-container" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
                             </div>
                         </div>
@@ -361,6 +403,26 @@ class TeacherManager {
         this.populateConfigModal();
         
         document.getElementById('save-config-btn').onclick = () => this.saveConfiguration();
+
+        const addSubjectBtn = document.getElementById('add-subject-btn');
+        const newSubjectInput = document.getElementById('new-subject-input');
+        if (addSubjectBtn && newSubjectInput) {
+            const handleAddSubject = () => {
+                if (this.addSubjectToCatalog(newSubjectInput.value)) {
+                    newSubjectInput.value = '';
+                    this.updateSubjectsForSelectedClasses();
+                } else if (newSubjectInput.value.trim()) {
+                    alert('Cette matière existe déjà dans la liste.');
+                }
+            };
+            addSubjectBtn.addEventListener('click', handleAddSubject);
+            newSubjectInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSubject();
+                }
+            });
+        }
     }
 
     populateConfigModal() {
@@ -369,8 +431,8 @@ class TeacherManager {
         
         classesContainer.innerHTML = '';
         
-        if (typeof LISTES_ELEVES !== 'undefined') {
-            Object.keys(LISTES_ELEVES).forEach(className => {
+        const currentClasses = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
+        currentClasses.forEach(className => {
                 const label = document.createElement('label');
                 label.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 12px 15px; cursor: pointer; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; transition: all 0.3s; font-weight: 500;';
                 label.onmouseover = () => {
@@ -405,8 +467,7 @@ class TeacherManager {
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(className));
                 classesContainer.appendChild(label);
-            });
-        }
+        });
         
         this.updateSubjectsForSelectedClasses();
     }
@@ -424,11 +485,7 @@ class TeacherManager {
             return;
         }
 
-        const ALL_SUBJECTS = [
-            'Histoire', 'Géographie', 'TIM', 'EMC', 'MP9-10', 'MP5-10 HG', 'MP8',
-            'Lettres', 'Mathématiques', 'Animation', 'Physique-Chimie', 'Biologie Ecologie',
-            'SESG', 'Anglais', 'ESC', 'EPS', 'ESF', 'EIE PFMP', 'EIE', 'Nutrition', 'Cadre de vie'
-        ];
+        const subjectCatalog = this.getSubjectCatalog();
         
         selectedClasses.forEach((className, index) => {
             const classDiv = document.createElement('div');
@@ -445,7 +502,7 @@ class TeacherManager {
             
             const currentSubjects = this.teacherConfig.subjectsByClass[className] || this.getDefaultSubjectsForClass(className);
             
-            ALL_SUBJECTS.forEach(subject => {
+            subjectCatalog.forEach(subject => {
                 const label = document.createElement('label');
                 label.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: white; border: 1.5px solid #e5e7eb; border-radius: 6px; transition: all 0.2s; font-weight: 500;';
                 label.onmouseover = () => {
@@ -481,8 +538,23 @@ class TeacherManager {
                     label.style.borderColor = '#10b981';
                 }
                 
+                const renameBtn = document.createElement('button');
+                renameBtn.type = 'button';
+                renameBtn.textContent = '✏️';
+                renameBtn.title = `Renommer "${subject}" (pour toutes les classes)`;
+                renameBtn.style.cssText = 'border:none;background:transparent;cursor:pointer;font-size:0.9em;margin-left:auto;padding:0 2px;line-height:1;';
+                renameBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const nouveauNom = prompt(`Renommer la matière "${subject}" en :`, subject);
+                    if (nouveauNom && this.renameSubjectInCatalog(subject, nouveauNom.trim())) {
+                        this.updateSubjectsForSelectedClasses();
+                    }
+                };
+
                 label.appendChild(checkbox);
                 label.appendChild(document.createTextNode(subject));
+                label.appendChild(renameBtn);
                 subjectsGrid.appendChild(label);
             });
             

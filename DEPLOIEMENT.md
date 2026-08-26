@@ -25,6 +25,8 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0005_allowed_teachers.sql` : liste blanche `allowed_teachers` + fonction
      `is_identifiant_available` + mise à jour du trigger `handle_new_user`
      pour restreindre l'auto-inscription aux identifiants autorisés.
+   - `0006_profiles_custom_subjects.sql` : ajoute la colonne `custom_subjects`
+     (catalogue de matières personnalisable, ajout/renommage par l'enseignant).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

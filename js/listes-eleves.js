@@ -218,3 +218,26 @@ window.getArchiveStudentLists = function () {
     return window.__ARCHIVE_LISTES_ELEVES || {};
 };
 
+// Noms des classes de l'année en cours (2026-2027). Aucune liste d'élèves
+// n'est encore associée : seuls les noms sont utilisés (choix des classes
+// enseignées, configuration des matières...).
+const CLASSES_ANNEE_ACTUELLE = [
+    '4e',
+    '3e A',
+    '3e B',
+    '2nde SAPAT A',
+    '2nde SAPAT B',
+    '2nde SAPAT C',
+    '2nde LCQ',
+    '1ère SAPAT A',
+    '1ère SAPAT B',
+    '1ère SAPAT C',
+    '1ère LCQ',
+    'Tle SAPAT A',
+    'Tle SAPAT B',
+    'Tle LCQ'
+];
+
+window.getCurrentClassNames = function () {
+    return CLASSES_ANNEE_ACTUELLE.slice();
+};
