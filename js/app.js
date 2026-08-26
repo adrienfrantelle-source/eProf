@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div id="calendar-view"></div>
         </div>`;
         // Ajout du script FullCalendar si besoin
-        function openCalendarImageModal() {
+        function openImageModal(titre, source, alt) {
             var existing = document.getElementById('calendar-image-modal');
             if (existing) existing.remove();
 
@@ -422,16 +422,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="calendar-image-backdrop" data-close="true"></div>
                 <div class="calendar-image-dialog">
                     <div class="calendar-image-header">
-                        <h3>Calendrier scolaire - Zone B</h3>
+                        <h3>${titre}</h3>
                         <button type="button" class="calendar-image-close" aria-label="Fermer">×</button>
                     </div>
-                    <img src="images/calendrier scolaire.png" alt="Calendrier scolaire Zone B" />
+                    <img src="${encodeURI(source)}" alt="${alt}" />
                 </div>
             `;
 
             document.body.appendChild(modal);
             modal.querySelector('.calendar-image-close').addEventListener('click', function() { modal.remove(); });
             modal.querySelector('.calendar-image-backdrop').addEventListener('click', function() { modal.remove(); });
+        }
+
+        function openCalendarImageModal() {
+            openImageModal('Calendrier scolaire - Zone B', 'images/calendrier scolaire.png', 'Calendrier scolaire Zone B');
+        }
+
+        function openStageImageModal() {
+            openImageModal('Dates de stage', 'images/Dates de stage.png', 'Dates de stage');
         }
 
         async function startFullCalendar() {
@@ -511,12 +519,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     calendarSchoolButton: {
                         text: '🖼️ Calendrier scolaire',
                         click: openCalendarImageModal
+                    },
+                    stageDatesButton: {
+                        text: '🏢 Dates de stage',
+                        click: openStageImageModal
                     }
                 },
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
-                    right: 'calendarSchoolButton timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
+                    right: 'calendarSchoolButton stageDatesButton timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
                 },
                 buttonText: {
                     today: 'Aujourd\'hui',
