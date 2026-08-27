@@ -14,6 +14,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return { version: 'V2.0.0' };
     }
 
+    function getVisibleTeacherClasses() {
+        if (window.getTeacherClassNames) return window.getTeacherClassNames().slice().sort();
+        if (window.teacherManager && window.teacherManager.getTeacherClasses) {
+            return (window.teacherManager.getTeacherClasses() || []).slice().sort();
+        }
+        return [];
+    }
+
+    function getListsForTeacher() {
+        if (window.getTeacherStudentLists) return window.getTeacherStudentLists();
+        const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+        const out = {};
+        getVisibleTeacherClasses().forEach(function (nom) { out[nom] = listes[nom] || []; });
+        return out;
+    }
+
+    function classeBtnHtml(classe, count) {
+        const color = window.getClassColor ? window.getClassColor(classe) : '#2563eb';
+        const extra = typeof count === 'number' ? ` <small>(${count})</small>` : '';
+        return `<button class="classe-btn" data-classe="${classe}" style="background:${color};">📚 ${classe}${extra}</button>`;
+    }
+
+    function emptyTeacherClassesHtml() {
+        return `
+            <div class="selection-classe-suivi empty-state-box">
+                <h3>Aucune classe sélectionnée</h3>
+                <p>Choisissez vos classes dans la configuration enseignant (première connexion ou Paramètres) pour les voir ici.</p>
+            </div>`;
+    }
+
     function updateFooterVersion() {
         const footerVersion = document.getElementById('footer-version');
         if (!footerVersion) return;
@@ -3472,18 +3502,14 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
     // ========================================
     function renderTrombinoscopes(container) {
         const annee = '2026-2027';
-        const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
-        const classes = Object.keys(listes).sort();
+        const listes = getListsForTeacher();
+        const classes = getVisibleTeacherClasses();
 
         if (classes.length === 0) {
             container.innerHTML = `
                 <div id="suivi-eleves-module">
                     <h2>📸 Trombinoscopes - Année ${annee}</h2>
-                    <div class="suivi-eleves-selection empty-state-box">
-                        <h3>Aucune liste d’élèves n’est encore disponible</h3>
-                        <p>Les listes sont importées par l’administrateur depuis son panneau.</p>
-                        <p>Les anciennes données de l’année 2025-2026 restent uniquement dans <strong>Archives</strong>.</p>
-                    </div>
+                    ${emptyTeacherClassesHtml()}
                 </div>`;
             return;
         }
@@ -3494,11 +3520,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 <div class="selection-classe-suivi">
                     <h3>Sélectionnez une classe</h3>
                     <div class="classes-grid">
-                        ${classes.map(classe => `
-                            <button class="classe-btn" data-classe="${classe}">
-                                📚 ${classe} <small>(${listes[classe].length})</small>
-                            </button>
-                        `).join('')}
+                        ${classes.map(classe => classeBtnHtml(classe, (listes[classe] || []).length)).join('')}
                     </div>
                 </div>
                 <div id="trombi-contenu" style="display:none; margin-top:20px;">
@@ -3585,8 +3607,8 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
 
     // ========================================
     function renderSuiviEleves(container) {
-        const listesEleves = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
-        const classes = Object.keys(listesEleves).sort();
+        const listesEleves = getListsForTeacher();
+        const classes = getVisibleTeacherClasses();
 
         container.innerHTML = `
             <div id="suivi-eleves-module">
@@ -3598,20 +3620,11 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                     </div>
                 </div>
                 
-                ${classes.length === 0 ? `
-                <div class="selection-classe-suivi empty-state-box">
-                    <h3>Aucune liste d’élèves n’est encore disponible.</h3>
-                    <p>Les listes sont importées par l’administrateur depuis son panneau.</p>
-                </div>
-                ` : `
+                ${classes.length === 0 ? emptyTeacherClassesHtml() : `
                 <div class="selection-classe-suivi">
                     <h3>Sélectionnez une classe</h3>
                     <div class="classes-grid">
-                        ${classes.map(classe => `
-                            <button class="classe-btn" data-classe="${classe}">
-                                📚 ${classe} <small>(${listesEleves[classe].length})</small>
-                            </button>
-                        `).join('')}
+                        ${classes.map(classe => classeBtnHtml(classe, (listesEleves[classe] || []).length)).join('')}
                     </div>
                 </div>
                 `}
@@ -3694,10 +3707,30 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 
                 <!-- Modale liste d'émargement -->
                 <div id="modale-emargement" class="modale-eleve" style="display: none;">
-                    <div class="modale-eleve-content" style="max-width: 600px;">
+                    <div class="modale-eleve-content" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
                         <span class="close-modale-emargement">&times;</span>
                         <h3>📋 Générer une liste d'émargement</h3>
-                        
+                        <p style="color:#64748b;font-size:0.9rem;margin:0 0 12px;">Les champs d'en-tête sont facultatifs : laissez vides ceux dont vous n'avez pas besoin.</p>
+                        <div class="emargement-meta-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;">
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Titre
+                                <input type="text" id="emargement-titre" placeholder="Liste d'émargement" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Sous-titre
+                                <input type="text" id="emargement-sous-titre" placeholder="ex. Contrôle, sortie…" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Date
+                                <input type="date" id="emargement-date" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Salle
+                                <input type="text" id="emargement-salle" placeholder="ex. B204" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Enseignant
+                                <input type="text" id="emargement-prof" placeholder="Nom du professeur" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Classe (affichée)
+                                <input type="text" id="emargement-classe-libelle" placeholder="Laissée vide = nom de la classe" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                            </label>
+                        </div>
                         <div style="margin: 20px 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <label style="font-weight: 500;">Colonnes d'émargement</label>
@@ -4591,6 +4624,17 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 `;
                 updateSupprimerButtons();
                 container.querySelector('input[name="format-emargement"][value="excel"]').checked = true;
+                const dateInput = container.querySelector('#emargement-date');
+                if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+                const profInput = container.querySelector('#emargement-prof');
+                if (profInput && !profInput.value) {
+                    const nameEl = document.getElementById('user-name-display');
+                    if (nameEl && nameEl.textContent && nameEl.textContent !== 'Enseignant') {
+                        profInput.value = nameEl.textContent.trim();
+                    }
+                }
+                const classeLibelle = container.querySelector('#emargement-classe-libelle');
+                if (classeLibelle && classeActuelle) classeLibelle.value = classeActuelle;
             });
         }
         
@@ -4647,6 +4691,14 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 const colonnesInputs = container.querySelectorAll('.titre-colonne-input');
                 const colonnes = Array.from(colonnesInputs).map(input => input.value.trim()).filter(v => v);
                 const format = container.querySelector('input[name="format-emargement"]:checked').value;
+                const meta = {
+                    titre: (container.querySelector('#emargement-titre') || {}).value || '',
+                    sousTitre: (container.querySelector('#emargement-sous-titre') || {}).value || '',
+                    date: (container.querySelector('#emargement-date') || {}).value || '',
+                    salle: (container.querySelector('#emargement-salle') || {}).value || '',
+                    prof: (container.querySelector('#emargement-prof') || {}).value || '',
+                    classeLibelle: (container.querySelector('#emargement-classe-libelle') || {}).value || ''
+                };
                 
                 if (colonnes.length === 0) {
                     alert('⚠️ Veuillez saisir au moins un intitulé de colonne');
@@ -4669,9 +4721,9 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 })).sort((a, b) => a.nom.localeCompare(b.nom));
                 
                 if (format === 'excel') {
-                    genererExcelEmargement(classeActuelle, eleves, colonnes);
+                    genererExcelEmargement(classeActuelle, eleves, colonnes, meta);
                 } else {
-                    genererPDFEmargement(classeActuelle, eleves, colonnes);
+                    genererPDFEmargement(classeActuelle, eleves, colonnes, meta);
                 }
                 
                 modaleEmargement.style.display = 'none';
@@ -4679,17 +4731,33 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         }
         
         // Fonction pour générer Excel
-        function genererExcelEmargement(classe, eleves, colonnes) {
-            // Vérifier si SheetJS est chargé
+        function genererExcelEmargement(classe, eleves, colonnes, meta) {
+            meta = meta || {};
             if (typeof XLSX === 'undefined') {
                 alert('❌ La bibliothèque XLSX n\'est pas chargée. Impossible de générer le fichier Excel.');
                 return;
             }
-            
-            // Créer les données
+
+            const libelleClasse = (meta.classeLibelle || classe || '').trim();
+            const headerRows = [];
+            const titre = (meta.titre || '').trim() || ('Liste d\'émargement' + (libelleClasse ? ' - ' + libelleClasse : ''));
+            headerRows.push([titre]);
+            if ((meta.sousTitre || '').trim()) headerRows.push([meta.sousTitre.trim()]);
+            const infos = [];
+            if (libelleClasse) infos.push('Classe : ' + libelleClasse);
+            if ((meta.date || '').trim()) {
+                const d = meta.date.trim();
+                infos.push('Date : ' + (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d));
+            }
+            if ((meta.salle || '').trim()) infos.push('Salle : ' + meta.salle.trim());
+            if ((meta.prof || '').trim()) infos.push('Enseignant : ' + meta.prof.trim());
+            if (infos.length) headerRows.push([infos.join('  ·  ')]);
+            headerRows.push([]);
+
             const headers = ['Élève', ...colonnes];
             const data = [
-                headers, // En-têtes
+                ...headerRows,
+                headers,
                 ...eleves.map(e => [e.nomComplet, ...Array(colonnes.length).fill('')])
             ];
             
@@ -4715,8 +4783,8 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         }
         
         // Fonction pour générer PDF
-        function genererPDFEmargement(classe, eleves, colonnes) {
-            // Vérifier si jsPDF est chargé
+        function genererPDFEmargement(classe, eleves, colonnes, meta) {
+            meta = meta || {};
             if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
                 alert('❌ La bibliothèque jsPDF n\'est pas chargée. Impossible de générer le fichier PDF.');
                 return;
@@ -4724,17 +4792,34 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             
             const { jsPDF } = window.jspdf || jspdf;
             const doc = new jsPDF();
+            const libelleClasse = (meta.classeLibelle || classe || '').trim();
+            const titre = (meta.titre || '').trim() || ('Liste d\'émargement' + (libelleClasse ? ' - ' + libelleClasse : ''));
             
-            // Titre
+            let yHead = 15;
             doc.setFontSize(16);
             doc.setFont(undefined, 'bold');
-            doc.text(`Liste d'émargement - ${classe}`, 105, 15, { align: 'center' });
-            
-            // Date
+            doc.text(titre, 105, yHead, { align: 'center' });
+            yHead += 7;
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            const today = new Date().toLocaleDateString('fr-FR');
-            doc.text(`Date : ${today}`, 105, 25, { align: 'center' });
+            if ((meta.sousTitre || '').trim()) {
+                doc.text(meta.sousTitre.trim(), 105, yHead, { align: 'center' });
+                yHead += 6;
+            }
+            const infos = [];
+            if (libelleClasse) infos.push('Classe : ' + libelleClasse);
+            if ((meta.date || '').trim()) {
+                const d = meta.date.trim();
+                infos.push('Date : ' + (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d));
+            }
+            if ((meta.salle || '').trim()) infos.push('Salle : ' + meta.salle.trim());
+            if ((meta.prof || '').trim()) infos.push('Enseignant : ' + meta.prof.trim());
+            if (infos.length) {
+                doc.text(infos.join('  ·  '), 105, yHead, { align: 'center' });
+                yHead += 8;
+            } else {
+                yHead += 4;
+            }
             
             // Calculer les largeurs de colonnes
             const pageWidth = 180;
@@ -4744,7 +4829,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             const colEmargementWidth = (pageWidth - colNumWidth - colNomWidth) / nbColonnes;
             
             // Tableau manuel
-            let y = 35;
+            let y = yHead;
             const lineHeight = 8;
             const colX1 = 15;  // N°
             const colX2 = colX1 + colNumWidth;  // Nom
@@ -5364,7 +5449,14 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                             <div class="ajout-jeu-form">
                                 <input type="text" id="jeu-titre" placeholder="Titre du jeu" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
                                 <input type="url" id="jeu-url" placeholder="URL du jeu (https://...)" style="flex: 2; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
+                                <select id="jeu-famille" style="min-width:160px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;">
+                                    <option value="Général">📁 Général</option>
+                                </select>
                                 <button id="ajouter-jeu-btn" class="btn-primary">➕ Ajouter</button>
+                            </div>
+                            <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" id="jeu-nouvelle-famille" placeholder="Nouveau dossier (ex. Quiz, Géographie)" style="flex:1;min-width:220px;padding:10px;border:2px solid #e2e8f0;border-radius:8px;">
+                                <button type="button" id="creer-famille-jeu-btn" class="btn-secondary">📁 Créer un dossier</button>
                             </div>
                             <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 <button id="exporter-jeux-btn" class="btn-secondary" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">💾 Sauvegarder la liste</button>
@@ -5388,6 +5480,40 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
 
         // Charger les jeux : priorité Supabase (si connecté), puis fichier embarqué, puis localStorage
         let jeux = [];
+        let collapsedFamilles = {};
+        try { collapsedFamilles = JSON.parse(localStorage.getItem('jeuxFamillesCollapsed') || '{}'); } catch (e) { collapsedFamilles = {}; }
+
+        function normalizeJeu(jeu) {
+            return {
+                id: jeu.id,
+                titre: jeu.titre || jeu.title || '',
+                url: jeu.url || '',
+                famille: jeu.famille || 'Général'
+            };
+        }
+
+        function getFamilles() {
+            const set = {};
+            jeux.forEach(function (j) { set[j.famille || 'Général'] = true; });
+            const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
+            extras.forEach(function (f) { if (f) set[f] = true; });
+            set['Général'] = true;
+            return Object.keys(set).sort(function (a, b) {
+                if (a === 'Général') return -1;
+                if (b === 'Général') return 1;
+                return a.localeCompare(b, 'fr');
+            });
+        }
+
+        function refreshFamilleSelect(selected) {
+            const select = container.querySelector('#jeu-famille');
+            if (!select) return;
+            const current = selected || select.value || 'Général';
+            select.innerHTML = getFamilles().map(function (f) {
+                return `<option value="${f}">📁 ${f}</option>`;
+            }).join('');
+            select.value = getFamilles().indexOf(current) >= 0 ? current : 'Général';
+        }
 
         async function loadJeux() {
             const online = window.EprofStore && await window.EprofStore.isOnlineReady();
@@ -5398,7 +5524,9 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                     orderBy: 'created_at'
                 });
                 if (!error && data) {
-                    jeux = data.map(function(row) { return { id: row.id, titre: row.title, url: row.url }; });
+                    jeux = data.map(function(row) {
+                        return { id: row.id, titre: row.title, url: row.url, famille: row.famille || 'Général' };
+                    });
                     try { localStorage.setItem('jeuxPedagogiques', JSON.stringify(jeux)); } catch (e) {}
                     return;
                 }
@@ -5406,64 +5534,100 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             }
 
             if (typeof JEUX_PEDAGOGIQUES !== 'undefined' && Array.isArray(JEUX_PEDAGOGIQUES) && JEUX_PEDAGOGIQUES.length > 0) {
-                jeux = [...JEUX_PEDAGOGIQUES];
+                jeux = JEUX_PEDAGOGIQUES.map(normalizeJeu);
             } else {
-                jeux = JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]');
+                jeux = JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]').map(normalizeJeu);
             }
+        }
+
+        function jeuCardHtml(jeu) {
+            return `
+                <div class="jeu-card">
+                    <div class="jeu-card-header">
+                        <h4>${jeu.titre}</h4>
+                        <button class="btn-supprimer-jeu" data-titre="${jeu.titre}" data-id="${jeu.id || ''}">🗑️</button>
+                    </div>
+                    <a href="${jeu.url}" target="_blank" class="jeu-link">
+                        <div class="jeu-icon">🎮</div>
+                        <div class="jeu-url">${jeu.url}</div>
+                        <div class="jeu-action">▶️ Jouer</div>
+                    </a>
+                </div>`;
         }
 
         function afficherJeux(filtreTexte = '') {
             const jeuxListe = container.querySelector('#jeux-liste');
+            refreshFamilleSelect();
             
-            // Filtrer les jeux selon la recherche
             const jeuxFiltres = filtreTexte
-                ? jeux.filter(jeu => 
-                    jeu.titre.toLowerCase().includes(filtreTexte.toLowerCase()) ||
-                    jeu.url.toLowerCase().includes(filtreTexte.toLowerCase())
+                ? jeux.filter(jeu =>
+                    (jeu.titre || '').toLowerCase().includes(filtreTexte.toLowerCase()) ||
+                    (jeu.url || '').toLowerCase().includes(filtreTexte.toLowerCase()) ||
+                    (jeu.famille || '').toLowerCase().includes(filtreTexte.toLowerCase())
                   )
                 : jeux;
             
             if (jeux.length === 0) {
                 jeuxListe.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic; margin-top: 40px;">Aucun jeu enregistré. Ajoutez votre premier jeu !</p>';
-            } else if (jeuxFiltres.length === 0) {
-                jeuxListe.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic; margin-top: 40px;">🔍 Aucun jeu ne correspond à votre recherche.</p>';
-            } else {
-                jeuxListe.innerHTML = `
-                    <div class="jeux-grid">
-                        ${jeuxFiltres.map((jeu) => `
-                            <div class="jeu-card">
-                                <div class="jeu-card-header">
-                                    <h4>${jeu.titre}</h4>
-                                    <button class="btn-supprimer-jeu" data-titre="${jeu.titre}" data-id="${jeu.id || ''}">🗑️</button>
-                                </div>
-                                <a href="${jeu.url}" target="_blank" class="jeu-link">
-                                    <div class="jeu-icon">🎮</div>
-                                    <div class="jeu-url">${jeu.url}</div>
-                                    <div class="jeu-action">▶️ Jouer</div>
-                                </a>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-
-                // Boutons supprimer
-                container.querySelectorAll('.btn-supprimer-jeu').forEach(btn => {
-                    btn.addEventListener('click', async function() {
-                        const titre = this.getAttribute('data-titre');
-                        const gameId = this.getAttribute('data-id');
-                        const index = jeux.findIndex(j => j.titre === titre);
-                        if (index !== -1 && confirm(`Supprimer le jeu "${jeux[index].titre}" ?`)) {
-                            jeux.splice(index, 1);
-                            sauvegarderJeux();
-                            if (gameId && window.EprofStore) {
-                                window.EprofStore.remove('pedagogical_games', gameId);
-                            }
-                            const rechercheInput = container.querySelector('#recherche-jeu');
-                            afficherJeux(rechercheInput ? rechercheInput.value : '');
-                        }
-                    });
-                });
+                return;
             }
+            if (jeuxFiltres.length === 0) {
+                jeuxListe.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic; margin-top: 40px;">🔍 Aucun jeu ne correspond à votre recherche.</p>';
+                return;
+            }
+
+            const groupes = {};
+            jeuxFiltres.forEach(function (jeu) {
+                const fam = jeu.famille || 'Général';
+                (groupes[fam] = groupes[fam] || []).push(jeu);
+            });
+            const ordre = Object.keys(groupes).sort(function (a, b) {
+                if (a === 'Général') return -1;
+                if (b === 'Général') return 1;
+                return a.localeCompare(b, 'fr');
+            });
+
+            jeuxListe.innerHTML = ordre.map(function (famille) {
+                const closed = !!collapsedFamilles[famille];
+                return `
+                    <section class="jeux-famille" data-famille="${famille}">
+                        <button type="button" class="jeux-famille-toggle" aria-expanded="${closed ? 'false' : 'true'}">
+                            <span class="jeux-famille-chevron">${closed ? '▶' : '▼'}</span>
+                            <span>📁 ${famille}</span>
+                            <small>${groupes[famille].length}</small>
+                        </button>
+                        <div class="jeux-grid" style="${closed ? 'display:none;' : ''}">
+                            ${groupes[famille].map(jeuCardHtml).join('')}
+                        </div>
+                    </section>`;
+            }).join('');
+
+            container.querySelectorAll('.jeux-famille-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const section = btn.closest('.jeux-famille');
+                    const famille = section.dataset.famille;
+                    collapsedFamilles[famille] = !collapsedFamilles[famille];
+                    localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
+                    afficherJeux(container.querySelector('#recherche-jeu').value);
+                });
+            });
+
+            container.querySelectorAll('.btn-supprimer-jeu').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const titre = this.getAttribute('data-titre');
+                    const gameId = this.getAttribute('data-id');
+                    const index = jeux.findIndex(j => j.titre === titre);
+                    if (index !== -1 && confirm(`Supprimer le jeu "${jeux[index].titre}" ?`)) {
+                        jeux.splice(index, 1);
+                        sauvegarderJeux();
+                        if (gameId && window.EprofStore) {
+                            window.EprofStore.remove('pedagogical_games', gameId);
+                        }
+                        const rechercheInput = container.querySelector('#recherche-jeu');
+                        afficherJeux(rechercheInput ? rechercheInput.value : '');
+                    }
+                });
+            });
         }
 
         // Fonction pour sauvegarder dans localStorage et proposer export
@@ -5558,19 +5722,28 @@ if (typeof module !== 'undefined' && module.exports) {
                 return;
             }
 
-            const nouveauJeu = { titre, url };
+            const famille = (container.querySelector('#jeu-famille') || {}).value || 'Général';
+            const nouveauJeu = { titre, url, famille };
             jeux.push(nouveauJeu);
             sauvegarderJeux();
 
             if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
                 const teacherId = await window.EprofStore.getTeacherId();
-                const { data, error } = await window.EprofStore.insert('pedagogical_games', {
+                let res = await window.EprofStore.insert('pedagogical_games', {
                     teacher_id: teacherId,
                     title: titre,
-                    url: url
+                    url: url,
+                    famille: famille
                 });
-                if (!error && data && data.id) {
-                    nouveauJeu.id = data.id;
+                if (res.error && /famille/i.test(res.error.message || '')) {
+                    res = await window.EprofStore.insert('pedagogical_games', {
+                        teacher_id: teacherId,
+                        title: titre,
+                        url: url
+                    });
+                }
+                if (!res.error && res.data && res.data.id) {
+                    nouveauJeu.id = res.data.id;
                     sauvegarderJeux();
                 }
             }
@@ -5587,6 +5760,23 @@ if (typeof module !== 'undefined' && module.exports) {
                 ajouterBtn.click();
             }
         });
+
+        const creerFamilleBtn = container.querySelector('#creer-famille-jeu-btn');
+        if (creerFamilleBtn) {
+            creerFamilleBtn.addEventListener('click', function () {
+                const input = container.querySelector('#jeu-nouvelle-famille');
+                const nom = (input && input.value.trim()) || '';
+                if (!nom) {
+                    alert('⚠️ Saisissez un nom de dossier.');
+                    return;
+                }
+                const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
+                if (extras.indexOf(nom) === -1) extras.push(nom);
+                localStorage.setItem('jeuxFamillesExtra', JSON.stringify(extras));
+                if (input) input.value = '';
+                refreshFamilleSelect(nom);
+            });
+        }
 
         // Recherche en temps réel
         const rechercheInput = container.querySelector('#recherche-jeu');
@@ -6357,11 +6547,11 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <label>Liste 2026-2027 :</label>
                                     <select id="liste-classe-select" style="width:100%;padding:10px;margin:10px 0;border:2px solid #3b82f6;border-radius:6px;font-size:1rem;">
                                         ${(function () {
-                                            const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
-                                            const noms = Object.keys(listes).sort();
-                                            if (!noms.length) return '<option value="">-- Aucune liste disponible --</option>';
+                                            const listes = getListsForTeacher();
+                                            const noms = getVisibleTeacherClasses();
+                                            if (!noms.length) return '<option value="">-- Aucune classe sélectionnée --</option>';
                                             return '<option value="">-- Choisir une classe --</option>' +
-                                                noms.map(n => `<option value="${n}">${n} (${listes[n].length})</option>`).join('');
+                                                noms.map(n => `<option value="${n}">${n} (${(listes[n] || []).length})</option>`).join('');
                                         })()}
                                     </select>
                                     <button id="charger-liste-btn" class="btn-primary">📥 Charger la liste</button>

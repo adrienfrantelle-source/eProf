@@ -83,19 +83,63 @@
         document.body.appendChild(overlay);
 
         const liste = overlay.querySelector('.suggest-list');
+        let editingId = null;
+        let itemsCache = [];
+
+        function fillForm(item) {
+            overlay.querySelector('.suggest-type').value = item.type || 'amelioration';
+            overlay.querySelector('.suggest-module').value = item.module || 'Général';
+            overlay.querySelector('.suggest-priorite').value = item.priorite || 'normale';
+            overlay.querySelector('.suggest-titre').value = item.titre || '';
+            overlay.querySelector('.suggest-description').value = item.description || '';
+            overlay.querySelector('.suggest-form button[type="submit"]').textContent = item ? '💾 Enregistrer les modifications' : '📨 Envoyer';
+        }
 
         async function renderMine() {
-            const items = await loadMine();
-            liste.innerHTML = items.map(function (s) {
+            itemsCache = await loadMine();
+            liste.innerHTML = itemsCache.map(function (s) {
                 return `<div class="suggest-item suggest-statut-${escapeHtml(s.statut)}">
                     <div class="suggest-item-head">
                         <strong>${escapeHtml(s.titre)}</strong>
                         <span class="suggest-badge">${escapeHtml(STATUTS[s.statut] || s.statut)}</span>
                     </div>
+                    <p class="suggest-item-desc">${escapeHtml(s.description || '')}</p>
                     <div class="suggest-item-meta">${escapeHtml(s.module || 'Général')} · ${escapeHtml(new Date(s.created_at).toLocaleDateString('fr-FR'))}${s.auteur_identifiant ? ' · ' + escapeHtml(s.auteur_identifiant) : ''}</div>
                     ${s.reponse_admin ? `<div class="suggest-reponse">💬 ${escapeHtml(s.reponse_admin)}</div>` : ''}
+                    <div class="suggest-item-actions">
+                        <button type="button" class="suggest-edit-btn" data-id="${escapeHtml(s.id)}">Modifier</button>
+                        <button type="button" class="suggest-delete-btn" data-id="${escapeHtml(s.id)}">Supprimer</button>
+                    </div>
                 </div>`;
             }).join('') || '<p class="suggest-hint">Aucune demande pour le moment.</p>';
+
+            liste.querySelectorAll('.suggest-edit-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const item = itemsCache.find(function (s) { return s.id === btn.dataset.id; });
+                    if (!item) return;
+                    editingId = item.id;
+                    fillForm(item);
+                    overlay.querySelector('.suggest-titre').focus();
+                });
+            });
+
+            liste.querySelectorAll('.suggest-delete-btn').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    const item = itemsCache.find(function (s) { return s.id === btn.dataset.id; });
+                    if (!item || !confirm('Supprimer la demande « ' + item.titre + ' » ?')) return;
+                    const res = await window.EprofStore.remove('suggestions', item.id);
+                    if (res.error) {
+                        alert(res.error.message);
+                        return;
+                    }
+                    if (editingId === item.id) {
+                        editingId = null;
+                        overlay.querySelector('.suggest-form').reset();
+                        overlay.querySelector('.suggest-form button[type="submit"]').textContent = '📨 Envoyer';
+                    }
+                    renderMine();
+                });
+            });
         }
 
         overlay.querySelector('.suggest-close').addEventListener('click', function () { overlay.remove(); });
@@ -110,22 +154,34 @@
                 return;
             }
 
-            const res = await window.EprofStore.insert('suggestions', {
+            const payload = {
                 type: overlay.querySelector('.suggest-type').value,
                 module: overlay.querySelector('.suggest-module').value,
                 priorite: overlay.querySelector('.suggest-priorite').value,
                 titre: overlay.querySelector('.suggest-titre').value.trim(),
-                description: overlay.querySelector('.suggest-description').value.trim(),
-                auteur_id: session.user.id,
-                auteur_identifiant: session.user.email ? session.user.email.split('@')[0] : null
-            });
+                description: overlay.querySelector('.suggest-description').value.trim()
+            };
+
+            let res;
+            if (editingId) {
+                res = await window.EprofStore.update('suggestions', editingId, payload);
+            } else {
+                res = await window.EprofStore.insert('suggestions', {
+                    ...payload,
+                    auteur_id: session.user.id,
+                    auteur_identifiant: session.user.email ? session.user.email.split('@')[0] : null
+                });
+            }
 
             if (res.error) {
                 feedback.textContent = '❌ ' + res.error.message;
                 return;
             }
+            const wasEdit = !!editingId;
             e.target.reset();
-            feedback.textContent = '✅ Merci, votre demande a été transmise.';
+            editingId = null;
+            overlay.querySelector('.suggest-form button[type="submit"]').textContent = '📨 Envoyer';
+            feedback.textContent = wasEdit ? '✅ Demande mise à jour.' : '✅ Merci, votre demande a été transmise.';
             setTimeout(function () { feedback.textContent = ''; }, 4000);
             renderMine();
         });

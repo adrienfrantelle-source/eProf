@@ -259,3 +259,50 @@ window.getCurrentClassNames = function () {
     }
     return CLASSES_ANNEE_ACTUELLE.slice();
 };
+
+// Classes cochées par l'enseignant connecté (configuration initiale / paramètres).
+window.getTeacherClassNames = function () {
+    if (window.teacherManager && typeof window.teacherManager.getTeacherClasses === 'function') {
+        return (window.teacherManager.getTeacherClasses() || []).slice();
+    }
+    return [];
+};
+
+// Listes d'élèves limitées aux classes de l'enseignant (clés toujours présentes).
+window.getTeacherStudentLists = function () {
+    const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+    const noms = window.getTeacherClassNames();
+    const out = {};
+    noms.forEach(function (nom) {
+        out[nom] = listes[nom] || [];
+    });
+    return out;
+};
+
+window.CLASS_COLOR_PALETTE = [
+    '#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2',
+    '#db2777', '#65a30d', '#ea580c', '#4f46e5', '#0d9488', '#c026d3',
+    '#ca8a04', '#0284c7', '#be123c', '#4338ca', '#166534', '#9a3412'
+];
+
+window.pickUnusedClassColor = function (used) {
+    const pris = (used || []).filter(Boolean).map(function (c) { return String(c).toLowerCase(); });
+    const libre = window.CLASS_COLOR_PALETTE.find(function (c) { return pris.indexOf(c.toLowerCase()) === -1; });
+    if (libre) return libre;
+    const hue = Math.round((pris.length * 137.508) % 360);
+    return 'hsl(' + hue + ', 62%, 42%)';
+};
+
+window.getClassColor = function (className) {
+    if (window.EprofReferentiel && typeof window.EprofReferentiel.findClass === 'function') {
+        const classe = window.EprofReferentiel.findClass(className);
+        if (classe && classe.couleur) return classe.couleur;
+        const toutes = window.EprofReferentiel.getClasses ? window.EprofReferentiel.getClasses() : [];
+        const idx = toutes.findIndex(function (c) { return c.nom === className; });
+        if (idx >= 0) return window.CLASS_COLOR_PALETTE[idx % window.CLASS_COLOR_PALETTE.length];
+    }
+    const names = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
+    const i = names.indexOf(className);
+    const seed = i >= 0 ? i : String(className || '').split('').reduce(function (acc, ch) { return acc + ch.charCodeAt(0); }, 0);
+    return window.CLASS_COLOR_PALETTE[Math.abs(seed) % window.CLASS_COLOR_PALETTE.length];
+};

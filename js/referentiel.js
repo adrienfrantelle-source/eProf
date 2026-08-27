@@ -106,6 +106,7 @@
         load,
         getClasses,
         getClassNames,
+        findClass,
         getPeriodType,
         getPeriodCount,
         getSubjectNames,

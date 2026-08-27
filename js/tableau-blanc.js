@@ -622,14 +622,12 @@ function initDraggablePanels() {
 }
 
 // ===== OUTIL TIRAGE AU SORT =====
-function initStudentPicker() {
+async function initStudentPicker() {
     const classSelect = document.getElementById('student-class-select');
     const groupsClassSelect = document.getElementById('groups-class-select');
     
     if (!classSelect) return;
 
-    // Les listes arrivent du référentiel en ligne : on repart d'une base propre
-    // pour éviter les doublons lors d'un rafraîchissement.
     const premiereOption = classSelect.querySelector('option');
     classSelect.innerHTML = '';
     if (premiereOption) classSelect.appendChild(premiereOption);
@@ -640,7 +638,23 @@ function initStudentPicker() {
     }
 
     const activeLists = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
-    Object.keys(activeLists).sort().forEach(className => {
+    let classNames = window.getTeacherClassNames ? window.getTeacherClassNames() : [];
+    if (!classNames.length && window.EprofStore && await window.EprofStore.isOnlineReady()) {
+        try {
+            const teacherId = await window.EprofStore.getTeacherId();
+            const result = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
+            const profile = result.data && result.data[0];
+            if (profile && Array.isArray(profile.classes) && profile.classes.length) {
+                classNames = profile.classes.slice();
+            }
+        } catch (e) {}
+    }
+    if (!classNames.length) {
+        classNames = Object.keys(activeLists).sort();
+    } else {
+        classNames = classNames.slice().sort();
+    }
+    classNames.forEach(className => {
         const option = document.createElement('option');
         option.value = className;
         option.textContent = className;
@@ -656,6 +670,8 @@ function initStudentPicker() {
 }
 
 document.addEventListener('eprof-referentiel-maj', initStudentPicker);
+window.addEventListener('teacherLoggedIn', initStudentPicker);
+window.addEventListener('teacherDataReloaded', initStudentPicker);
 
 // Basculer entre les onglets
 function switchStudentTab(tab) {
@@ -693,8 +709,9 @@ function saveManualStudentList(className, names) {
 function getClassStudentOptions(className) {
     const baseOptions = [];
     const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
-    if (className && listes[className]) {
-        listes[className].forEach(student => {
+    const lookup = className && className !== '__no_class__' ? className : '';
+    if (lookup && listes[lookup]) {
+        listes[lookup].forEach(student => {
             const fullName = `${student.prenom || ''} ${student.nom || ''}`.trim();
             if (fullName) baseOptions.push(fullName);
         });
@@ -803,10 +820,10 @@ function showAbsentPickerRandom() {
     container.innerHTML = `
         <div style="max-height: 300px; overflow-y: auto; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; background: white;">
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
-                ${students.map(name => `
+                ${names.map(name => `
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border-radius: 6px; transition: background 0.2s;" 
                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                        <input type="checkbox" class="absent-checkbox-random" value="${name}" 
+                        <input type="checkbox" class="absent-checkbox-random" value="${name.replace(/"/g, '&quot;')}" 
                                style="width: 18px; height: 18px; cursor: pointer;">
                         <span style="font-size: 14px;">${name}</span>
                     </label>

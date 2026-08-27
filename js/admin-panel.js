@@ -165,7 +165,7 @@
                     <tbody class="admin-tbody"><tr><td colspan="6">Chargement…</td></tr></tbody>
                 </table>
             </div>
-            <p class="admin-hint">💾 enregistre la ligne · 🗑️ retire l'identifiant de la liste blanche (le compte existant reste actif) · 💥 supprime définitivement le compte et toutes ses données, puis libère l'identifiant.</p>`,
+            <p class="admin-hint">💾 enregistre la ligne · 🗑️ retire l'identifiant de la liste blanche (le compte existant reste actif) · 💥 supprime définitivement le compte et toutes ses données, puis libère l'identifiant. La configuration classes/matières de chaque prof est dans l’onglet <strong>Vue d’ensemble</strong>.</p>`,
 
         init: function (root, ctx) {
             const tbody = root.querySelector('.admin-tbody');
@@ -1311,6 +1311,17 @@
                     return;
                 }
                 const classes = result.data || [];
+                const sansCouleur = classes.filter(function (c) { return !c.couleur; });
+                if (sansCouleur.length && window.pickUnusedClassColor) {
+                    const used = classes.map(function (c) { return c.couleur; });
+                    for (let i = 0; i < sansCouleur.length; i++) {
+                        const couleur = window.pickUnusedClassColor(used);
+                        used.push(couleur);
+                        await window.EprofStore.update('school_classes', sansCouleur[i].id, { couleur: couleur });
+                        sansCouleur[i].couleur = couleur;
+                    }
+                    invalidateReferentiel();
+                }
                 sections.classes.innerHTML = `
                     <form class="admin-add-form classe-add-form">
                         <input type="text" class="classe-nom" placeholder="Nom (ex : 2nde SAPAT D)" required>
@@ -1325,10 +1336,11 @@
                     <p class="admin-hint">Le type de période détermine les onglets Trimestre/Semestre du carnet de notes pour tous les enseignants de la classe.</p>
                     <div class="admin-table-wrap">
                         <table class="admin-table">
-                            <thead><tr><th>Nom</th><th>Niveau</th><th>Filière</th><th>Périodes</th><th>Nb</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
+                            <thead><tr><th></th><th>Nom</th><th>Niveau</th><th>Filière</th><th>Périodes</th><th>Nb</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
                             <tbody>
                                 ${classes.map(function (c) {
                                     return `<tr data-id="${escapeHtml(c.id)}">
+                                        <td><span class="admin-color-dot" style="background:${escapeHtml(c.couleur || '#64748b')}" title="${escapeHtml(c.couleur || '')}"></span></td>
                                         <td><input type="text" class="admin-cell c-nom" value="${escapeHtml(c.nom)}"></td>
                                         <td><input type="text" class="admin-cell c-niveau" value="${escapeHtml(c.niveau || '')}"></td>
                                         <td><input type="text" class="admin-cell c-filiere" value="${escapeHtml(c.filiere || '')}"></td>
@@ -1344,7 +1356,7 @@
                                             <button type="button" class="classe-delete-btn" title="Supprimer">🗑️</button>
                                         </td>
                                     </tr>`;
-                                }).join('') || '<tr><td colspan="8">Aucune classe.</td></tr>'}
+                                }).join('') || '<tr><td colspan="9">Aucune classe.</td></tr>'}
                             </tbody>
                         </table>
                     </div>`;
@@ -1358,7 +1370,10 @@
                         filiere: sections.classes.querySelector('.classe-filiere').value.trim() || null,
                         periode_type: periode,
                         nb_periodes: periode === 'semestre' ? 2 : 3,
-                        ordre: classes.length + 1
+                        ordre: classes.length + 1,
+                        couleur: window.pickUnusedClassColor
+                            ? window.pickUnusedClassColor(classes.map(function (c) { return c.couleur; }))
+                            : '#2563eb'
                     });
                     if (res.error) return ctx.notify('❌ ' + res.error.message, true);
                     await logAction('classe_ajoutee', res.data.nom, {});
@@ -2255,7 +2270,120 @@
         }
     };
 
-    const TABS = [whitelistTab, comptesTab, elevesTab, suggestionsTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
+    const syntheseTab = {
+        id: 'synthese',
+        label: '📊 Vue d\'ensemble',
+        html: `
+            <p class="admin-hint">Configuration réelle de chaque enseignant (classes et matières choisies à la connexion) et affectations officielles du référentiel. C’est la vue globale profs / classes / matières.</p>
+            <div class="admin-toolbar">
+                <input type="search" class="synthese-search" placeholder="Filtrer un enseignant, une classe, une matière…">
+                <button type="button" class="btn-secondary synthese-refresh-btn">🔄 Rafraîchir</button>
+                <span class="admin-counter synthese-counter"></span>
+            </div>
+            <div class="synthese-stats"></div>
+            <h4 class="admin-section-title">Par enseignant</h4>
+            <div class="synthese-profs"></div>
+            <h4 class="admin-section-title">Par classe (affectations officielles)</h4>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Classe</th><th>Enseignants et matières</th></tr></thead>
+                    <tbody class="synthese-classes-tbody"></tbody>
+                </table>
+            </div>`,
+
+        init: function (root, ctx) {
+            let payload = { enseignants: [], par_classe: [] };
+
+            function matieresUniques(subjectsByClass) {
+                const set = {};
+                Object.keys(subjectsByClass || {}).forEach(function (classe) {
+                    (subjectsByClass[classe] || []).forEach(function (m) { set[m] = true; });
+                });
+                return Object.keys(set).sort();
+            }
+
+            function draw() {
+                const term = root.querySelector('.synthese-search').value.trim().toLowerCase();
+                const enseignants = payload.enseignants || [];
+                const parClasse = payload.par_classe || [];
+                const visibles = enseignants.filter(function (e) {
+                    if (!term) return true;
+                    const blob = [
+                        e.identifiant, e.prenom, e.nom,
+                        (e.classes || []).join(' '),
+                        JSON.stringify(e.subjects_by_class || {})
+                    ].join(' ').toLowerCase();
+                    return blob.indexOf(term) !== -1;
+                });
+
+                const totalClassesChoisies = enseignants.reduce(function (n, e) {
+                    return n + ((e.classes || []).length);
+                }, 0);
+                root.querySelector('.synthese-counter').textContent =
+                    enseignants.length + ' enseignant(s) · ' + parClasse.length + ' classe(s)';
+                root.querySelector('.synthese-stats').innerHTML = `
+                    <div class="synthese-stat-grid">
+                        <div class="admin-card"><strong>${enseignants.length}</strong><span>Comptes</span></div>
+                        <div class="admin-card"><strong>${parClasse.length}</strong><span>Classes actives</span></div>
+                        <div class="admin-card"><strong>${totalClassesChoisies}</strong><span>Choix de classes (somme)</span></div>
+                    </div>`;
+
+                root.querySelector('.synthese-profs').innerHTML = visibles.map(function (e) {
+                    const nom = ((e.prenom || '') + ' ' + (e.nom || '')).trim() || e.identifiant;
+                    const classes = e.classes || [];
+                    const byClass = e.subjects_by_class || {};
+                    const mats = matieresUniques(byClass);
+                    const classChips = classes.length
+                        ? classes.map(function (c) {
+                            const color = window.getClassColor ? window.getClassColor(c) : '#2563eb';
+                            const subjects = (byClass[c] || []).join(', ') || '—';
+                            return `<li><span class="admin-color-dot" style="background:${color}"></span><strong>${escapeHtml(c)}</strong> — ${escapeHtml(subjects)}</li>`;
+                        }).join('')
+                        : '<li class="admin-hint">Aucune classe configurée.</li>';
+                    return `<article class="admin-card synthese-prof-card">
+                        <header>
+                            <div>
+                                <strong>${escapeHtml(nom)}</strong>
+                                <code>${escapeHtml(e.identifiant || '')}</code>
+                                ${e.is_admin ? '<span class="admin-badge admin-badge-info">admin</span>' : ''}
+                                ${e.actif === false ? '<span class="admin-badge admin-badge-off">inactif</span>' : ''}
+                            </div>
+                            <small>${classes.length} classe(s) · ${mats.length} matière(s)</small>
+                        </header>
+                        <ul class="synthese-class-list">${classChips}</ul>
+                    </article>`;
+                }).join('') || '<p class="admin-hint">Aucun enseignant.</p>';
+
+                root.querySelector('.synthese-classes-tbody').innerHTML = parClasse.map(function (c) {
+                    const color = c.couleur || (window.getClassColor ? window.getClassColor(c.nom) : '#64748b');
+                    const affect = (c.affectations || []);
+                    const txt = affect.length
+                        ? affect.map(function (a) { return escapeHtml(a.identifiant) + ' (' + escapeHtml(a.matiere) + ')'; }).join(', ')
+                        : '—';
+                    return `<tr>
+                        <td><span class="admin-color-dot" style="background:${escapeHtml(color)}"></span> ${escapeHtml(c.nom)}</td>
+                        <td>${txt}</td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="2">Aucune classe.</td></tr>';
+            }
+
+            async function reload() {
+                try {
+                    payload = await rpc('admin_teachers_config_overview') || { enseignants: [], par_classe: [] };
+                } catch (err) {
+                    root.querySelector('.synthese-profs').innerHTML = '<p class="admin-error">Erreur : ' + escapeHtml(err.message) + '</p>';
+                    return;
+                }
+                draw();
+            }
+
+            root.querySelector('.synthese-search').addEventListener('input', draw);
+            root.querySelector('.synthese-refresh-btn').addEventListener('click', reload);
+            reload();
+        }
+    };
+
+    const TABS = [whitelistTab, syntheseTab, comptesTab, elevesTab, suggestionsTab, rgpdTab, supervisionTab, communicationTab, pedagogieTab];
 
     // ---------- Panneau ----------
     function openPanel() {

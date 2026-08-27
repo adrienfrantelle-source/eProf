@@ -1349,6 +1349,7 @@ function normalizePeriod(period) {
 
 // ===== STATISTIQUES ÉLÈVE =====
 let currentStatsChart = null;
+let currentStatsRadarChart = null;
 let currentEvolutionChart = null;
 let currentStatsStudentName = null;
 let currentStatsPeriod = 'all';
@@ -1478,6 +1479,10 @@ function setupStatsTabs() {
             if (currentStatsChart) {
                 currentStatsChart.destroy();
                 currentStatsChart = null;
+            }
+            if (currentStatsRadarChart) {
+                currentStatsRadarChart.destroy();
+                currentStatsRadarChart = null;
             }
             if (currentEvolutionChart) {
                 currentEvolutionChart.destroy();
@@ -1623,6 +1628,7 @@ function fillStudentStats(stats, studentName) {
     
     // Graphique des moyennes par matière
     renderMoyennesChart(stats.moyennesParMatiere);
+    renderRadarMatieresChart('chart-radar-matieres', stats.moyennesParMatiere, 'student');
     
     // Onglet Détails
     renderDetailsParMatiere(stats.statsBySubject);
@@ -1706,6 +1712,49 @@ function renderMoyennesChart(moyennesParMatiere) {
     });
 }
 
+function renderRadarMatieresChart(canvasId, moyennesParMatiere, kind) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || typeof Chart === 'undefined') return;
+    const matieres = Object.keys(moyennesParMatiere || {});
+    const valeurs = matieres.map(function (m) { return Number(moyennesParMatiere[m]) || 0; });
+    if (kind === 'student') {
+        if (currentStatsRadarChart) { currentStatsRadarChart.destroy(); currentStatsRadarChart = null; }
+    } else {
+        if (currentClassRadarChart) { currentClassRadarChart.destroy(); currentClassRadarChart = null; }
+    }
+    if (!matieres.length) return;
+    const chart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: matieres,
+            datasets: [{
+                label: kind === 'student' ? 'Moyenne élève (/20)' : 'Moyenne classe (/20)',
+                data: valeurs,
+                backgroundColor: kind === 'student' ? 'rgba(102, 126, 234, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+                borderColor: kind === 'student' ? 'rgba(102, 126, 234, 1)' : 'rgba(16, 185, 129, 1)',
+                borderWidth: 2,
+                pointBackgroundColor: kind === 'student' ? '#667eea' : '#10b981'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                r: {
+                    suggestedMin: 0,
+                    suggestedMax: 20,
+                    ticks: { stepSize: 5 }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+    if (kind === 'student') currentStatsRadarChart = chart;
+    else currentClassRadarChart = chart;
+}
+
 // Initialiser le texte du bouton au chargement
 function initToggleButton() {
     const toggleBtn = document.getElementById('toggle-evals-btn');
@@ -1719,6 +1768,7 @@ function initToggleButton() {
 
 // ===== STATISTIQUES DE LA CLASSE =====
 let currentClassStatsChart = null;
+let currentClassRadarChart = null;
 let currentClassEvolutionChart = null;
 let currentClassDistributionChart = null;
 let currentClassStatsPeriod = 'all';
@@ -1955,6 +2005,7 @@ function fillClassStats(stats) {
     document.getElementById('class-stat-nb-evals').innerHTML = stats.nombreEvaluations;
     
     renderClassMoyennesChart(stats.moyennesParMatiere);
+    renderRadarMatieresChart('chart-class-radar-matieres', stats.moyennesParMatiere, 'class');
     renderClassDetailsParMatiere(stats.statsBySubject);
     renderClassEvolutionChart(stats.evolutionData);
     renderClassDistributionChart(stats.distributionData);
