@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="dashboard-btn" data-tool="converter">🔄 Conversion de fichier</button>
                 <button class="dashboard-btn" data-tool="plan-classe">🪑 Plan de classe</button>
                 <button class="dashboard-btn" data-tool="tableau-blanc">📋 Tableau blanc</button>
-                <button class="dashboard-btn" data-tool="jeu">🎮 Jeu pédagogique</button>
+                <button class="dashboard-btn" data-tool="jeu">🎮 Jeux pédagogiques</button>
                 <button class="dashboard-btn" data-tool="trombinoscopes">📸 Trombinoscopes</button>
                 <button class="dashboard-btn" data-tool="archives">📦 Archives</button>
                 <button class="dashboard-btn" data-tool="eleves">👨‍🎓 Suivi des élèves</button>
@@ -5540,19 +5540,47 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             }
         }
 
+        function escapeAttr(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;');
+        }
+
         function jeuCardHtml(jeu) {
             return `
-                <div class="jeu-card">
+                <div class="jeu-card" draggable="true" data-jeu-id="${escapeAttr(jeu.id || '')}" data-jeu-titre="${escapeAttr(jeu.titre)}" data-jeu-url="${escapeAttr(jeu.url)}" title="Glissez vers un autre dossier">
                     <div class="jeu-card-header">
-                        <h4>${jeu.titre}</h4>
-                        <button class="btn-supprimer-jeu" data-titre="${jeu.titre}" data-id="${jeu.id || ''}">🗑️</button>
+                        <h4><span class="jeu-card-grip" aria-hidden="true">⋮⋮</span>${jeu.titre}</h4>
+                        <button class="btn-supprimer-jeu" draggable="false" data-titre="${escapeAttr(jeu.titre)}" data-id="${escapeAttr(jeu.id || '')}">🗑️</button>
                     </div>
-                    <a href="${jeu.url}" target="_blank" class="jeu-link">
+                    <a href="${jeu.url}" target="_blank" class="jeu-link" draggable="false">
                         <div class="jeu-icon">🎮</div>
                         <div class="jeu-url">${jeu.url}</div>
                         <div class="jeu-action">▶️ Jouer</div>
                     </a>
                 </div>`;
+        }
+
+        function trouverJeu(id, titre, url) {
+            if (id) {
+                const byId = jeux.find(function (j) { return String(j.id) === String(id); });
+                if (byId) return byId;
+            }
+            return jeux.find(function (j) { return j.titre === titre && j.url === url; }) || null;
+        }
+
+        async function deplacerJeuVersFamille(jeu, nouvelleFamille) {
+            if (!jeu || !nouvelleFamille || (jeu.famille || 'Général') === nouvelleFamille) return;
+            jeu.famille = nouvelleFamille;
+            collapsedFamilles[nouvelleFamille] = false;
+            localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
+            sauvegarderJeux();
+            const rechercheInput = container.querySelector('#recherche-jeu');
+            afficherJeux(rechercheInput ? rechercheInput.value : '');
+            if (jeu.id && window.EprofStore && await window.EprofStore.isOnlineReady()) {
+                await window.EprofStore.update('pedagogical_games', jeu.id, { famille: nouvelleFamille });
+            }
         }
 
         function afficherJeux(filtreTexte = '') {
@@ -5566,22 +5594,27 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                     (jeu.famille || '').toLowerCase().includes(filtreTexte.toLowerCase())
                   )
                 : jeux;
-            
-            if (jeux.length === 0) {
+
+            const familles = getFamilles();
+            if (jeux.length === 0 && familles.length <= 1) {
                 jeuxListe.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic; margin-top: 40px;">Aucun jeu enregistré. Ajoutez votre premier jeu !</p>';
                 return;
             }
-            if (jeuxFiltres.length === 0) {
+            if (filtreTexte && jeuxFiltres.length === 0) {
                 jeuxListe.innerHTML = '<p style="text-align: center; color: #64748b; font-style: italic; margin-top: 40px;">🔍 Aucun jeu ne correspond à votre recherche.</p>';
                 return;
             }
 
             const groupes = {};
+            familles.forEach(function (fam) { groupes[fam] = []; });
             jeuxFiltres.forEach(function (jeu) {
                 const fam = jeu.famille || 'Général';
                 (groupes[fam] = groupes[fam] || []).push(jeu);
             });
-            const ordre = Object.keys(groupes).sort(function (a, b) {
+            const ordre = Object.keys(groupes).filter(function (famille) {
+                if (filtreTexte) return groupes[famille].length > 0;
+                return true;
+            }).sort(function (a, b) {
                 if (a === 'Général') return -1;
                 if (b === 'Général') return 1;
                 return a.localeCompare(b, 'fr');
@@ -5589,15 +5622,18 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
 
             jeuxListe.innerHTML = ordre.map(function (famille) {
                 const closed = !!collapsedFamilles[famille];
+                const cartes = groupes[famille].length
+                    ? groupes[famille].map(jeuCardHtml).join('')
+                    : '<p class="jeux-famille-vide">Glissez un jeu ici</p>';
                 return `
-                    <section class="jeux-famille" data-famille="${famille}">
+                    <section class="jeux-famille" data-famille="${escapeAttr(famille)}">
                         <button type="button" class="jeux-famille-toggle" aria-expanded="${closed ? 'false' : 'true'}">
                             <span class="jeux-famille-chevron">${closed ? '▶' : '▼'}</span>
                             <span>📁 ${famille}</span>
                             <small>${groupes[famille].length}</small>
                         </button>
                         <div class="jeux-grid" style="${closed ? 'display:none;' : ''}">
-                            ${groupes[famille].map(jeuCardHtml).join('')}
+                            ${cartes}
                         </div>
                     </section>`;
             }).join('');
@@ -5626,6 +5662,61 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                         const rechercheInput = container.querySelector('#recherche-jeu');
                         afficherJeux(rechercheInput ? rechercheInput.value : '');
                     }
+                });
+            });
+
+            let jeuEnDeplacement = null;
+            let dragVientDeTerminer = false;
+
+            container.querySelectorAll('.jeu-card').forEach(function (card) {
+                card.addEventListener('dragstart', function (e) {
+                    jeuEnDeplacement = {
+                        id: card.getAttribute('data-jeu-id') || '',
+                        titre: card.getAttribute('data-jeu-titre') || '',
+                        url: card.getAttribute('data-jeu-url') || '',
+                        famille: (card.closest('.jeux-famille') || {}).dataset.famille || 'Général'
+                    };
+                    card.classList.add('jeu-card-dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', jeuEnDeplacement.titre);
+                });
+                card.addEventListener('dragend', function () {
+                    card.classList.remove('jeu-card-dragging');
+                    container.querySelectorAll('.jeux-famille-drop-target').forEach(function (el) {
+                        el.classList.remove('jeux-famille-drop-target');
+                    });
+                    dragVientDeTerminer = true;
+                    jeuEnDeplacement = null;
+                    setTimeout(function () { dragVientDeTerminer = false; }, 0);
+                });
+                const lien = card.querySelector('.jeu-link');
+                if (lien) {
+                    lien.addEventListener('click', function (e) {
+                        if (dragVientDeTerminer) e.preventDefault();
+                    });
+                }
+            });
+
+            container.querySelectorAll('.jeux-famille').forEach(function (section) {
+                section.addEventListener('dragover', function (e) {
+                    if (!jeuEnDeplacement) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    section.classList.add('jeux-famille-drop-target');
+                });
+                section.addEventListener('dragleave', function (e) {
+                    if (!section.contains(e.relatedTarget)) {
+                        section.classList.remove('jeux-famille-drop-target');
+                    }
+                });
+                section.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    section.classList.remove('jeux-famille-drop-target');
+                    const destination = section.dataset.famille;
+                    const payload = jeuEnDeplacement;
+                    if (!payload || !destination) return;
+                    const jeu = trouverJeu(payload.id, payload.titre, payload.url);
+                    deplacerJeuVersFamille(jeu, destination);
                 });
             });
         }
@@ -5773,8 +5864,12 @@ if (typeof module !== 'undefined' && module.exports) {
                 const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
                 if (extras.indexOf(nom) === -1) extras.push(nom);
                 localStorage.setItem('jeuxFamillesExtra', JSON.stringify(extras));
+                collapsedFamilles[nom] = false;
+                localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
                 if (input) input.value = '';
                 refreshFamilleSelect(nom);
+                const rechercheInput = container.querySelector('#recherche-jeu');
+                afficherJeux(rechercheInput ? rechercheInput.value : '');
             });
         }
 

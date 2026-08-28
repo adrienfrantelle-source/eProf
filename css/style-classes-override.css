@@ -71,3 +71,35 @@
     width: 1.2em;
 }
 
+.jeux-famille.jeux-famille-drop-target {
+    outline: 2px dashed #3b82f6;
+    outline-offset: 4px;
+    border-radius: 12px;
+}
+
+.jeux-famille.jeux-famille-drop-target .jeux-famille-toggle {
+    background: #dbeafe;
+    border-color: #3b82f6;
+}
+
+.jeux-famille-vide {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+    padding: 24px;
+    border: 2px dashed #e2e8f0;
+    border-radius: 10px;
+    margin: 0;
+}
+
+body.theme-sombre .jeux-famille.jeux-famille-drop-target .jeux-famille-toggle {
+    background: #1e3a5f;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre .jeux-famille-vide {
+    color: #94a3b8;
+    border-color: #475569;
+}
+
