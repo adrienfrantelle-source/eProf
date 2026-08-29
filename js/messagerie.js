@@ -81,8 +81,43 @@
         directory = (await rpc('list_teacher_directory')) || [];
     }
 
+    function totalUnread(list) {
+        return (list || []).reduce(function (n, c) {
+            return n + (Number(c.unread_count) || 0);
+        }, 0);
+    }
+
+    function updateSidebarBadge(count) {
+        const badge = document.getElementById('sidebar-msg-unread');
+        if (!badge) return;
+        const n = Number(count) || 0;
+        if (n > 0) {
+            badge.hidden = false;
+            badge.textContent = n > 99 ? '99+' : String(n);
+        } else {
+            badge.hidden = true;
+            badge.textContent = '';
+        }
+    }
+
+    async function refreshUnreadBadge() {
+        try {
+            if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+                updateSidebarBadge(0);
+                return 0;
+            }
+            const list = (await rpc('list_my_message_channels')) || [];
+            const count = totalUnread(list);
+            updateSidebarBadge(count);
+            return count;
+        } catch (e) {
+            return 0;
+        }
+    }
+
     async function loadChannels() {
         channels = (await rpc('list_my_message_channels')) || [];
+        updateSidebarBadge(totalUnread(channels));
     }
 
     async function loadMessages(channelId) {
@@ -213,6 +248,7 @@
             scroll.scrollTop = scroll.scrollHeight;
             await markRead(channelId);
             channel.unread_count = 0;
+            updateSidebarBadge(totalUnread(channels));
             renderChannelList(root);
         } catch (err) {
             panel.querySelector('#msg-thread-scroll').innerHTML =
@@ -657,5 +693,24 @@
         }, POLL_MS);
     }
 
-    window.EprofMessagerie = { render: render };
+    window.EprofMessagerie = {
+        render: render,
+        refreshUnreadBadge: refreshUnreadBadge
+    };
+
+    function startUnreadWatcher() {
+        refreshUnreadBadge();
+        if (window.eprofAuth && typeof window.eprofAuth.onAuthStateChange === 'function') {
+            window.eprofAuth.onAuthStateChange(function () {
+                refreshUnreadBadge();
+            });
+        }
+        setInterval(refreshUnreadBadge, 20000);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startUnreadWatcher);
+    } else {
+        startUnreadWatcher();
+    }
 })();

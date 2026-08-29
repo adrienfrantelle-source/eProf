@@ -190,6 +190,29 @@
     background: #e53935;
     color: #fff;
 }
+.sidebar nav a[data-tool="messagerie"] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+}
+.sidebar-msg-badge {
+    background: #e53935;
+    color: #fff;
+    border-radius: 999px;
+    min-width: 1.35em;
+    padding: 0.12em 0.4em;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.3;
+    flex-shrink: 0;
+}
+.sidebar nav a[data-tool="messagerie"]:hover .sidebar-msg-badge,
+.sidebar nav a[data-tool="messagerie"].active-sidebar .sidebar-msg-badge {
+    background: #fff;
+    color: #e53935;
+}
 .tools-title {
     font-size: 1.1em;
     font-weight: bold;
