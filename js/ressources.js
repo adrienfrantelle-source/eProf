@@ -63,7 +63,6 @@
                         </div>
                     </details>
                 </div>
-                <div id="tabbed-iframes-host"></div>
                 <div id="ressources-hidden-bar" class="ressources-hidden-bar" hidden></div>
                 <div class="jeux-recherche">
                     <input type="text" id="recherche-ressource" placeholder="🔍 Rechercher une ressource…">
@@ -71,14 +70,6 @@
                 <div class="jeux-liste" id="ressources-liste"></div>
             </div>
         `;
-
-        try {
-            if (window.EprofTabbedIframes) {
-                window.EprofTabbedIframes.render(container.querySelector('#tabbed-iframes-host'));
-            }
-        } catch (err) {
-            console.warn('⚠️ Outils en ligne : affichage impossible.', err);
-        }
 
         let items = [];
         let folders = [];
