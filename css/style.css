@@ -2260,8 +2260,15 @@ footer {
     margin-top: 18px;
 }
 
+.jeux-famille-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .jeux-famille-toggle {
     width: 100%;
+    flex: 1;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -2298,6 +2305,130 @@ footer {
     border-color: #3b82f6;
 }
 
+.jeu-card.jeu-card-drop-before {
+    box-shadow: inset 0 4px 0 #3b82f6;
+}
+
+.jeux-famille-officielle .jeux-famille-toggle {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.ressources-officiel-tag,
+.ressources-public-tag {
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.ressources-officiel-tag {
+    color: #92400e;
+    background: #fde68a;
+}
+
+.ressources-public-tag {
+    color: #1d4ed8;
+    background: #dbeafe;
+}
+
+.ressources-hide-btn {
+    margin-left: 0.2em;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #334155;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.ressources-hide-btn:hover {
+    background: #e2e8f0;
+}
+
+.ressources-hidden-bar {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #334155;
+}
+
+.ressources-unhide {
+    margin: 2px 4px 2px 0;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    border-radius: 999px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.ressources-card-actions {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.btn-editer-ressource {
+    background: #e2e8f0;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.jeu-card-readonly {
+    cursor: default;
+}
+
+.jeux-famille-partagee .jeux-famille-toggle {
+    background: #eff6ff;
+    border-color: #93c5fd;
+}
+
+.ressources-hint,
+.ressources-empty {
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.ressources-dossier-row {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ressources-dossier-row input,
+.ressources-dossier-row select {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+}
+
+#ressources-module .ajout-jeu-form input,
+#ressources-module .ajout-jeu-form select {
+    flex: 1;
+    min-width: 140px;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+#ressources-module .ajout-jeu-form input[type="url"] {
+    flex: 2;
+}
+
 .jeux-famille-vide {
     grid-column: 1 / -1;
     text-align: center;
@@ -2322,6 +2453,17 @@ body.theme-sombre .jeux-famille-toggle small {
 body.theme-sombre .jeux-famille.jeux-famille-drop-target .jeux-famille-toggle {
     background: #1e3a5f;
     border-color: #60a5fa;
+}
+
+body.theme-sombre .jeux-famille-officielle .jeux-famille-toggle {
+    background: #422006;
+    border-color: #d97706;
+    color: #fde68a;
+}
+
+body.theme-sombre .ressources-officiel-tag {
+    background: #78350f;
+    color: #fde68a;
 }
 
 body.theme-sombre .jeux-famille-vide {

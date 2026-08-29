@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="tool-icon">📚</span>
                         <div class="tool-content">
                             <div class="tool-title">Ressources pédagogiques</div>
-                            <div class="tool-description">Organisez vos documents et supports de cours</div>
+                            <div class="tool-description">Liens, dossiers personnels et ressources officielles</div>
                         </div>
                     </button>
                 </div>
@@ -379,7 +379,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar('agenda');
                 break;
             case 'ressources':
-                mainContent.innerHTML = '<h2>Ressources pédagogiques</h2><p>Fonctionnalité à venir.</p>';
+                if (window.EprofRessources) window.EprofRessources.render(mainContent);
+                else mainContent.innerHTML = '<h2>Ressources pédagogiques</h2><p>Le module n’a pas pu être chargé.</p>';
                 highlightSidebar('ressources');
                 break;
             case 'messagerie':
@@ -5017,7 +5018,8 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                 id: jeu.id,
                 titre: jeu.titre || jeu.title || '',
                 url: jeu.url || '',
-                famille: jeu.famille || 'Général'
+                famille: jeu.famille || 'Général',
+                position: Number(jeu.position) || 0
             };
         }
 
@@ -5048,13 +5050,27 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             const online = window.EprofStore && await window.EprofStore.isOnlineReady();
             if (online) {
                 const teacherId = await window.EprofStore.getTeacherId();
-                const { data, error } = await window.EprofStore.list('pedagogical_games', {
+                let { data, error } = await window.EprofStore.list('pedagogical_games', {
                     filters: { teacher_id: teacherId },
-                    orderBy: 'created_at'
+                    orderBy: 'position'
                 });
+                if (error) {
+                    const retry = await window.EprofStore.list('pedagogical_games', {
+                        filters: { teacher_id: teacherId },
+                        orderBy: 'created_at'
+                    });
+                    data = retry.data;
+                    error = retry.error;
+                }
                 if (!error && data) {
                     jeux = data.map(function(row) {
-                        return { id: row.id, titre: row.title, url: row.url, famille: row.famille || 'Général' };
+                        return { id: row.id, titre: row.title, url: row.url, famille: row.famille || 'Général', position: Number(row.position) || 0 };
+                    });
+                    jeux.sort(function (a, b) {
+                        const fa = a.famille || 'Général';
+                        const fb = b.famille || 'Général';
+                        if (fa !== fb) return fa.localeCompare(fb, 'fr');
+                        return (a.position || 0) - (b.position || 0);
                     });
                     try { localStorage.setItem('jeuxPedagogiques', JSON.stringify(jeux)); } catch (e) {}
                     return;
@@ -5078,7 +5094,7 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
 
         function jeuCardHtml(jeu) {
             return `
-                <div class="jeu-card" draggable="true" data-jeu-id="${escapeAttr(jeu.id || '')}" data-jeu-titre="${escapeAttr(jeu.titre)}" data-jeu-url="${escapeAttr(jeu.url)}" title="Glissez vers un autre dossier">
+                <div class="jeu-card" draggable="true" data-jeu-id="${escapeAttr(jeu.id || '')}" data-jeu-titre="${escapeAttr(jeu.titre)}" data-jeu-url="${escapeAttr(jeu.url)}" title="Glissez pour changer l’ordre ou de dossier">
                     <div class="jeu-card-header">
                         <h4><span class="jeu-card-grip" aria-hidden="true">⋮⋮</span>${jeu.titre}</h4>
                         <button class="btn-supprimer-jeu" draggable="false" data-titre="${escapeAttr(jeu.titre)}" data-id="${escapeAttr(jeu.id || '')}">🗑️</button>
@@ -5099,17 +5115,51 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             return jeux.find(function (j) { return j.titre === titre && j.url === url; }) || null;
         }
 
-        async function deplacerJeuVersFamille(jeu, nouvelleFamille) {
-            if (!jeu || !nouvelleFamille || (jeu.famille || 'Général') === nouvelleFamille) return;
+        function jeuxDeFamille(famille) {
+            return jeux.filter(function (j) { return (j.famille || 'Général') === famille; })
+                .sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
+        }
+
+        async function persistPositionsFamille(famille) {
+            const list = jeuxDeFamille(famille);
+            list.forEach(function (j, i) { j.position = i; });
+            sauvegarderJeux();
+            if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return;
+            for (let i = 0; i < list.length; i++) {
+                if (!list[i].id) continue;
+                await window.EprofStore.update('pedagogical_games', list[i].id, {
+                    famille: list[i].famille || 'Général',
+                    position: i
+                });
+            }
+        }
+
+        async function deplacerJeu(jeu, nouvelleFamille, beforeJeu) {
+            if (!jeu || !nouvelleFamille) return;
+            const ancienne = jeu.famille || 'Général';
+            const sameFolder = ancienne === nouvelleFamille;
+            const samePlace = sameFolder && (!beforeJeu || beforeJeu === jeu);
+            if (samePlace && !beforeJeu) {
+                if (sameFolder) return;
+            }
             jeu.famille = nouvelleFamille;
+            const cible = jeux.filter(function (j) {
+                return j !== jeu && (j.famille || 'Général') === nouvelleFamille;
+            }).sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
+            if (beforeJeu && beforeJeu !== jeu) {
+                const idx = cible.indexOf(beforeJeu);
+                if (idx >= 0) cible.splice(idx, 0, jeu);
+                else cible.push(jeu);
+            } else {
+                cible.push(jeu);
+            }
+            cible.forEach(function (j, i) { j.position = i; });
             collapsedFamilles[nouvelleFamille] = false;
             localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
-            sauvegarderJeux();
+            if (ancienne !== nouvelleFamille) await persistPositionsFamille(ancienne);
+            await persistPositionsFamille(nouvelleFamille);
             const rechercheInput = container.querySelector('#recherche-jeu');
             afficherJeux(rechercheInput ? rechercheInput.value : '');
-            if (jeu.id && window.EprofStore && await window.EprofStore.isOnlineReady()) {
-                await window.EprofStore.update('pedagogical_games', jeu.id, { famille: nouvelleFamille });
-            }
         }
 
         function afficherJeux(filtreTexte = '') {
@@ -5139,6 +5189,9 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             jeuxFiltres.forEach(function (jeu) {
                 const fam = jeu.famille || 'Général';
                 (groupes[fam] = groupes[fam] || []).push(jeu);
+            });
+            Object.keys(groupes).forEach(function (fam) {
+                groupes[fam].sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
             });
             const ordre = Object.keys(groupes).filter(function (famille) {
                 if (filtreTexte) return groupes[famille].length > 0;
@@ -5197,6 +5250,12 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             let jeuEnDeplacement = null;
             let dragVientDeTerminer = false;
 
+            function clearJeuDropUi() {
+                container.querySelectorAll('.jeux-famille-drop-target, .jeu-card-drop-before').forEach(function (el) {
+                    el.classList.remove('jeux-famille-drop-target', 'jeu-card-drop-before');
+                });
+            }
+
             container.querySelectorAll('.jeu-card').forEach(function (card) {
                 card.addEventListener('dragstart', function (e) {
                     jeuEnDeplacement = {
@@ -5211,12 +5270,34 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                 });
                 card.addEventListener('dragend', function () {
                     card.classList.remove('jeu-card-dragging');
-                    container.querySelectorAll('.jeux-famille-drop-target').forEach(function (el) {
-                        el.classList.remove('jeux-famille-drop-target');
-                    });
+                    clearJeuDropUi();
                     dragVientDeTerminer = true;
                     jeuEnDeplacement = null;
                     setTimeout(function () { dragVientDeTerminer = false; }, 0);
+                });
+                card.addEventListener('dragover', function (e) {
+                    if (!jeuEnDeplacement) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'move';
+                    container.querySelectorAll('.jeu-card-drop-before').forEach(function (el) {
+                        if (el !== card) el.classList.remove('jeu-card-drop-before');
+                    });
+                    card.classList.add('jeu-card-drop-before');
+                });
+                card.addEventListener('dragleave', function () {
+                    card.classList.remove('jeu-card-drop-before');
+                });
+                card.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.classList.remove('jeu-card-drop-before');
+                    const destination = (card.closest('.jeux-famille') || {}).dataset.famille;
+                    const payload = jeuEnDeplacement;
+                    if (!payload || !destination) return;
+                    const jeu = trouverJeu(payload.id, payload.titre, payload.url);
+                    const before = trouverJeu(card.getAttribute('data-jeu-id'), card.getAttribute('data-jeu-titre'), card.getAttribute('data-jeu-url'));
+                    deplacerJeu(jeu, destination, before);
                 });
                 const lien = card.querySelector('.jeu-link');
                 if (lien) {
@@ -5245,7 +5326,7 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                     const payload = jeuEnDeplacement;
                     if (!payload || !destination) return;
                     const jeu = trouverJeu(payload.id, payload.titre, payload.url);
-                    deplacerJeuVersFamille(jeu, destination);
+                    deplacerJeu(jeu, destination, null);
                 });
             });
         }
@@ -5343,7 +5424,8 @@ if (typeof module !== 'undefined' && module.exports) {
             }
 
             const famille = (container.querySelector('#jeu-famille') || {}).value || 'Général';
-            const nouveauJeu = { titre, url, famille };
+            const position = jeuxDeFamille(famille).length;
+            const nouveauJeu = { titre, url, famille, position };
             jeux.push(nouveauJeu);
             sauvegarderJeux();
 
@@ -5353,9 +5435,10 @@ if (typeof module !== 'undefined' && module.exports) {
                     teacher_id: teacherId,
                     title: titre,
                     url: url,
-                    famille: famille
+                    famille: famille,
+                    position: position
                 });
-                if (res.error && /famille/i.test(res.error.message || '')) {
+                if (res.error && /famille|position/i.test(res.error.message || '')) {
                     res = await window.EprofStore.insert('pedagogical_games', {
                         teacher_id: teacherId,
                         title: titre,
@@ -6027,6 +6110,7 @@ if (typeof module !== 'undefined' && module.exports) {
                 parametres: parametres,
                 suiviEleves: JSON.parse(localStorage.getItem('suiviEleves') || '{}'),
                 jeuxPedagogiques: JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]'),
+                ressourcesPedagogiques: JSON.parse(localStorage.getItem('ressourcesPedagogiques') || '[]'),
                 calendrier: JSON.parse(localStorage.getItem('calendrier') || '[]'),
                 exportDate: new Date().toISOString()
             };
@@ -6063,6 +6147,7 @@ if (typeof module !== 'undefined' && module.exports) {
                         if (donnees.parametres) localStorage.setItem('parametres', JSON.stringify(donnees.parametres));
                         if (donnees.suiviEleves) localStorage.setItem('suiviEleves', JSON.stringify(donnees.suiviEleves));
                         if (donnees.jeuxPedagogiques) localStorage.setItem('jeuxPedagogiques', JSON.stringify(donnees.jeuxPedagogiques));
+                        if (donnees.ressourcesPedagogiques) localStorage.setItem('ressourcesPedagogiques', JSON.stringify(donnees.ressourcesPedagogiques));
                         if (donnees.calendrier) localStorage.setItem('calendrier', JSON.stringify(donnees.calendrier));
                         
                         alert('✅ Données importées avec succès ! La page va se recharger.');

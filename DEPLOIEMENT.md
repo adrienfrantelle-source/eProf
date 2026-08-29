@@ -73,6 +73,11 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      membres, suppression, auteur exposé).
    - `0019_messagerie_cleanup_where.sql` : purge du 31 juillet avec clause WHERE
      (évite l'erreur « DELETE requires a WHERE clause »).
+   - `0020_ressources_et_ordre.sql` : table `pedagogical_resources` (liens perso +
+     dossier officiel partagé) et colonne `position` sur les jeux pour l'ordre
+     par glisser-déposer.
+   - `0021_ressources_dossiers_partage.sql` : dossiers public/privé, masquage des
+     partages, et dossier officiel réservé à l'administrateur.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
