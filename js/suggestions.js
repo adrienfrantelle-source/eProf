@@ -28,9 +28,20 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    function isEditable(item) {
+        return !!(item && item.statut === 'nouveau');
+    }
+
     async function loadMine() {
-        const result = await window.EprofStore.list('suggestions', { orderBy: 'created_at', ascending: false });
-        return result.error ? [] : (result.data || []);
+        const session = await window.EprofStore.getSession();
+        if (!session) return [];
+        const result = await window.EprofStore.list('suggestions', {
+            filters: { auteur_id: session.user.id },
+            orderBy: 'created_at',
+            ascending: false
+        });
+        if (result.error) return [];
+        return (result.data || []).filter(function (s) { return s.auteur_id === session.user.id; });
     }
 
     function open() {
@@ -104,19 +115,19 @@
                         <span class="suggest-badge">${escapeHtml(STATUTS[s.statut] || s.statut)}</span>
                     </div>
                     <p class="suggest-item-desc">${escapeHtml(s.description || '')}</p>
-                    <div class="suggest-item-meta">${escapeHtml(s.module || 'Général')} · ${escapeHtml(new Date(s.created_at).toLocaleDateString('fr-FR'))}${s.auteur_identifiant ? ' · ' + escapeHtml(s.auteur_identifiant) : ''}</div>
+                    <div class="suggest-item-meta">${escapeHtml(s.module || 'Général')} · ${escapeHtml(new Date(s.created_at).toLocaleDateString('fr-FR'))}</div>
                     ${s.reponse_admin ? `<div class="suggest-reponse">💬 ${escapeHtml(s.reponse_admin)}</div>` : ''}
-                    <div class="suggest-item-actions">
+                    ${isEditable(s) ? `<div class="suggest-item-actions">
                         <button type="button" class="suggest-edit-btn" data-id="${escapeHtml(s.id)}">Modifier</button>
                         <button type="button" class="suggest-delete-btn" data-id="${escapeHtml(s.id)}">Supprimer</button>
-                    </div>
+                    </div>` : '<p class="suggest-locked">Prise en charge par l\'administration — modification fermée.</p>'}
                 </div>`;
             }).join('') || '<p class="suggest-hint">Aucune demande pour le moment.</p>';
 
             liste.querySelectorAll('.suggest-edit-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     const item = itemsCache.find(function (s) { return s.id === btn.dataset.id; });
-                    if (!item) return;
+                    if (!item || !isEditable(item)) return;
                     editingId = item.id;
                     fillForm(item);
                     overlay.querySelector('.suggest-titre').focus();
@@ -126,7 +137,7 @@
             liste.querySelectorAll('.suggest-delete-btn').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
                     const item = itemsCache.find(function (s) { return s.id === btn.dataset.id; });
-                    if (!item || !confirm('Supprimer la demande « ' + item.titre + ' » ?')) return;
+                    if (!item || !isEditable(item) || !confirm('Supprimer la demande « ' + item.titre + ' » ?')) return;
                     const res = await window.EprofStore.remove('suggestions', item.id);
                     if (res.error) {
                         alert(res.error.message);
@@ -164,6 +175,11 @@
 
             let res;
             if (editingId) {
+                const current = itemsCache.find(function (s) { return s.id === editingId; });
+                if (!isEditable(current)) {
+                    feedback.textContent = '❌ Cette demande a déjà été triée et ne peut plus être modifiée.';
+                    return;
+                }
                 res = await window.EprofStore.update('suggestions', editingId, payload);
             } else {
                 res = await window.EprofStore.insert('suggestions', {

@@ -103,6 +103,28 @@
         return { error };
     }
 
+    // Documents JSON par enseignant (carnet de notes, suivi…).
+    // Un seul document par (teacher_id, doc_type) — chaque prof a ses propres données.
+    async function getTeacherDocument(docType) {
+        const teacherId = await getTeacherId();
+        if (!teacherId) return { data: null, error: new Error('Non connecté') };
+        const result = await list('teacher_documents', {
+            filters: { teacher_id: teacherId, doc_type: docType }
+        });
+        if (result.error) return result;
+        return { data: result.data && result.data[0] ? result.data[0] : null, error: null };
+    }
+
+    async function saveTeacherDocument(docType, payload) {
+        const teacherId = await getTeacherId();
+        if (!teacherId) return { data: null, error: new Error('Non connecté') };
+        return upsert('teacher_documents', [{
+            teacher_id: teacherId,
+            doc_type: docType,
+            data: payload
+        }], { onConflict: 'teacher_id,doc_type' });
+    }
+
     window.EprofStore = {
         getClient,
         getSession,
@@ -113,6 +135,8 @@
         update,
         upsert,
         remove,
-        removeWhere
+        removeWhere,
+        getTeacherDocument,
+        saveTeacherDocument
     };
 })();

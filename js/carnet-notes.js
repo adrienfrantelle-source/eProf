@@ -2,6 +2,10 @@
 let currentClass = null;
 let evaluations = {};
 let notes = {};
+const CARNET_DOC_TYPE = 'carnet_notes';
+let cloudHydrated = false;
+let cloudHydratePromise = null;
+let cloudAutoSaveTimer = null;
 
 // ===== CHARGEMENT =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function initAfterLogin() {
     localStorage.removeItem('carnetNotesEvaluations');
     localStorage.removeItem('carnetNotesNotes');
-    localStorage.removeItem('suiviEleves');
 
     const teacherNameDisplay = document.getElementById('teacher-name-display');
     if (teacherNameDisplay && window.teacherManager) {
@@ -41,6 +44,7 @@ function initAfterLogin() {
     initClassSelector();
     loadDataFromStorage();
     initEventListeners();
+    hydraterCarnetDepuisCloud();
 }
 
 function initEventListeners() {
@@ -156,7 +160,6 @@ function initClassSelector() {
 function loadDataFromStorage() {
     localStorage.removeItem('carnetNotesEvaluations');
     localStorage.removeItem('carnetNotesNotes');
-    localStorage.removeItem('suiviEleves');
 
     if (!window.teacherManager) {
         console.warn('TeacherManager non disponible');
@@ -205,20 +208,20 @@ function loadDataFromStorage() {
     }
 }
 
-function saveData() {
+function persistCarnetLocal() {
     if (!window.teacherManager) {
         console.warn('TeacherManager non disponible');
         return;
     }
-    
-    // Utiliser des clés spécifiques à l'enseignant via TeacherManager
     const evalsKey = window.teacherManager.getStorageKey('carnetNotesEvaluations');
     const notesKey = window.teacherManager.getStorageKey('carnetNotesNotes');
-    
     localStorage.setItem(evalsKey, JSON.stringify(evaluations));
     localStorage.setItem(notesKey, JSON.stringify(notes));
+}
+
+function saveData() {
+    persistCarnetLocal();
     
-    // Sauvegarde automatique
     if (window.dataManager) {
         window.dataManager.triggerAutoSave();
     }
@@ -227,26 +230,83 @@ function saveData() {
     planifierSauvegardeCloud();
 }
 
-// Sauvegarde en ligne automatique, regroupée pour ne pas écrire à chaque frappe.
-// Le bouton manuel reste disponible pour forcer une sauvegarde immédiate.
-let cloudAutoSaveTimer = null;
+function carnetHasContent(data) {
+    if (!data) return false;
+    const evals = data.evaluations || {};
+    const nts = data.notes || {};
+    return Object.keys(evals).some(function (k) { return (evals[k] || []).length > 0; })
+        || Object.keys(nts).some(function (k) { return Object.keys(nts[k] || {}).length > 0; });
+}
+
+function appliquerCarnetDistant(payload) {
+    clearTimeout(cloudAutoSaveTimer);
+    evaluations = payload.evaluations || {};
+    notes = payload.notes || {};
+    persistCarnetLocal();
+    clearUnsavedCloudChanges();
+    if (currentClass) {
+        renderEvaluations();
+        renderNotesTable();
+    }
+}
+
+async function hydraterCarnetDepuisCloud() {
+    if (cloudHydratePromise) return cloudHydratePromise;
+    cloudHydratePromise = (async function () {
+        if (!window.EprofStore || !window.eprofSupabaseReady) return;
+        await window.eprofSupabaseReady;
+        if (!(await window.EprofStore.isOnlineReady())) return;
+
+        const { data, error } = await window.EprofStore.getTeacherDocument(CARNET_DOC_TYPE);
+        if (error) {
+            console.error('❌ Carnet de notes : chargement automatique en ligne échoué', error);
+            return;
+        }
+
+        if (data && data.data && carnetHasContent(data.data)) {
+            appliquerCarnetDistant(data.data);
+            cloudHydrated = true;
+            console.log('✓ Carnet de notes chargé automatiquement depuis le cloud');
+            return;
+        }
+
+        // Première synchro : le poste local a déjà des données, on les pousse en ligne.
+        if (carnetHasContent({ evaluations, notes })) {
+            await sauvegarderCarnetEnLigne(true);
+        }
+        cloudHydrated = true;
+    })().finally(function () {
+        cloudHydratePromise = null;
+    });
+    return cloudHydratePromise;
+}
+
+async function sauvegarderCarnetEnLigne(silencieux) {
+    if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
+        if (!silencieux) {
+            alert('☁️ Connectez-vous à votre compte eProf pour sauvegarder le carnet de notes en ligne.');
+        }
+        return false;
+    }
+
+    const { error } = await window.EprofStore.saveTeacherDocument(CARNET_DOC_TYPE, { evaluations, notes });
+    if (error) {
+        if (!silencieux) {
+            alert('❌ Erreur lors de la sauvegarde en ligne : ' + error.message);
+        } else {
+            console.error('❌ Carnet de notes : sauvegarde automatique en ligne échouée', error);
+        }
+        return false;
+    }
+    clearUnsavedCloudChanges();
+    return true;
+}
 
 function planifierSauvegardeCloud() {
     clearTimeout(cloudAutoSaveTimer);
     cloudAutoSaveTimer = setTimeout(async function () {
-        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return;
-        const teacherId = await window.EprofStore.getTeacherId();
-        const { error } = await window.EprofStore.upsert('teacher_documents', [{
-            teacher_id: teacherId,
-            doc_type: CARNET_DOC_TYPE,
-            data: { evaluations, notes }
-        }], { onConflict: 'teacher_id,doc_type' });
-        if (error) {
-            console.error('❌ Carnet de notes : sauvegarde automatique en ligne échouée', error);
-            return;
-        }
-        clearUnsavedCloudChanges();
-    }, 3000);
+        await sauvegarderCarnetEnLigne(true);
+    }, 1500);
 }
 
 // ===== Rappel de sauvegarde en ligne (bannière + liseré + confirmation avant fermeture) =====
@@ -1225,29 +1285,12 @@ remplacez js/carnet-notes-data.js dans votre dossier eProf par ce fichier.`);
 // Le carnet de notes est encore adossé à des classes identifiées par leur nom
 // (pas encore de students/classes normalisés côté Supabase tant que les listes
 // 2026-2027 ne sont pas importées) : on synchronise donc tout le document
-// {evaluations, notes} en un seul bloc JSON, comme pour le plan de classe.
-const CARNET_DOC_TYPE = 'carnet_notes';
+// {evaluations, notes} en un seul bloc JSON, propre à chaque enseignant.
 
 async function handleSaveCloud() {
-    if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) {
-        alert('☁️ Connectez-vous à votre compte eProf pour sauvegarder le carnet de notes en ligne.');
-        return;
-    }
-
-    const teacherId = await window.EprofStore.getTeacherId();
-    const { error } = await window.EprofStore.upsert('teacher_documents', [{
-        teacher_id: teacherId,
-        doc_type: CARNET_DOC_TYPE,
-        data: { evaluations, notes }
-    }], { onConflict: 'teacher_id,doc_type' });
-
-    if (error) {
-        alert('❌ Erreur lors de la sauvegarde en ligne : ' + error.message);
-        return;
-    }
-
+    const ok = await sauvegarderCarnetEnLigne(false);
+    if (!ok) return;
     const totalEvals = Object.values(evaluations).reduce((sum, evals) => sum + evals.length, 0);
-    clearUnsavedCloudChanges();
     alert(`✅ Carnet de notes sauvegardé en ligne !\n\n📊 ${Object.keys(evaluations).length} classe(s), ${totalEvals} évaluation(s).`);
 }
 
@@ -1257,38 +1300,26 @@ async function handleLoadCloud() {
         return;
     }
 
-    const teacherId = await window.EprofStore.getTeacherId();
-    const { data, error } = await window.EprofStore.list('teacher_documents', {
-        filters: { teacher_id: teacherId, doc_type: CARNET_DOC_TYPE }
-    });
-
+    const { data, error } = await window.EprofStore.getTeacherDocument(CARNET_DOC_TYPE);
     if (error) {
         alert('❌ Erreur lors du chargement en ligne : ' + error.message);
         return;
     }
 
-    const doc = data && data[0];
-    if (!doc || !doc.data) {
+    if (!data || !data.data) {
         alert('ℹ️ Aucune sauvegarde en ligne trouvée pour ce compte.');
         return;
     }
 
-    if (!confirm('Charger le carnet de notes depuis le cloud ?\n\n⚠️ Cela remplacera vos données actuelles sur cet appareil.')) {
-        return;
-    }
-
-    evaluations = doc.data.evaluations || {};
-    notes = doc.data.notes || {};
-    saveData();
-    clearUnsavedCloudChanges();
-
-    if (currentClass) {
-        renderEvaluations();
-        renderNotesTable();
-    }
-
+    appliquerCarnetDistant(data.data);
     alert('✅ Carnet de notes chargé depuis le cloud !');
 }
+
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && !hasUnsavedCloudChanges) {
+        hydraterCarnetDepuisCloud();
+    }
+});
 
 // ===== TOGGLE LISTE DES ÉVALUATIONS =====
 function toggleEvaluationsList() {

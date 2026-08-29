@@ -1470,9 +1470,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     // FONCTION MISE À JOUR NOTIFICATIONS
     // ========================================
+    window.addEventListener('teacherLoggedIn', function () {
+        chargerCarnetPourSuivi(true);
+        chargerSuiviEnLigne().then(function (distant) {
+            if (suiviHasContent(distant)) {
+                ecrireSuiviLocal(distant);
+            }
+            updateNotifications();
+        });
+    });
+
     function updateNotifications() {
         try {
-            const suiviData = JSON.parse(localStorage.getItem('suiviEleves') || '{}');
+            const suiviData = lireSuiviLocal();
             let totalAlertes = 0;
             
             // Compter les alertes (mots à mettre non mis)
@@ -3575,34 +3585,148 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
     // Synchronisation du suivi des élèves (données propres à chaque enseignant)
     // ========================================
     const SUIVI_DOC_TYPE = 'suivi_eleves';
+    const CARNET_DOC_TYPE_SUIVI = 'carnet_notes';
     let syncSuiviTimer = null;
+    let carnetCacheSuivi = { evaluations: {}, notes: {} };
+    let carnetCachePromise = null;
+
+    function getSuiviStorageKey() {
+        if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+            return window.teacherManager.getStorageKey('suiviEleves');
+        }
+        return 'suiviEleves';
+    }
+
+    function lireSuiviLocal() {
+        try {
+            const specifique = JSON.parse(localStorage.getItem(getSuiviStorageKey()) || 'null');
+            if (specifique && typeof specifique === 'object' && Object.keys(specifique).length) {
+                return specifique;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            return JSON.parse(localStorage.getItem('suiviEleves') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function ecrireSuiviLocal(suiviData) {
+        localStorage.setItem(getSuiviStorageKey(), JSON.stringify(suiviData));
+        localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
+    }
+
+    function suiviHasContent(data) {
+        return !!(data && typeof data === 'object' && Object.keys(data).length > 0);
+    }
 
     async function chargerSuiviEnLigne() {
         if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) return null;
-        const teacherId = await window.EprofStore.getTeacherId();
-        const { data, error } = await window.EprofStore.list('teacher_documents', {
-            filters: { teacher_id: teacherId, doc_type: SUIVI_DOC_TYPE }
-        });
-        if (error || !data || !data.length) return null;
-        return data[0].data || null;
+        const { data, error } = await window.EprofStore.getTeacherDocument(SUIVI_DOC_TYPE);
+        if (error || !data) return null;
+        return data.data || null;
     }
 
     async function sauvegarderSuiviEnLigne(suiviData) {
         if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) return false;
-        const teacherId = await window.EprofStore.getTeacherId();
-        const { error } = await window.EprofStore.upsert('teacher_documents', [{
-            teacher_id: teacherId,
-            doc_type: SUIVI_DOC_TYPE,
-            data: suiviData
-        }], { onConflict: 'teacher_id,doc_type' });
+        const { error } = await window.EprofStore.saveTeacherDocument(SUIVI_DOC_TYPE, suiviData);
         if (error) console.error('❌ Suivi des élèves : sauvegarde en ligne échouée', error);
         return !error;
     }
 
-    // Les saisies s'enchaînent vite : on regroupe les écritures réseau.
     function planifierSyncSuivi(suiviData) {
         clearTimeout(syncSuiviTimer);
-        syncSuiviTimer = setTimeout(function () { sauvegarderSuiviEnLigne(suiviData); }, 2000);
+        syncSuiviTimer = setTimeout(function () { sauvegarderSuiviEnLigne(suiviData); }, 1500);
+    }
+
+    function lireCarnetLocalPourSuivi() {
+        let evaluations = {};
+        let notes = {};
+        if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+            try {
+                evaluations = JSON.parse(localStorage.getItem(window.teacherManager.getStorageKey('carnetNotesEvaluations')) || '{}');
+            } catch (e) { evaluations = {}; }
+            try {
+                notes = JSON.parse(localStorage.getItem(window.teacherManager.getStorageKey('carnetNotesNotes')) || '{}');
+            } catch (e) { notes = {}; }
+        }
+        if (!Object.keys(evaluations).length) {
+            try { evaluations = JSON.parse(localStorage.getItem('carnetNotesEvaluations') || '{}'); } catch (e) { evaluations = {}; }
+        }
+        if (!Object.keys(notes).length) {
+            try { notes = JSON.parse(localStorage.getItem('carnetNotesNotes') || '{}'); } catch (e) { notes = {}; }
+        }
+        return { evaluations, notes };
+    }
+
+    function carnetHasContentSuivi(data) {
+        if (!data) return false;
+        const evals = data.evaluations || {};
+        const nts = data.notes || {};
+        return Object.keys(evals).some(function (k) { return (evals[k] || []).length > 0; })
+            || Object.keys(nts).some(function (k) { return Object.keys(nts[k] || {}).length > 0; });
+    }
+
+    async function chargerCarnetPourSuivi(force) {
+        if (carnetCachePromise && !force) return carnetCachePromise;
+        carnetCachePromise = (async function () {
+            const local = lireCarnetLocalPourSuivi();
+            if (carnetHasContentSuivi(local)) carnetCacheSuivi = local;
+            if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
+                const { data, error } = await window.EprofStore.getTeacherDocument(CARNET_DOC_TYPE_SUIVI);
+                if (!error && data && data.data && carnetHasContentSuivi(data.data)) {
+                    carnetCacheSuivi = {
+                        evaluations: data.data.evaluations || {},
+                        notes: data.data.notes || {}
+                    };
+                    if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+                        localStorage.setItem(window.teacherManager.getStorageKey('carnetNotesEvaluations'), JSON.stringify(carnetCacheSuivi.evaluations));
+                        localStorage.setItem(window.teacherManager.getStorageKey('carnetNotesNotes'), JSON.stringify(carnetCacheSuivi.notes));
+                    }
+                }
+            }
+            return carnetCacheSuivi;
+        })().finally(function () {
+            carnetCachePromise = null;
+        });
+        return carnetCachePromise;
+    }
+
+    function normaliserPeriodeSuivi(period) {
+        if (!period) return '';
+        const normalized = String(period).toLowerCase().trim();
+        const periodMap = {
+            trimestre1: 'T1', trimestre2: 'T2', trimestre3: 'T3',
+            semestre1: 'S1', semestre2: 'S2',
+            t1: 'T1', t2: 'T2', t3: 'T3', s1: 'S1', s2: 'S2'
+        };
+        return periodMap[normalized] || String(period).toUpperCase();
+    }
+
+    function trouverNotesEleve(notesClasse, eleve) {
+        if (!notesClasse || !eleve) return null;
+        const candidats = [
+            eleve.nomComplet,
+            eleve.prenom + ' ' + eleve.nom,
+            eleve.prenom + ' ' + String(eleve.nom || '').toUpperCase(),
+            (eleve.prenom || '') + ' ' + (eleve.nom || '')
+        ];
+        for (let i = 0; i < candidats.length; i++) {
+            if (notesClasse[candidats[i]]) return notesClasse[candidats[i]];
+        }
+        const cible = String(eleve.nomComplet || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const cle = Object.keys(notesClasse).find(function (k) {
+            return String(k).toLowerCase().replace(/\s+/g, ' ').trim() === cible;
+        });
+        return cle ? notesClasse[cle] : null;
+    }
+
+    if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+        chargerCarnetPourSuivi(true);
+        chargerSuiviEnLigne().then(function (distant) {
+            if (suiviHasContent(distant)) ecrireSuiviLocal(distant);
+            updateNotifications();
+        });
     }
 
     // ========================================
@@ -3614,10 +3738,6 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             <div id="suivi-eleves-module">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>👨‍🎓 Suivi des élèves</h2>
-                    <div class="data-controls">
-                        <button id="export-suivi-btn" class="btn-secondary" title="Exporter les données du suivi">💾 Exporter</button>
-                        <button id="sync-suivi-btn" class="btn-secondary" title="Sauvegarder le suivi en ligne">☁️ Sauvegarder en ligne</button>
-                    </div>
                 </div>
                 
                 ${classes.length === 0 ? emptyTeacherClassesHtml() : `
@@ -3700,7 +3820,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                         
                         <div id="tab-notes" class="tab-content" style="display: none;">
                             <h4>Moyennes</h4>
-                            <p style="color: #64748b; font-style: italic;">Fonctionnalité à venir</p>
+                            <p style="color: #64748b; font-style: italic;">Chargement des notes…</p>
                         </div>
                     </div>
                 </div>
@@ -3781,7 +3901,8 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         // Variables
         let elevesActuels = [];
         let eleveSelectionne = null;
-        let suiviData = JSON.parse(localStorage.getItem('suiviEleves') || '{}');
+        let suiviData = lireSuiviLocal();
+        chargerCarnetPourSuivi();
         
         // Éléments DOM
         const selectionDiv = container.querySelector('.selection-classe-suivi');
@@ -3918,26 +4039,23 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             modale.style.display = 'flex';
         }
         
-        // Afficher les moyennes de l'élève
-        function afficherMoyennes(periodeSelectionnee = null, matiereSelectionnee = null) {
+        function rendreMoyennes(periodeSelectionnee, matiereSelectionnee) {
+            periodeSelectionnee = periodeSelectionnee || null;
+            matiereSelectionnee = matiereSelectionnee || null;
             const tabNotes = container.querySelector('#tab-notes');
-            
-            // Récupérer les données du carnet de notes
-            const carnetEvaluations = JSON.parse(localStorage.getItem('carnetNotesEvaluations') || '{}');
-            const carnetNotes = JSON.parse(localStorage.getItem('carnetNotesNotes') || '{}');
-            
-            // Vérifier si la classe actuelle a des évaluations
-            const evaluationsClasse = carnetEvaluations[classeActuelle];
-            if (!evaluationsClasse || evaluationsClasse.length === 0) {
+            const carnetEvaluations = carnetCacheSuivi.evaluations || {};
+            const carnetNotes = carnetCacheSuivi.notes || {};
+            const evaluationsClasse = carnetEvaluations[classeActuelle] || [];
+            if (!evaluationsClasse.length) {
                 tabNotes.innerHTML = `
                     <h4>Moyennes</h4>
                     <p style="color: #64748b; font-style: italic;">Aucune évaluation enregistrée pour cette classe</p>
                 `;
                 return;
             }
-            
-            // Vérifier si l'élève a des notes
-            const notesEleve = carnetNotes[classeActuelle]?.[eleveSelectionne];
+
+            const eleveActuel = elevesActuels.find(function (e) { return e.nomComplet === eleveSelectionne; }) || { nomComplet: eleveSelectionne };
+            const notesEleve = trouverNotesEleve(carnetNotes[classeActuelle] || {}, eleveActuel);
             if (!notesEleve) {
                 tabNotes.innerHTML = `
                     <h4>Moyennes</h4>
@@ -3945,12 +4063,13 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 `;
                 return;
             }
-            
-            // Déterminer si la classe est en semestre ou trimestre
-            const isTerminale = classeActuelle.toLowerCase().includes('terminale') || 
-                               classeActuelle.toLowerCase().includes('tle');
-            const periodes = isTerminale ? ['semestre1', 'semestre2'] : ['trimestre1', 'trimestre2', 'trimestre3'];
-            const periodesLabels = isTerminale ? ['Semestre 1', 'Semestre 2'] : ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+
+            const enSemestres = window.EprofReferentiel
+                ? window.EprofReferentiel.getPeriodType(classeActuelle) === 'semestre'
+                : (String(classeActuelle).toLowerCase().includes('terminale') || String(classeActuelle).toLowerCase().includes('tle') || String(classeActuelle).toLowerCase().includes('1ère') || String(classeActuelle).toLowerCase().includes('1ere'));
+            const periodes = enSemestres ? ['semestre1', 'semestre2'] : ['trimestre1', 'trimestre2', 'trimestre3'];
+            const periodesLabels = enSemestres ? ['Semestre 1', 'Semestre 2'] : ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+            const isTerminale = enSemestres;
             
             // Grouper les évaluations par matière (comme dans le carnet de notes)
             const evalsBySubject = {};
@@ -3969,7 +4088,10 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             let hasNotes = false;
             
             periodes.forEach((periode, index) => {
-                const evalsP = evaluationsClasse.filter(e => e.period === periode);
+                const periodeNorm = normaliserPeriodeSuivi(periode);
+                const evalsP = evaluationsClasse.filter(function (e) {
+                    return normaliserPeriodeSuivi(e.period) === periodeNorm;
+                });
                 const notesDetails = [];
                 
                 // Initialiser les structures pour cette période
@@ -4253,6 +4375,12 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 });
             });
         }
+
+        function afficherMoyennes(periodeSelectionnee, matiereSelectionnee) {
+            chargerCarnetPourSuivi(true).then(function () {
+                rendreMoyennes(periodeSelectionnee, matiereSelectionnee);
+            });
+        }
         
         // Afficher les mots à mettre
         function afficherMots() {
@@ -4519,13 +4647,10 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             updateNotifications();
         });
         
-        // Sauvegarder dans localStorage
         function sauvegarderSuivi() {
-            localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
+            ecrireSuiviLocal(suiviData);
             updateNotifications();
             planifierSyncSuivi(suiviData);
-            
-            // Sauvegarde automatique
             if (window.dataManager) {
                 window.dataManager.triggerAutoSave();
             }
@@ -4561,35 +4686,29 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             });
         });
         
-        // Boutons Export / synchronisation
-        const exportSuiviBtn = container.querySelector('#export-suivi-btn');
-        const syncSuiviBtn = container.querySelector('#sync-suivi-btn');
-        
-        if (syncSuiviBtn) {
-            syncSuiviBtn.addEventListener('click', async () => {
-                const ok = await sauvegarderSuiviEnLigne(suiviData);
-                alert(ok ? '✅ Suivi des élèves sauvegardé en ligne.' : '❌ Sauvegarde en ligne impossible (hors ligne ou non connecté).');
+        chargerSuiviEnLigne().then(function (distant) {
+            if (suiviHasContent(distant)) {
+                suiviData = distant;
+                ecrireSuiviLocal(suiviData);
+                updateNotifications();
+                if (classeActuelle) afficherEleves(classeActuelle);
+                return;
+            }
+            if (suiviHasContent(suiviData)) {
+                planifierSyncSuivi(suiviData);
+            }
+        });
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState !== 'visible') return;
+            chargerSuiviEnLigne().then(function (distant) {
+                if (!suiviHasContent(distant)) return;
+                suiviData = distant;
+                ecrireSuiviLocal(suiviData);
+                updateNotifications();
+                if (classeActuelle) afficherEleves(classeActuelle);
             });
-        }
-        
-        if (exportSuiviBtn) {
-            exportSuiviBtn.addEventListener('click', async () => {
-                try {
-                    window.dataManager.exportAllData();
-                    alert('✓ Données exportées avec succès !\n\nLe fichier JSON a été téléchargé.\nConservez-le pour le réutiliser sur un autre ordinateur.');
-                } catch (error) {
-                    alert('❌ Erreur lors de l\'exportation : ' + error.message);
-                }
-            });
-        }
-        
-        // Le suivi en ligne fait foi : on l'applique dès qu'il est disponible.
-        chargerSuiviEnLigne().then(distant => {
-            if (!distant) return;
-            suiviData = distant;
-            localStorage.setItem('suiviEleves', JSON.stringify(suiviData));
-            updateNotifications();
-            if (classeActuelle) afficherEleves(classeActuelle);
+            chargerCarnetPourSuivi(true);
         });
         
         // Gestion de la liste d'émargement
@@ -4782,117 +4901,179 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
             alert(`✓ Liste d'émargement Excel générée !\n\nFichier : ${fileName}`);
         }
         
-        // Fonction pour générer PDF
         function genererPDFEmargement(classe, eleves, colonnes, meta) {
             meta = meta || {};
             if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
                 alert('❌ La bibliothèque jsPDF n\'est pas chargée. Impossible de générer le fichier PDF.');
                 return;
             }
-            
+
             const { jsPDF } = window.jspdf || jspdf;
-            const doc = new jsPDF();
+            const paysage = colonnes.length >= 4;
+            const doc = new jsPDF({ orientation: paysage ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const marginX = 12;
+            const marginBottom = 16;
+            const tableWidth = pageW - marginX * 2;
             const libelleClasse = (meta.classeLibelle || classe || '').trim();
-            const titre = (meta.titre || '').trim() || ('Liste d\'émargement' + (libelleClasse ? ' - ' + libelleClasse : ''));
-            
-            let yHead = 15;
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text(titre, 105, yHead, { align: 'center' });
-            yHead += 7;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            if ((meta.sousTitre || '').trim()) {
-                doc.text(meta.sousTitre.trim(), 105, yHead, { align: 'center' });
-                yHead += 6;
+            const titre = (meta.titre || '').trim() || 'Liste d\'émargement';
+            const sousTitre = (meta.sousTitre || '').trim();
+            const dateLibelle = (function () {
+                const d = (meta.date || '').trim();
+                if (!d) return '';
+                return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d;
+            })();
+            const metaItems = [];
+            if (libelleClasse) metaItems.push({ label: 'Classe', value: libelleClasse });
+            if (dateLibelle) metaItems.push({ label: 'Date', value: dateLibelle });
+            if ((meta.salle || '').trim()) metaItems.push({ label: 'Salle', value: meta.salle.trim() });
+            if ((meta.prof || '').trim()) metaItems.push({ label: 'Enseignant', value: meta.prof.trim() });
+
+            const colNumWidth = 10;
+            const minNomWidth = 48;
+            const remaining = tableWidth - colNumWidth;
+            const emargWidth = colonnes.length ? remaining * 0.52 / colonnes.length : 0;
+            const colNomWidth = Math.max(minNomWidth, remaining - emargWidth * colonnes.length);
+
+            function wrapLines(text, width, fontSize, fontStyle) {
+                doc.setFont('helvetica', fontStyle || 'normal');
+                doc.setFontSize(fontSize);
+                return doc.splitTextToSize(String(text || ''), Math.max(8, width));
             }
-            const infos = [];
-            if (libelleClasse) infos.push('Classe : ' + libelleClasse);
-            if ((meta.date || '').trim()) {
-                const d = meta.date.trim();
-                infos.push('Date : ' + (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d));
-            }
-            if ((meta.salle || '').trim()) infos.push('Salle : ' + meta.salle.trim());
-            if ((meta.prof || '').trim()) infos.push('Enseignant : ' + meta.prof.trim());
-            if (infos.length) {
-                doc.text(infos.join('  ·  '), 105, yHead, { align: 'center' });
-                yHead += 8;
-            } else {
-                yHead += 4;
-            }
-            
-            // Calculer les largeurs de colonnes
-            const pageWidth = 180;
-            const colNumWidth = 15;
-            const colNomWidth = 70;
-            const nbColonnes = colonnes.length;
-            const colEmargementWidth = (pageWidth - colNumWidth - colNomWidth) / nbColonnes;
-            
-            // Tableau manuel
-            let y = yHead;
-            const lineHeight = 8;
-            const colX1 = 15;  // N°
-            const colX2 = colX1 + colNumWidth;  // Nom
-            
-            // En-têtes
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'bold');
-            doc.setFillColor(59, 130, 246);
-            doc.setTextColor(255, 255, 255);
-            doc.rect(colX1, y, pageWidth, lineHeight, 'F');
-            doc.text('N°', colX1 + 2, y + 5.5);
-            doc.text('Élève', colX2 + 2, y + 5.5);
-            
-            // Ajouter les en-têtes des colonnes d'émargement
-            colonnes.forEach((col, index) => {
-                const colX = colX2 + colNomWidth + (index * colEmargementWidth);
-                // Tronquer le texte si trop long
-                const maxLength = Math.floor(colEmargementWidth / 2);
-                const textToDisplay = col.length > maxLength ? col.substring(0, maxLength - 2) + '..' : col;
-                doc.text(textToDisplay, colX + 2, y + 5.5);
-            });
-            
-            y += lineHeight;
-            
-            // Lignes du tableau
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(9);
-            
-            eleves.forEach((eleve, index) => {
-                // Vérifier si on doit ajouter une nouvelle page
-                if (y > 270) {
-                    doc.addPage();
-                    y = 20;
-                }
-                
-                // Bordures
-                doc.setDrawColor(200, 200, 200);
-                doc.rect(colX1, y, colNumWidth, lineHeight);
-                doc.rect(colX2, y, colNomWidth, lineHeight);
-                
-                // Colonnes d'émargement
-                colonnes.forEach((col, colIndex) => {
-                    const colX = colX2 + colNomWidth + (colIndex * colEmargementWidth);
-                    doc.rect(colX, y, colEmargementWidth, lineHeight);
+
+            function drawHeader() {
+                let y = 12;
+                doc.setFillColor(30, 64, 175);
+                doc.rect(0, 0, pageW, 4, 'F');
+
+                doc.setFont('times', 'bold');
+                doc.setFontSize(titre.length > 42 ? 15 : 18);
+                doc.setTextColor(15, 23, 42);
+                const titreLines = doc.splitTextToSize(titre, tableWidth);
+                titreLines.forEach(function (line) {
+                    doc.text(line, pageW / 2, y + 6, { align: 'center' });
+                    y += 7;
                 });
-                
-                // Contenu
-                doc.text((index + 1).toString(), colX1 + 2, y + 5.5);
-                // Tronquer le nom si trop long
-                const nomMaxLength = Math.floor(colNomWidth / 2.5);
-                const nomToDisplay = eleve.nomComplet.length > nomMaxLength ? 
-                    eleve.nomComplet.substring(0, nomMaxLength - 2) + '..' : eleve.nomComplet;
-                doc.text(nomToDisplay, colX2 + 2, y + 5.5);
-                
-                y += lineHeight;
+
+                if (sousTitre) {
+                    doc.setFont('times', 'italic');
+                    doc.setFontSize(11);
+                    doc.setTextColor(51, 65, 85);
+                    wrapLines(sousTitre, tableWidth, 11, 'italic').forEach(function (line) {
+                        doc.text(line, pageW / 2, y + 4, { align: 'center' });
+                        y += 5;
+                    });
+                    y += 2;
+                }
+
+                if (metaItems.length) {
+                    y += 2;
+                    const colW = tableWidth / 2;
+                    const rowH = 6;
+                    const rows = Math.ceil(metaItems.length / 2);
+                    const boxH = rows * rowH + 4;
+                    doc.setFillColor(248, 250, 252);
+                    doc.setDrawColor(203, 213, 225);
+                    if (typeof doc.roundedRect === 'function') {
+                        doc.roundedRect(marginX, y, tableWidth, boxH, 1.5, 1.5, 'FD');
+                    } else {
+                        doc.rect(marginX, y, tableWidth, boxH, 'FD');
+                    }
+                    metaItems.forEach(function (item, i) {
+                        const col = i % 2;
+                        const row = Math.floor(i / 2);
+                        const x = marginX + 3 + col * colW;
+                        const iy = y + 5 + row * rowH;
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(8);
+                        doc.setTextColor(100, 116, 139);
+                        doc.text(item.label.toUpperCase(), x, iy);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(10);
+                        doc.setTextColor(15, 23, 42);
+                        const valueLines = doc.splitTextToSize(item.value, colW - 8);
+                        doc.text(valueLines[0], x + 22, iy);
+                    });
+                    y += boxH + 5;
+                } else {
+                    y += 4;
+                }
+                return y;
+            }
+
+            function drawTableHeader(y) {
+                const headerLines = colonnes.map(function (col) {
+                    return wrapLines(col, emargWidth - 3, 8, 'bold');
+                });
+                const nomLines = wrapLines('Élève', colNomWidth - 3, 8, 'bold');
+                const maxLines = Math.max(1, nomLines.length, ...headerLines.map(function (l) { return l.length; }));
+                const h = Math.max(9, 4 + maxLines * 3.4);
+
+                doc.setFillColor(30, 64, 175);
+                doc.setTextColor(255, 255, 255);
+                doc.rect(marginX, y, tableWidth, h, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.text('N°', marginX + colNumWidth / 2, y + h / 2 + 1, { align: 'center' });
+                doc.text(nomLines, marginX + colNumWidth + 2, y + 4.2);
+                colonnes.forEach(function (col, index) {
+                    const x = marginX + colNumWidth + colNomWidth + index * emargWidth;
+                    doc.text(headerLines[index], x + emargWidth / 2, y + 4.2, { align: 'center' });
+                });
+                return y + h;
+            }
+
+            function drawFooter() {
+                const pages = doc.getNumberOfPages();
+                for (let p = 1; p <= pages; p++) {
+                    doc.setPage(p);
+                    doc.setDrawColor(203, 213, 225);
+                    doc.line(marginX, pageH - 10, pageW - marginX, pageH - 10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.setTextColor(100, 116, 139);
+                    doc.text('eProf — émargement', marginX, pageH - 6);
+                    doc.text('Page ' + p + ' / ' + pages, pageW - marginX, pageH - 6, { align: 'right' });
+                }
+            }
+
+            let y = drawHeader();
+            y = drawTableHeader(y);
+
+            eleves.forEach(function (eleve, index) {
+                const nomLines = wrapLines(eleve.nomComplet, colNomWidth - 4, 9, 'normal');
+                const rowH = Math.max(8, 3.2 + nomLines.length * 3.6);
+                if (y + rowH > pageH - marginBottom) {
+                    doc.addPage();
+                    y = drawHeader();
+                    y = drawTableHeader(y);
+                }
+
+                if (index % 2 === 0) {
+                    doc.setFillColor(241, 245, 249);
+                    doc.rect(marginX, y, tableWidth, rowH, 'F');
+                }
+                doc.setDrawColor(226, 232, 240);
+                doc.rect(marginX, y, colNumWidth, rowH);
+                doc.rect(marginX + colNumWidth, y, colNomWidth, rowH);
+                colonnes.forEach(function (_, colIndex) {
+                    doc.rect(marginX + colNumWidth + colNomWidth + colIndex * emargWidth, y, emargWidth, rowH);
+                });
+
+                doc.setTextColor(15, 23, 42);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.text(String(index + 1), marginX + colNumWidth / 2, y + rowH / 2 + 1, { align: 'center' });
+                doc.setFontSize(9);
+                doc.text(nomLines, marginX + colNumWidth + 2, y + 4.4);
+                y += rowH;
             });
-            
-            // Télécharger
+
+            drawFooter();
             const fileName = `Emargement_${classe.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
             doc.save(fileName);
-            
-            alert(`✓ Liste d'émargement PDF générée !\n\nFichier : ${fileName}`);
+            alert('✓ Liste d\'émargement PDF générée !\n\nFichier : ' + fileName);
         }
     }
 

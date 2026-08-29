@@ -1,9 +1,9 @@
 // ===== ANNONCES INSTITUTIONNELLES (côté enseignant) =====
-// Affiche les annonces actives ciblant l'utilisateur connecté, enregistre
-// l'accusé de lecture et permet de signaler un contenu à l'administrateur.
+// Affichées comme des notifications, fermables par une croix.
 
 (function () {
     const DISMISSED_KEY = 'eprof-annonces-masquees';
+    const ICONS = { info: 'ℹ️', important: '⚠️', urgent: '🚨' };
 
     function escapeHtml(str) {
         return String(str == null ? '' : str)
@@ -17,7 +17,7 @@
 
     function dismiss(id) {
         const list = readDismissed();
-        list.push(id);
+        if (list.indexOf(id) === -1) list.push(id);
         try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(list.slice(-100))); } catch (e) {}
     }
 
@@ -36,18 +36,17 @@
     }
 
     function cardHtml(a) {
+        const icon = ICONS[a.niveau] || ICONS.info;
         return `
-            <article class="annonce annonce-${escapeHtml(a.niveau)}" data-id="${escapeHtml(a.id)}">
+            <article class="annonce-toast annonce-${escapeHtml(a.niveau)}" data-id="${escapeHtml(a.id)}" role="status">
+                <div class="annonce-icon" aria-hidden="true">${icon}</div>
                 <div class="annonce-body">
-                    <h4>${a.epingle ? '📌 ' : ''}${escapeHtml(a.titre)}</h4>
+                    <h4>${a.epingle ? '<span class="annonce-pin">Épinglé</span>' : ''}${escapeHtml(a.titre)}</h4>
                     <p>${escapeHtml(a.message).replace(/\n/g, '<br>')}</p>
                     ${a.lien_url ? `<a class="annonce-lien" href="${escapeHtml(a.lien_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.lien_libelle || 'En savoir plus')}</a>` : ''}
-                    <div class="annonce-meta">${escapeHtml(new Date(a.date_debut).toLocaleDateString('fr-FR'))}${a.auteur_identifiant ? ' · ' + escapeHtml(a.auteur_identifiant) : ''}</div>
+                    <button type="button" class="annonce-report" title="Signaler ce contenu">Signaler</button>
                 </div>
-                <div class="annonce-actions">
-                    <button type="button" class="annonce-report" title="Signaler ce contenu">🚩</button>
-                    ${a.epingle ? '' : '<button type="button" class="annonce-close" title="Masquer">×</button>'}
-                </div>
+                <button type="button" class="annonce-close" title="Fermer la notification" aria-label="Fermer">×</button>
             </article>`;
     }
 
@@ -75,7 +74,10 @@
     async function render() {
         const container = document.getElementById('eprof-announcements');
         if (!container || !window.EprofStore) return;
-        if (!await window.EprofStore.isOnlineReady()) return;
+        if (!await window.EprofStore.isOnlineReady()) {
+            container.innerHTML = '';
+            return;
+        }
 
         const result = await window.EprofStore.list('announcements', { orderBy: 'date_debut', ascending: false });
         if (result.error || !result.data) return;
@@ -86,23 +88,31 @@
             if (!a.actif) return false;
             if (new Date(a.date_debut).getTime() > now) return false;
             if (a.date_fin && new Date(a.date_fin).getTime() < now) return false;
-            return a.epingle || masquees.indexOf(a.id) === -1;
+            return masquees.indexOf(a.id) === -1;
         });
 
         container.innerHTML = visibles.map(cardHtml).join('');
+        container.classList.toggle('annonces-visible', visibles.length > 0);
         visibles.forEach(function (a) { markAsRead(a.id); });
 
         container.querySelectorAll('.annonce-close').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                const card = btn.closest('.annonce');
+                const card = btn.closest('.annonce-toast');
+                if (!card) return;
                 dismiss(card.dataset.id);
-                card.remove();
+                card.classList.add('annonce-out');
+                setTimeout(function () {
+                    card.remove();
+                    if (!container.querySelector('.annonce-toast')) {
+                        container.classList.remove('annonces-visible');
+                    }
+                }, 220);
             });
         });
 
         container.querySelectorAll('.annonce-report').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                const card = btn.closest('.annonce');
+                const card = btn.closest('.annonce-toast');
                 const annonce = visibles.find(function (a) { return a.id === card.dataset.id; });
                 reportContent('annonce', card.dataset.id, annonce ? annonce.titre : '');
             });
@@ -114,6 +124,6 @@
     document.addEventListener('DOMContentLoaded', async function () {
         await (window.eprofSupabaseReady || Promise.resolve());
         render();
-        if (window.eprofAuth) window.eprofAuth.onAuthStateChange(render);
+        if (window.eprofAuth) window.eprofAuth.onAuthStateChange(function () { render(); });
     });
 })();
