@@ -4255,3 +4255,139 @@ body {
     flex: 1 !important;
     min-width: 250px;
 }
+
+/* ===== Outils en ligne (sous-onglets iframes) ===== */
+.tabbed-iframes {
+    margin: 0 0 22px;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.tabbed-iframes-header h3 {
+    margin: 0 0 10px;
+    font-size: 1.1rem;
+}
+
+.tabbed-iframes-config {
+    margin-bottom: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.tabbed-iframes-config summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.tabbed-iframes-hint {
+    color: #64748b;
+    font-size: 0.88rem;
+    margin: 10px 0;
+}
+
+.tabbed-iframes-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tabbed-iframes-fieldset {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+}
+
+.tabbed-iframes-fieldset legend {
+    font-weight: 600;
+    padding: 0 6px;
+}
+
+.tabbed-iframes-fieldset label {
+    display: block;
+    font-size: 0.82rem;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.tabbed-iframes-fieldset input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.tabbed-iframes-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tabbed-iframes-tab {
+    border: 2px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #334155;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tabbed-iframes-tab.is-active {
+    background: #3B82F6;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.tabbed-iframes-frame-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 360px;
+    background: #f8fafc;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+
+.tabbed-iframes-frame-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 8px;
+    visibility: hidden;
+}
+
+.tabbed-iframes-loading,
+.tabbed-iframes-error,
+.tabbed-iframes-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    color: #64748b;
+}
+
+.tabbed-iframes-empty {
+    position: relative;
+    min-height: 220px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.tabbed-iframes-error {
+    color: #b91c1c;
+    font-weight: 600;
+}

@@ -39,6 +39,7 @@
         container.innerHTML = `
             <div id="ressources-module">
                 <h2>📚 Ressources pédagogiques</h2>
+                <div id="tabbed-iframes-host"></div>
                 <div class="jeux-controls">
                     <details class="plan-config-accordion">
                         <summary>➕ Ajouter une ressource ou un dossier</summary>
@@ -68,6 +69,10 @@
                 <div class="jeux-liste" id="ressources-liste"></div>
             </div>
         `;
+
+        if (window.EprofTabbedIframes) {
+            window.EprofTabbedIframes.render(container.querySelector('#tabbed-iframes-host'));
+        }
 
         let items = [];
         let folders = [];
