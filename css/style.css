@@ -4259,10 +4259,103 @@ body {
 /* ===== Outils en ligne (sous-onglets iframes) ===== */
 .tabbed-iframes {
     margin: 0 0 22px;
-    padding: 16px;
+    padding: 12px 16px;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
+}
+
+.tabbed-iframes-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tabbed-iframes-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    background: transparent;
+    padding: 4px 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    text-align: left;
+}
+
+.tabbed-iframes-chevron {
+    display: inline-block;
+    width: 1.1em;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.tabbed-iframes-help {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 800;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.tabbed-iframes-help:hover {
+    background: #dbeafe;
+}
+
+.tabbed-iframes-body {
+    margin-top: 12px;
+}
+
+.tabbed-iframes-tuto {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.tabbed-iframes-tuto[hidden] {
+    display: none;
+}
+
+.tabbed-iframes-tuto-card {
+    width: min(560px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.2);
+}
+
+.tabbed-iframes-tuto-card h4 {
+    margin: 0 0 12px;
+}
+
+.tabbed-iframes-tuto-card ol,
+.tabbed-iframes-tuto-list {
+    margin: 0 0 12px;
+    padding-left: 1.2rem;
+    color: #334155;
+    line-height: 1.45;
+}
+
+.tabbed-iframes-tuto-list li {
+    margin-bottom: 8px;
+}
+
+#ressources-module .ajout-jeu-form {
+    flex-wrap: wrap;
 }
 
 .tabbed-iframes-header h3 {
@@ -4390,4 +4483,24 @@ body {
 .tabbed-iframes-error {
     color: #b91c1c;
     font-weight: 600;
+}
+
+.tabbed-iframes-save-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tabbed-iframes-status {
+    font-size: 0.88rem;
+    color: #64748b;
+}
+
+.tabbed-iframes-status.is-ok {
+    color: #15803d;
+}
+
+.tabbed-iframes-status.is-warn {
+    color: #b45309;
 }

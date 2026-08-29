@@ -1,9 +1,11 @@
 // ===== SOUS-ONGLETS D'IFRAMES (outils en ligne) =====
 // OneDrive, Canva, Genially, Kahoot, Padlet, YouTube.
-// Les identifiants d'embed se règlent dans le panneau de configuration.
+// Config personnelle : localStorage clé par prof + teacher_documents (doc_type iframe_embeds).
 
 (function () {
-    const LS_KEY = 'eprof_iframe_embeds';
+    const DOC_TYPE = 'iframe_embeds';
+    const LS_LEGACY = 'eprof_iframe_embeds';
+    const LS_COLLAPSED = 'eprof_iframeEmbedsCollapsed';
     const LOAD_TIMEOUT_MS = 15000;
 
     const TABS = [
@@ -77,56 +79,188 @@
         return escapeAttr(value).replace(/'/g, '&#39;');
     }
 
-    function readConfig() {
-        try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { return {}; }
+    function teacherStorageKey() {
+        if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+            return window.teacherManager.getStorageKey('iframeEmbeds');
+        }
+        const identifiant = localStorage.getItem('userName') || 'enseignant';
+        return 'eprof_iframeEmbeds_' + identifiant;
     }
 
-    function writeConfig(config) {
-        localStorage.setItem(LS_KEY, JSON.stringify(config));
+    function hasEmbedValues(config) {
+        if (!config || typeof config !== 'object') return false;
+        return TABS.some(function (tab) {
+            const cfg = config[tab.id] || {};
+            return tab.fields.some(function (field) { return !!(cfg[field.key] || '').trim(); });
+        });
     }
 
-    function tabConfig(tab) {
-        const all = readConfig();
-        return all[tab.id] || {};
+    function readLocal() {
+        try {
+            const scoped = JSON.parse(localStorage.getItem(teacherStorageKey()) || 'null');
+            if (scoped && typeof scoped === 'object') return scoped;
+        } catch (e) { /* ignore */ }
+        try {
+            const legacy = JSON.parse(localStorage.getItem(LS_LEGACY) || '{}');
+            if (legacy && typeof legacy === 'object' && hasEmbedValues(legacy)) {
+                writeLocal(legacy);
+                return legacy;
+            }
+        } catch (e) { /* ignore */ }
+        return {};
+    }
+
+    function writeLocal(config) {
+        localStorage.setItem(teacherStorageKey(), JSON.stringify(config));
+    }
+
+    function collapseKey() {
+        if (window.teacherManager && window.teacherManager.getCurrentTeacher()) {
+            return window.teacherManager.getStorageKey('iframeEmbedsCollapsed');
+        }
+        return LS_COLLAPSED;
+    }
+
+    function readCollapsed() {
+        try {
+            const raw = localStorage.getItem(collapseKey());
+            if (raw === '0' || raw === 'false') return false;
+            if (raw === '1' || raw === 'true') return true;
+        } catch (e) { /* ignore */ }
+        return true;
+    }
+
+    function writeCollapsed(collapsed) {
+        localStorage.setItem(collapseKey(), collapsed ? '1' : '0');
+    }
+
+    async function loadCloud() {
+        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return null;
+        const { data, error } = await window.EprofStore.getTeacherDocument(DOC_TYPE);
+        if (error) {
+            console.error('❌ Intégrations iframes : chargement en ligne échoué', error);
+            return null;
+        }
+        return data && data.data ? data.data : null;
+    }
+
+    async function saveCloud(config) {
+        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return false;
+        const { error } = await window.EprofStore.saveTeacherDocument(DOC_TYPE, config);
+        if (error) {
+            console.error('❌ Intégrations iframes : sauvegarde en ligne échouée', error);
+            return false;
+        }
+        return true;
     }
 
     function render(host) {
         if (!host) return;
         let activeId = 'onedrive';
+        let config = readLocal();
         const loaded = {};
 
         host.innerHTML =
             '<section class="tabbed-iframes">' +
+            '<div class="tabbed-iframes-toolbar">' +
+            '<button type="button" class="tabbed-iframes-toggle" id="tabbed-iframes-toggle" aria-expanded="false">' +
+            '<span class="tabbed-iframes-chevron" aria-hidden="true">▶</span>' +
+            '<span>Outils en ligne</span>' +
+            '</button>' +
+            '<button type="button" class="tabbed-iframes-help" id="tabbed-iframes-help" title="Comment configurer les intégrations" aria-label="Aide pour configurer les intégrations">?</button>' +
+            '</div>' +
+            '<div class="tabbed-iframes-body" id="tabbed-iframes-body" hidden>' +
             '<div class="tabbed-iframes-header">' +
-            '<h3>Outils en ligne</h3>' +
             '<details class="tabbed-iframes-config">' +
             '<summary>Configurer les intégrations</summary>' +
-            '<p class="tabbed-iframes-hint">Collez les identifiants d’embed de chaque service. Tant qu’un ID n’est pas renseigné, l’onglet affiche un message d’attente.</p>' +
+            '<p class="tabbed-iframes-hint">Ces identifiants sont personnels à votre compte. Ils sont enregistrés en ligne et restent disponibles sur un autre ordinateur. Tant qu’un ID n’est pas renseigné, l’onglet affiche un message d’attente.</p>' +
             '<div class="tabbed-iframes-fields" id="tabbed-iframe-fields"></div>' +
+            '<div class="tabbed-iframes-save-row">' +
             '<button type="button" class="btn-primary" id="tabbed-iframe-save">Enregistrer</button>' +
+            '<span class="tabbed-iframes-status" id="tabbed-iframe-status"></span>' +
+            '</div>' +
             '</details></div>' +
             '<div class="tabbed-iframes-tabs" role="tablist"></div>' +
             '<div class="tabbed-iframes-panel"></div>' +
+            '</div>' +
+            '<div class="tabbed-iframes-tuto" id="tabbed-iframes-tuto" hidden>' +
+            '<div class="tabbed-iframes-tuto-card" role="dialog" aria-labelledby="tabbed-iframes-tuto-title">' +
+            '<h4 id="tabbed-iframes-tuto-title">Mini tuto : configurer les intégrations</h4>' +
+            '<ol>' +
+            '<li>Ouvrez <strong>Outils en ligne</strong>, puis <strong>Configurer les intégrations</strong>.</li>' +
+            '<li>Pour chaque service, récupérez l’identifiant d’<em>embed</em> (pas le lien de partage habituel) :</li>' +
+            '</ol>' +
+            '<ul class="tabbed-iframes-tuto-list">' +
+            '<li><strong>OneDrive</strong> : dossier → Partager → Intégrer. Dans le code, copiez <code>resid=…</code> et <code>authkey=…</code>.</li>' +
+            '<li><strong>Canva</strong> : Partager → Plus → Intégrer. L’ID est dans <code>/design/<em>ID</em>/</code>.</li>' +
+            '<li><strong>Genially</strong> : Partager → Intégrer. L’ID est dans <code>view.genially.com/<em>ID</em>/</code>.</li>' +
+            '<li><strong>Kahoot</strong> : lancez le quiz et copiez le <em>PIN</em> affiché aux élèves.</li>' +
+            '<li><strong>Padlet</strong> : Partager → Intégrer dans un blog. L’ID est dans <code>padlet.com/embed/<em>ID</em></code>.</li>' +
+            '<li><strong>YouTube</strong> : Partager → Intégrer, ou l’ID après <code>youtu.be/</code> / <code>watch?v=</code>.</li>' +
+            '</ul>' +
+            '<p>Cliquez sur <strong>Enregistrer</strong> : la config est liée à votre compte, pas à celui des collègues.</p>' +
+            '<p class="tabbed-iframes-hint">Certains sites (Canva, Kahoot…) refusent parfois l’affichage en iframe. Dans ce cas, le message « contenu non disponible » est normal.</p>' +
+            '<button type="button" class="btn-primary" id="tabbed-iframes-tuto-close">Fermer</button>' +
+            '</div></div>' +
             '</section>';
 
         const tabsEl = host.querySelector('.tabbed-iframes-tabs');
         const panelEl = host.querySelector('.tabbed-iframes-panel');
         const fieldsEl = host.querySelector('#tabbed-iframe-fields');
+        const statusEl = host.querySelector('#tabbed-iframe-status');
+        const bodyEl = host.querySelector('#tabbed-iframes-body');
+        const toggleBtn = host.querySelector('#tabbed-iframes-toggle');
+        const chevronEl = host.querySelector('.tabbed-iframes-chevron');
+        const tutoEl = host.querySelector('#tabbed-iframes-tuto');
+        let collapsed = readCollapsed();
 
-        fieldsEl.innerHTML = TABS.map(function (tab) {
-            const cfg = tabConfig(tab);
-            return '<fieldset class="tabbed-iframes-fieldset">' +
-                '<legend>' + escapeHtml(tab.title) + '</legend>' +
-                tab.fields.map(function (field) {
-                    return '<label>' + escapeHtml(field.label) +
-                        '<input type="text" data-tab="' + escapeAttr(tab.id) + '" data-field="' + escapeAttr(field.key) +
-                        '" value="' + escapeAttr(cfg[field.key] || '') + '" placeholder="' + escapeAttr(field.placeholder) + '">' +
-                        '</label>';
-                }).join('') +
-                '</fieldset>';
-        }).join('');
+        function applyCollapsed() {
+            bodyEl.hidden = collapsed;
+            toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            chevronEl.textContent = collapsed ? '▶' : '▼';
+            writeCollapsed(collapsed);
+            if (!collapsed) showTab(activeId);
+        }
 
-        host.querySelector('#tabbed-iframe-save').addEventListener('click', function () {
+        toggleBtn.addEventListener('click', function () {
+            collapsed = !collapsed;
+            applyCollapsed();
+        });
+
+        function setTutoOpen(open) {
+            tutoEl.hidden = !open;
+        }
+
+        host.querySelector('#tabbed-iframes-help').addEventListener('click', function () {
+            setTutoOpen(true);
+        });
+        host.querySelector('#tabbed-iframes-tuto-close').addEventListener('click', function () {
+            setTutoOpen(false);
+        });
+        tutoEl.addEventListener('click', function (e) {
+            if (e.target === tutoEl) setTutoOpen(false);
+        });
+
+        function tabConfig(tab) {
+            return config[tab.id] || {};
+        }
+
+        function fillFields() {
+            fieldsEl.innerHTML = TABS.map(function (tab) {
+                const cfg = tabConfig(tab);
+                return '<fieldset class="tabbed-iframes-fieldset">' +
+                    '<legend>' + escapeHtml(tab.title) + '</legend>' +
+                    tab.fields.map(function (field) {
+                        return '<label>' + escapeHtml(field.label) +
+                            '<input type="text" data-tab="' + escapeAttr(tab.id) + '" data-field="' + escapeAttr(field.key) +
+                            '" value="' + escapeAttr(cfg[field.key] || '') + '" placeholder="' + escapeAttr(field.placeholder) + '">' +
+                            '</label>';
+                    }).join('') +
+                    '</fieldset>';
+            }).join('');
+        }
+
+        function collectFields() {
             const next = {};
             fieldsEl.querySelectorAll('input').forEach(function (input) {
                 const tabId = input.getAttribute('data-tab');
@@ -134,9 +268,29 @@
                 if (!next[tabId]) next[tabId] = {};
                 next[tabId][field] = input.value.trim();
             });
-            writeConfig(next);
+            return next;
+        }
+
+        function setStatus(text, kind) {
+            statusEl.textContent = text;
+            statusEl.className = 'tabbed-iframes-status' + (kind ? ' is-' + kind : '');
+        }
+
+        fillFields();
+
+        host.querySelector('#tabbed-iframe-save').addEventListener('click', async function () {
+            config = collectFields();
+            writeLocal(config);
             Object.keys(loaded).forEach(function (k) { delete loaded[k]; });
             showTab(activeId);
+            setStatus('Enregistrement…', '');
+            const online = await saveCloud(config);
+            setStatus(
+                online
+                    ? 'Enregistré sur votre compte.'
+                    : 'Enregistré sur cet ordinateur uniquement (hors ligne).',
+                online ? 'ok' : 'warn'
+            );
         });
 
         tabsEl.innerHTML = TABS.map(function (tab) {
@@ -204,7 +358,22 @@
             loaded[tab.id] = true;
         }
 
-        showTab(activeId);
+        applyCollapsed();
+
+        (async function hydrateFromCloud() {
+            const remote = await loadCloud();
+            if (remote && hasEmbedValues(remote)) {
+                config = remote;
+                writeLocal(config);
+                fillFields();
+                Object.keys(loaded).forEach(function (k) { delete loaded[k]; });
+                if (!collapsed) showTab(activeId);
+                return;
+            }
+            if (hasEmbedValues(config)) {
+                await saveCloud(config);
+            }
+        })();
     }
 
     window.EprofTabbedIframes = { render: render, TABS: TABS };

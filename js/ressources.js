@@ -39,15 +39,16 @@
         container.innerHTML = `
             <div id="ressources-module">
                 <h2>📚 Ressources pédagogiques</h2>
-                <div id="tabbed-iframes-host"></div>
                 <div class="jeux-controls">
-                    <details class="plan-config-accordion">
-                        <summary>➕ Ajouter une ressource ou un dossier</summary>
+                    <details class="plan-config-accordion" open>
+                        <summary>➕ Ajouter une ressource</summary>
                         <div class="config-accordion-body">
                             <div class="ajout-jeu-form">
                                 <input type="text" id="ressource-titre" placeholder="Titre de la ressource">
                                 <input type="url" id="ressource-url" placeholder="Lien internet (https://...)">
-                                <select id="ressource-famille"></select>
+                                <select id="ressource-famille">
+                                    <option value="general">📁 Général (privé)</option>
+                                </select>
                                 <button type="button" id="ajouter-ressource-btn" class="btn-primary">➕ Ajouter</button>
                             </div>
                             <div class="ressources-dossier-row">
@@ -62,6 +63,7 @@
                         </div>
                     </details>
                 </div>
+                <div id="tabbed-iframes-host"></div>
                 <div id="ressources-hidden-bar" class="ressources-hidden-bar" hidden></div>
                 <div class="jeux-recherche">
                     <input type="text" id="recherche-ressource" placeholder="🔍 Rechercher une ressource…">
@@ -70,8 +72,12 @@
             </div>
         `;
 
-        if (window.EprofTabbedIframes) {
-            window.EprofTabbedIframes.render(container.querySelector('#tabbed-iframes-host'));
+        try {
+            if (window.EprofTabbedIframes) {
+                window.EprofTabbedIframes.render(container.querySelector('#tabbed-iframes-host'));
+            }
+        } catch (err) {
+            console.warn('⚠️ Outils en ligne : affichage impossible.', err);
         }
 
         let items = [];
@@ -614,6 +620,9 @@
             if (!/^https?:\/\/.+/i.test(url)) { alert('Saisissez un lien internet valide (http:// ou https://).'); return; }
             if (!target) { alert('Choisissez un dossier.'); return; }
             if (target.officiel && !isAdmin) { alert('Seul l’administrateur peut ajouter dans le dossier officiel.'); return; }
+            const folderId = target.folder_id && String(target.folder_id).indexOf('local-') !== 0
+                ? target.folder_id
+                : null;
             const position = items.filter(function (it) { return it.sectionKey === target.sectionKey; }).length;
             const nouveau = normalizeItem({
                 title: titre,
@@ -621,23 +630,30 @@
                 famille: target.famille,
                 position: position,
                 officiel: target.officiel,
-                folder_id: target.folder_id,
+                folder_id: folderId,
                 teacher_id: target.officiel ? null : myId
             });
             nouveau.mine = !target.officiel;
+            nouveau.sectionKey = target.sectionKey;
             items.push(nouveau);
             persistLocal();
             if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
-                const res = await window.EprofStore.insert('pedagogical_resources', {
+                const payload = {
                     teacher_id: target.officiel ? null : myId,
                     created_by: myId,
                     title: titre,
                     url: url,
                     famille: target.famille,
                     position: position,
-                    officiel: target.officiel,
-                    folder_id: target.folder_id
-                });
+                    officiel: target.officiel
+                };
+                if (folderId) payload.folder_id = folderId;
+                let res = await window.EprofStore.insert('pedagogical_resources', payload);
+                if (res.error && /folder_id|created_by/i.test(res.error.message || '')) {
+                    delete payload.folder_id;
+                    delete payload.created_by;
+                    res = await window.EprofStore.insert('pedagogical_resources', payload);
+                }
                 if (res.error) alert('Enregistrement en ligne impossible : ' + res.error.message);
                 else if (res.data && res.data.id) { nouveau.id = res.data.id; persistLocal(); }
             }
@@ -645,11 +661,13 @@
             container.querySelector('#ressource-url').value = '';
             collapsedFamilles[target.sectionKey] = false;
             localStorage.setItem(LS_COLLAPSED, JSON.stringify(collapsedFamilles));
-            afficher();
+            afficher(container.querySelector('#recherche-ressource').value);
         });
 
-        container.querySelector('#ressource-url').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') container.querySelector('#ajouter-ressource-btn').click();
+        ['#ressource-titre', '#ressource-url'].forEach(function (sel) {
+            container.querySelector(sel).addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') container.querySelector('#ajouter-ressource-btn').click();
+            });
         });
 
         container.querySelector('#creer-famille-ressource-btn').addEventListener('click', async function () {
@@ -677,10 +695,10 @@
                     visibilite: localFolder.visibilite
                 });
                 if (res.error) {
-                    alert('Création impossible : ' + res.error.message);
-                    return;
+                    console.warn('⚠️ Dossier ressources : création en ligne impossible, copie locale.', res.error);
+                } else if (res.data) {
+                    Object.assign(localFolder, res.data);
                 }
-                if (res.data) Object.assign(localFolder, res.data);
             }
             folders.push(localFolder);
             persistLocal();
