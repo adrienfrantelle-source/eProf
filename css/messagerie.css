@@ -351,42 +351,81 @@
 
 .msg-dialog-form input[type="text"],
 .msg-dialog-form input[type="search"],
-.msg-people-search {
+.msg-dialog-form select,
+.msg-teacher-select {
     width: 100%;
     padding: 0.5em 0.65em;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
     font: inherit;
     box-sizing: border-box;
-    margin-bottom: 0.6em;
+    background: #fff;
 }
 
-.msg-people {
+.msg-dropdown-row {
     display: flex;
-    flex-direction: column;
+    gap: 0.5em;
+    align-items: stretch;
+}
+
+.msg-dropdown-row .msg-teacher-select {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.msg-dropdown-row .msg-add-from-select {
+    flex-shrink: 0;
+}
+
+.msg-picker {
+    margin-bottom: 0.9em;
+}
+
+.msg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+    min-height: 1.6em;
+    margin-top: 0.55em;
+}
+
+.msg-chip {
+    display: inline-flex;
+    align-items: center;
     gap: 0.35em;
-    max-height: 280px;
-    overflow-y: auto;
-    margin-bottom: 0.8em;
+    background: #fee2e2;
+    color: #1a2236;
+    border-radius: 999px;
+    padding: 0.25em 0.55em 0.25em 0.7em;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
-.msg-person {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.55em;
-    padding: 0.45em 0.5em;
-    border-radius: 8px;
+.msg-chip-remove {
+    border: none;
+    background: transparent;
+    color: #b91c1c;
+    font-size: 1.05rem;
+    line-height: 1;
     cursor: pointer;
+    padding: 0 0.15em;
 }
 
-.msg-person:hover {
-    background: #f1f5f9;
-}
-
-.msg-person small {
-    display: block;
+.msg-chip-you {
+    font-size: 0.7rem;
+    font-weight: 700;
     color: #64748b;
-    font-weight: 400;
+    text-transform: uppercase;
+}
+
+.msg-settings-danger {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    padding-top: 0.4em;
+    margin: 0.2em 0 1em;
+    border-top: 1px solid #e2e8f0;
 }
 
 .msg-dialog-actions {

@@ -69,6 +69,10 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0017_messagerie.sql` : messagerie interne (canaux, membres, messages texte/liens),
      annuaire des collègues, et nettoyage auto (historique au 31 juillet, canaux
      inactifs au bout de 6 mois).
+   - `0018_messagerie_channel_admin.sql` : configuration des canaux (retrait de
+     membres, suppression, auteur exposé).
+   - `0019_messagerie_cleanup_where.sql` : purge du 31 juillet avec clause WHERE
+     (évite l'erreur « DELETE requires a WHERE clause »).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

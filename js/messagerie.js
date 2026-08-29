@@ -196,9 +196,7 @@
             '<p class="msg-thread-members">' + escapeHtml(membres) + '</p>' +
             '</div>' +
             '<div class="msg-thread-actions">' +
-            '<button type="button" class="msg-btn msg-btn-ghost" id="msg-rename" title="Renommer">Renommer</button>' +
-            '<button type="button" class="msg-btn msg-btn-ghost" id="msg-add-members" title="Ajouter des personnes">Ajouter</button>' +
-            '<button type="button" class="msg-btn msg-btn-danger" id="msg-leave">Quitter</button>' +
+            '<button type="button" class="msg-btn msg-btn-ghost" id="msg-configure" title="Nom, participants, suppression">Configurer</button>' +
             '</div></div>' +
             '<div class="msg-thread-scroll" id="msg-thread-scroll"></div>' +
             '<form class="msg-composer" id="msg-composer">' +
@@ -221,14 +219,8 @@
                 '<p class="msg-error">Impossible de charger les messages : ' + escapeHtml(err.message) + '</p>';
         }
 
-        panel.querySelector('#msg-rename').addEventListener('click', function () {
-            renameChannel(root, channel);
-        });
-        panel.querySelector('#msg-add-members').addEventListener('click', function () {
-            openAddMembersModal(root, channel);
-        });
-        panel.querySelector('#msg-leave').addEventListener('click', function () {
-            leaveChannel(root, channel);
+        panel.querySelector('#msg-configure').addEventListener('click', function () {
+            openSettingsModal(root, channel);
         });
         panel.querySelector('#msg-composer').addEventListener('submit', function (e) {
             e.preventDefault();
@@ -262,27 +254,11 @@
         }
     }
 
-    async function renameChannel(root, channel) {
-        const next = prompt('Nom de la conversation', channel.nom || '');
-        if (next == null) return;
-        const nom = next.trim().slice(0, 80);
-        if (!nom) {
-            alert('Le nom ne peut pas être vide.');
-            return;
-        }
-        const result = await window.EprofStore.update('message_channels', channel.id, { nom: nom });
-        if (result.error) {
-            alert('Renommage impossible : ' + result.error.message);
-            return;
-        }
-        await loadChannels();
-        await openChannel(root, channel.id);
-    }
-
-    async function leaveChannel(root, channel) {
+    async function leaveChannel(root, channel, overlayClose) {
         if (!confirm('Quitter « ' + channel.nom + ' » ? Vous ne verrez plus cette conversation.')) return;
         try {
             await rpc('leave_message_channel', { p_channel_id: channel.id });
+            if (overlayClose) overlayClose();
             currentChannelId = null;
             await loadChannels();
             renderChannelList(root);
@@ -292,34 +268,140 @@
         }
     }
 
+    async function deleteChannel(root, channel, overlayClose) {
+        if (!confirm('Supprimer définitivement « ' + channel.nom + ' » pour tous les participants ?')) return;
+        try {
+            await rpc('delete_message_channel', { p_channel_id: channel.id });
+            if (overlayClose) overlayClose();
+            currentChannelId = null;
+            await loadChannels();
+            renderChannelList(root);
+            renderThreadEmpty(root.querySelector('#msg-thread'));
+        } catch (err) {
+            alert('Suppression impossible : ' + err.message);
+        }
+    }
+
+    function personOptionLabel(person) {
+        const name = displayName(person);
+        const extra = [];
+        if (person.identifiant && name.toLowerCase() !== String(person.identifiant).toLowerCase()) {
+            extra.push(person.identifiant);
+        }
+        if (person.matiere) extra.push(person.matiere);
+        return extra.length ? name + ' — ' + extra.join(' · ') : name;
+    }
+
+    function findPerson(id) {
+        const key = String(id || '');
+        return directory.find(function (p) { return String(p.id) === key; }) || null;
+    }
+
     function colleaguesExcept(excludeIds) {
         const skip = {};
-        (excludeIds || []).forEach(function (id) { skip[id] = true; });
-        return directory.filter(function (p) { return p.id !== myId && !skip[p.id]; });
+        (excludeIds || []).forEach(function (id) { skip[String(id)] = true; });
+        if (myId) skip[String(myId)] = true;
+        return directory.filter(function (p) { return !skip[String(p.id)]; });
     }
 
-    function peoplePickerHtml(people, emptyLabel) {
-        if (!people.length) {
-            return '<p class="msg-hint">' + escapeHtml(emptyLabel) + '</p>';
+    function pickerHtml() {
+        return '<div class="msg-picker">' +
+            '<label class="msg-full">Ajouter un enseignant' +
+            '<div class="msg-dropdown-row">' +
+            '<select class="msg-teacher-select"><option value="">Choisir un enseignant inscrit…</option></select>' +
+            '<button type="button" class="msg-btn msg-btn-ghost msg-add-from-select">Ajouter</button>' +
+            '</div></label>' +
+            '<div class="msg-chips"></div>' +
+            '<p class="msg-picker-empty msg-hint" hidden>Aucun autre enseignant inscrit n’est disponible.</p>' +
+            '</div>';
+    }
+
+    function wireTeacherPicker(overlay, initialIds, options) {
+        const opts = options || {};
+        const locked = {};
+        (opts.lockedIds || []).forEach(function (id) { locked[String(id)] = true; });
+        const selected = [];
+        (initialIds || []).forEach(function (id) {
+            const key = id ? String(id) : '';
+            if (key && selected.indexOf(key) === -1) selected.push(key);
+        });
+
+        const select = overlay.querySelector('.msg-teacher-select');
+        const chips = overlay.querySelector('.msg-chips');
+        const empty = overlay.querySelector('.msg-picker-empty');
+        const addBtn = overlay.querySelector('.msg-add-from-select');
+
+        function addId(id) {
+            const key = id ? String(id) : '';
+            if (!key || selected.indexOf(key) !== -1) return;
+            selected.push(key);
+            refresh();
         }
-        return '<div class="msg-people">' + people.map(function (p) {
-            const extra = p.matiere ? ' · ' + p.matiere : '';
-            return '<label class="msg-person">' +
-                '<input type="checkbox" name="msg-person" value="' + escapeHtml(p.id) + '">' +
-                '<span><strong>' + escapeHtml(displayName(p)) + '</strong>' +
-                '<small>' + escapeHtml((p.identifiant || '') + extra) + '</small></span>' +
-                '</label>';
-        }).join('') + '</div>';
+
+        function removeId(id) {
+            const key = String(id || '');
+            if (locked[key]) return;
+            const i = selected.indexOf(key);
+            if (i !== -1) selected.splice(i, 1);
+            refresh();
+        }
+
+        function refresh() {
+            const available = colleaguesExcept(selected);
+            if (empty) empty.hidden = available.length > 0 || selected.length > 0;
+            if (select) {
+                select.innerHTML = '<option value="">Choisir un enseignant inscrit…</option>' +
+                    available.map(function (p) {
+                        return '<option value="' + escapeHtml(p.id) + '">' +
+                            escapeHtml(personOptionLabel(p)) + '</option>';
+                    }).join('');
+                select.disabled = available.length === 0;
+            }
+            if (addBtn) addBtn.disabled = available.length === 0;
+            if (chips) {
+                chips.innerHTML = selected.map(function (id) {
+                    const person = findPerson(id);
+                    const member = (opts.memberLookup && opts.memberLookup[id]) || null;
+                    const label = person
+                        ? displayName(person)
+                        : (member && (member.nom_affiche || member.identifiant)) || 'Enseignant';
+                    const canRemove = !locked[id];
+                    return '<span class="msg-chip">' + escapeHtml(label) +
+                        (canRemove
+                            ? '<button type="button" class="msg-chip-remove" data-remove="' +
+                                escapeHtml(id) + '" aria-label="Retirer">×</button>'
+                            : '<span class="msg-chip-you">vous</span>') +
+                        '</span>';
+                }).join('');
+            }
+        }
+
+        if (addBtn) {
+            addBtn.addEventListener('click', function () {
+                if (select && select.value) addId(select.value);
+            });
+        }
+        if (select) {
+            select.addEventListener('change', function () {
+                if (select.value) addId(select.value);
+            });
+        }
+        if (chips) {
+            chips.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-remove]');
+                if (!btn) return;
+                removeId(btn.getAttribute('data-remove'));
+            });
+        }
+
+        refresh();
+        return {
+            getIds: function () { return selected.slice(); },
+            refresh: refresh
+        };
     }
 
-    function selectedIds(overlay) {
-        return Array.prototype.map.call(
-            overlay.querySelectorAll('input[name="msg-person"]:checked'),
-            function (el) { return el.value; }
-        );
-    }
-
-    function openOverlay(title, bodyHtml, onSubmit) {
+    function openOverlay(title, bodyHtml, submitLabel, onReady) {
         const overlay = document.createElement('div');
         overlay.className = 'msg-overlay';
         overlay.innerHTML =
@@ -327,9 +409,11 @@
             '<div class="msg-dialog-header"><h3>' + escapeHtml(title) + '</h3>' +
             '<button type="button" class="msg-dialog-close" aria-label="Fermer">×</button></div>' +
             '<form class="msg-dialog-form">' + bodyHtml +
-            '<div class="msg-dialog-actions">' +
+            '<div class="msg-dialog-actions" id="msg-dialog-actions">' +
             '<button type="button" class="msg-btn msg-btn-ghost msg-cancel">Annuler</button>' +
-            '<button type="submit" class="msg-btn msg-btn-primary">Valider</button>' +
+            (submitLabel
+                ? '<button type="submit" class="msg-btn msg-btn-primary">' + escapeHtml(submitLabel) + '</button>'
+                : '') +
             '</div></form></div>';
         document.body.appendChild(overlay);
 
@@ -337,77 +421,127 @@
         overlay.querySelector('.msg-dialog-close').addEventListener('click', close);
         overlay.querySelector('.msg-cancel').addEventListener('click', close);
         overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
-        overlay.querySelector('form').addEventListener('submit', function (e) {
-            e.preventDefault();
-            onSubmit(overlay, close);
-        });
-        const search = overlay.querySelector('.msg-people-search');
-        if (search) {
-            search.addEventListener('input', function () {
-                const q = search.value.trim().toLowerCase();
-                overlay.querySelectorAll('.msg-person').forEach(function (row) {
-                    row.style.display = row.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
-                });
-            });
-        }
+        if (onReady) onReady(overlay, close);
         return overlay;
     }
 
     function openCreateModal() {
-        const people = colleaguesExcept([]);
-        openOverlay('Nouvelle conversation',
+        openOverlay(
+            'Nouvelle conversation',
             '<label class="msg-full">Nom de la conversation' +
             '<input type="text" class="msg-conv-name" maxlength="80" placeholder="Laissé vide = noms des participants"></label>' +
-            '<p class="msg-hint">Choisissez une ou plusieurs personnes. Texte et liens uniquement.</p>' +
-            '<input type="search" class="msg-people-search" placeholder="Filtrer les collègues…">' +
-            peoplePickerHtml(people, 'Aucun autre enseignant inscrit pour le moment.'),
-            async function (overlay, close) {
-                const ids = selectedIds(overlay);
-                if (!ids.length) {
-                    alert('Choisissez au moins un destinataire.');
-                    return;
-                }
-                const nom = overlay.querySelector('.msg-conv-name').value.trim();
-                try {
-                    const id = await rpc('create_message_channel', {
-                        p_nom: nom || null,
-                        p_member_ids: ids
-                    });
-                    close();
-                    const root = document.querySelector('.messagerie-module');
-                    await loadChannels();
-                    renderChannelList(root);
-                    await openChannel(root, id);
-                } catch (err) {
-                    alert('Création impossible : ' + err.message);
-                }
+            '<p class="msg-hint">Sélectionnez un ou plusieurs enseignants inscrits. Texte et liens uniquement.</p>' +
+            pickerHtml(),
+            'Créer',
+            function (overlay, close) {
+                const picker = wireTeacherPicker(overlay, []);
+                overlay.querySelector('form').addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const ids = picker.getIds();
+                    if (!ids.length) {
+                        alert('Choisissez au moins un destinataire dans le menu.');
+                        return;
+                    }
+                    const nom = overlay.querySelector('.msg-conv-name').value.trim();
+                    try {
+                        const id = await rpc('create_message_channel', {
+                            p_nom: nom || null,
+                            p_member_ids: ids
+                        });
+                        close();
+                        const root = document.querySelector('.messagerie-module');
+                        await loadChannels();
+                        renderChannelList(root);
+                        await openChannel(root, id);
+                    } catch (err) {
+                        alert('Création impossible : ' + err.message);
+                    }
+                });
             }
         );
     }
 
-    function openAddMembersModal(root, channel) {
-        const already = (channel.membres || []).map(function (m) { return m.user_id; });
-        const people = colleaguesExcept(already);
-        openOverlay('Ajouter des personnes',
-            '<input type="search" class="msg-people-search" placeholder="Filtrer les collègues…">' +
-            peoplePickerHtml(people, 'Tous les collègues sont déjà dans cette conversation.'),
-            async function (overlay, close) {
-                const ids = selectedIds(overlay);
-                if (!ids.length) {
-                    close();
-                    return;
-                }
-                try {
-                    await rpc('add_message_channel_members', {
-                        p_channel_id: channel.id,
-                        p_member_ids: ids
+    function openSettingsModal(root, channel) {
+        const membres = channel.membres || [];
+        const memberLookup = {};
+        const currentIds = membres.map(function (m) {
+            const id = String(m.user_id);
+            memberLookup[id] = m;
+            return id;
+        });
+        const lockedIds = myId ? [String(myId)] : [];
+        const creatorId = channel.created_by ? String(channel.created_by) : null;
+        const canDelete = !creatorId || creatorId === String(myId);
+
+        openOverlay(
+            'Configurer le canal',
+            '<label class="msg-full">Nom de la conversation' +
+            '<input type="text" class="msg-conv-name" maxlength="80" value="' + escapeHtml(channel.nom || '') + '" required></label>' +
+            '<p class="msg-hint">Modifiez le nom, ajoutez ou retirez des enseignants inscrits.</p>' +
+            pickerHtml() +
+            '<div class="msg-settings-danger">' +
+            '<button type="button" class="msg-btn msg-btn-ghost" id="msg-settings-leave">Quitter le canal</button>' +
+            (canDelete
+                ? '<button type="button" class="msg-btn msg-btn-danger" id="msg-settings-delete">Supprimer le canal</button>'
+                : '') +
+            '</div>',
+            'Enregistrer',
+            function (overlay, close) {
+                const picker = wireTeacherPicker(overlay, currentIds, {
+                    lockedIds: lockedIds,
+                    memberLookup: memberLookup
+                });
+
+                overlay.querySelector('#msg-settings-leave').addEventListener('click', function () {
+                    leaveChannel(root, channel, close);
+                });
+                const delBtn = overlay.querySelector('#msg-settings-delete');
+                if (delBtn) {
+                    delBtn.addEventListener('click', function () {
+                        deleteChannel(root, channel, close);
                     });
-                    close();
-                    await loadChannels();
-                    await openChannel(root, channel.id);
-                } catch (err) {
-                    alert('Ajout impossible : ' + err.message);
                 }
+
+                overlay.querySelector('form').addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const nom = overlay.querySelector('.msg-conv-name').value.trim().slice(0, 80);
+                    if (!nom) {
+                        alert('Le nom ne peut pas être vide.');
+                        return;
+                    }
+                    const nextIds = picker.getIds();
+                    const others = nextIds.filter(function (id) { return id !== String(myId); });
+                    if (!others.length) {
+                        alert('Le canal doit contenir au moins un autre enseignant. Utilisez « Quitter » ou « Supprimer » pour le retirer.');
+                        return;
+                    }
+                    const prev = currentIds.filter(function (id) { return id !== String(myId); });
+                    const toAdd = others.filter(function (id) { return prev.indexOf(id) === -1; });
+                    const toRemove = prev.filter(function (id) { return others.indexOf(id) === -1; });
+                    try {
+                        if (nom !== (channel.nom || '')) {
+                            const result = await window.EprofStore.update('message_channels', channel.id, { nom: nom });
+                            if (result.error) throw result.error;
+                        }
+                        if (toAdd.length) {
+                            await rpc('add_message_channel_members', {
+                                p_channel_id: channel.id,
+                                p_member_ids: toAdd
+                            });
+                        }
+                        if (toRemove.length) {
+                            await rpc('remove_message_channel_members', {
+                                p_channel_id: channel.id,
+                                p_member_ids: toRemove
+                            });
+                        }
+                        close();
+                        await loadChannels();
+                        await openChannel(root, channel.id);
+                    } catch (err) {
+                        alert('Enregistrement impossible : ' + err.message);
+                    }
+                });
             }
         );
     }
@@ -492,7 +626,6 @@
         wireList(root);
 
         try {
-            await rpc('cleanup_messagerie');
             await getMyId();
             await Promise.all([loadDirectory(), loadChannels()]);
             renderChannelList(root);
@@ -501,6 +634,12 @@
                 '<p class="msg-error">Chargement impossible : ' + escapeHtml(err.message) +
                 '<br>La migration messagerie a-t-elle été appliquée ?</p>';
             return;
+        }
+
+        try {
+            await rpc('cleanup_messagerie');
+        } catch (err) {
+            console.warn('⚠️ Nettoyage messagerie reporté.', err);
         }
 
         pollTimer = setInterval(function () {

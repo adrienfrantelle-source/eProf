@@ -440,7 +440,8 @@ begin
     where id = 1;
 
     if v_today >= v_cutoff and v_last is distinct from v_cutoff then
-        delete from public.message_messages;
+        delete from public.message_messages
+        where created_at < ((v_cutoff + 1)::timestamp at time zone 'Europe/Paris');
         get diagnostics v_messages = row_count;
         update public.messagerie_maintenance
         set last_history_purge_on = v_cutoff
