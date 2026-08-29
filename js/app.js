@@ -229,6 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="tool-description">Données historiques et anciennes listes</div>
                         </div>
                     </button>
+                    <button class="tool-card" data-tool="messagerie">
+                        <span class="tool-icon">💬</span>
+                        <div class="tool-content">
+                            <div class="tool-title">Messagerie</div>
+                            <div class="tool-description">Discussions internes avec vos collègues</div>
+                        </div>
+                    </button>
                 </div>
             </div>
             
@@ -376,7 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar('ressources');
                 break;
             case 'messagerie':
-                mainContent.innerHTML = '<h2>Module désactivé</h2><p>La messagerie a été retirée de eProf.</p>';
+                renderMessagerieModule(mainContent);
+                highlightSidebar('messagerie');
                 break;
             case 'parametres':
                 renderParametres(mainContent);
@@ -406,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="dashboard-btn" data-tool="jeu">🎮 Jeux pédagogiques</button>
                 <button class="dashboard-btn" data-tool="trombinoscopes">📸 Trombinoscopes</button>
                 <button class="dashboard-btn" data-tool="archives">📦 Archives</button>
+                <button class="dashboard-btn" data-tool="messagerie">💬 Messagerie</button>
                 <button class="dashboard-btn" data-tool="eleves">👨‍🎓 Suivi des élèves</button>
                 <button class="dashboard-btn" data-tool="notes">📒 Carnet de notes</button>
                 <button class="dashboard-btn" data-tool="ressources">📚 Ressources pédagogiques</button>
@@ -2708,706 +2717,11 @@ if (typeof module !== 'undefined' && module.exports) {
     // MESSAGERIE
     // ========================================
     function renderMessagerieModule(container) {
-        // Charger CSS messagerie dynamiquement
-        if (!document.querySelector('link[href="css/messagerie.css"]')) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = 'css/messagerie.css';
-            document.head.appendChild(link);
+        if (window.EprofMessagerie && typeof window.EprofMessagerie.render === 'function') {
+            window.EprofMessagerie.render(container);
+            return;
         }
-
-        // Charger les données
-        let conversations = [];
-        let modeles = [];
-        let config = { emailjsServiceId: '', emailjsTemplateId: '', emailjsPublicKey: '', signatureEmail: 'Cordialement,\nVotre professeur' };
-        
-        if (typeof MESSAGERIE_DATA !== 'undefined') {
-            conversations = MESSAGERIE_DATA.conversations || [];
-            modeles = MESSAGERIE_DATA.modeles || [];
-            config = { ...config, ...MESSAGERIE_DATA.config };
-        }
-        
-        const conversationsLS = localStorage.getItem('eprof_messagerie_conversations');
-        const modelesLS = localStorage.getItem('eprof_messagerie_modeles');
-        const configLS = localStorage.getItem('eprof_messagerie_config');
-        
-        if (conversationsLS) conversations = JSON.parse(conversationsLS);
-        if (modelesLS) modeles = JSON.parse(modelesLS);
-        if (configLS) config = { ...config, ...JSON.parse(configLS) };
-
-        // Initialiser EmailJS si configuré
-        if (typeof emailjs !== 'undefined' && config.emailjsPublicKey) {
-            emailjs.init(config.emailjsPublicKey);
-        }
-
-        let currentConversationId = null;
-        let searchTerm = '';
-        let activeFilter = 'tous';
-
-        container.innerHTML = `
-            <div class="messagerie-module">
-                <div class="messagerie-container">
-                    <!-- Colonne gauche: Conversations -->
-                    <div class="conversations-panel">
-                        <div class="conversations-header">
-                            <h2>📧 Messagerie</h2>
-                            <div class="conversations-search">
-                                <input type="text" id="search-conversations" placeholder="Rechercher...">
-                                <button id="btn-nouveau-message-header">✉️</button>
-                            </div>
-                        </div>
-                        
-                        <div class="conversations-filters">
-                            <button class="filter-btn active" data-filter="tous">Tous</button>
-                            <button class="filter-btn" data-filter="eleve">Élèves</button>
-                            <button class="filter-btn" data-filter="parent">Parents</button>
-                            <button class="filter-btn" data-filter="collegue">Collègues</button>
-                            <button class="filter-btn" data-filter="non-lu">Non lus</button>
-                        </div>
-                        
-                        <div class="conversations-list" id="conversations-list"></div>
-                    </div>
-                    
-                    <!-- Colonne centrale: Messages -->
-                    <div class="messages-panel" id="messages-panel">
-                        <div class="empty-messages">
-                            <div class="empty-messages-icon">💬</div>
-                            <h3>Aucune conversation sélectionnée</h3>
-                            <p>Sélectionnez une conversation ou créez-en une nouvelle</p>
-                            <button class="btn-messagerie btn-primary-msg" id="btn-nouveau-message-empty">
-                                ✉️ Nouveau message
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Colonne droite: Infos -->
-                    <div class="info-panel" id="info-panel">
-                        <div class="info-section">
-                            <h3>📝 Modèles</h3>
-                            <div class="modeles-list" id="modeles-list"></div>
-                        </div>
-                        
-                        <div class="info-section">
-                            <h3>⚙️ Actions</h3>
-                            <div class="action-buttons">
-                                <button class="btn-messagerie btn-secondary-msg" id="btn-configurer-emailjs">
-                                    🔧 Configurer EmailJS
-                                </button>
-                                <button class="btn-messagerie btn-secondary-msg" id="btn-exporter-conversations">
-                                    💾 Exporter conversations
-                                </button>
-                                <button class="btn-messagerie btn-secondary-msg" id="btn-importer-conversations">
-                                    📂 Restaurer conversations
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <input type="file" id="import-conversations-input" accept=".js" style="display: none;">
-            </div>
-            
-            <!-- Modal nouveau message -->
-            <div class="modal-sejour" id="modal-nouveau-message">
-                <div class="modal-content-sejour">
-                    <div class="modal-header-sejour">
-                        <h3>✉️ Nouveau message</h3>
-                        <button class="close-modal-sejour" id="close-nouveau-message-modal">✖</button>
-                    </div>
-                    <form class="form-sejour" id="form-nouveau-message">
-                        <div class="form-group-sejour">
-                            <label for="nouveau-destinataire-nom">Nom du destinataire *</label>
-                            <input type="text" id="nouveau-destinataire-nom" required placeholder="Nom">
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group-sejour">
-                                <label for="nouveau-destinataire-prenom">Prénom</label>
-                                <input type="text" id="nouveau-destinataire-prenom" placeholder="Prénom">
-                            </div>
-                            <div class="form-group-sejour">
-                                <label for="nouveau-destinataire-type">Type *</label>
-                                <select id="nouveau-destinataire-type" required>
-                                    <option value="parent">Parent</option>
-                                    <option value="élève">Élève</option>
-                                    <option value="collègue">Collègue</option>
-                                    <option value="autre">Autre</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group-sejour">
-                                <label for="nouveau-destinataire-email">Email *</label>
-                                <input type="email" id="nouveau-destinataire-email" required placeholder="email@exemple.fr">
-                            </div>
-                            <div class="form-group-sejour">
-                                <label for="nouveau-classe">Classe</label>
-                                <select id="nouveau-classe">
-                                    <option value="">Aucune classe</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="nouveau-sujet">Sujet *</label>
-                            <input type="text" id="nouveau-sujet" required placeholder="Objet du message">
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="nouveau-message">Message *</label>
-                            <textarea id="nouveau-message" rows="8" required placeholder="Votre message..."></textarea>
-                        </div>
-                        
-                        <div class="modal-actions">
-                            <button type="button" class="btn-sejour btn-secondary-sejour" id="cancel-nouveau-message">Annuler</button>
-                            <button type="submit" class="btn-sejour btn-primary-sejour">📧 Envoyer</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            
-            <!-- Modal configuration EmailJS -->
-            <div class="modal-sejour" id="modal-config-emailjs">
-                <div class="modal-content-sejour">
-                    <div class="modal-header-sejour">
-                        <h3>🔧 Configuration EmailJS</h3>
-                        <button class="close-modal-sejour" id="close-config-emailjs-modal">✖</button>
-                    </div>
-                    <form class="form-sejour config-emailjs-form" id="form-config-emailjs">
-                        <div class="config-help">
-                            <strong>📘 Comment configurer EmailJS :</strong><br>
-                            1. Créez un compte gratuit sur <a href="https://www.emailjs.com/" target="_blank">emailjs.com</a><br>
-                            2. Créez un service email (Gmail, Outlook...)<br>
-                            3. Créez un template de message<br>
-                            4. Copiez vos identifiants ci-dessous
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="config-service-id">Service ID</label>
-                            <input type="text" id="config-service-id" placeholder="service_xxxxxxx">
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="config-template-id">Template ID</label>
-                            <input type="text" id="config-template-id" placeholder="template_xxxxxxx">
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="config-public-key">Public Key</label>
-                            <input type="text" id="config-public-key" placeholder="Votre clé publique">
-                        </div>
-                        
-                        <div class="form-group-sejour">
-                            <label for="config-signature">Signature email</label>
-                            <textarea id="config-signature" rows="4" placeholder="Cordialement,\nVotre professeur"></textarea>
-                        </div>
-                        
-                        <div class="modal-actions">
-                            <button type="button" class="btn-sejour btn-secondary-sejour" id="cancel-config-emailjs">Annuler</button>
-                            <button type="submit" class="btn-sejour btn-primary-sejour">💾 Enregistrer</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-
-        // Charger les classes dans le select
-        const classeSelect = container.querySelector('#nouveau-classe');
-        if (typeof LISTES_ELEVES !== 'undefined') {
-            Object.keys(LISTES_ELEVES).forEach(classe => {
-                const option = document.createElement('option');
-                option.value = classe;
-                option.textContent = classe;
-                classeSelect.appendChild(option);
-            });
-        }
-
-        // Event listeners pour les boutons
-        container.querySelector('#btn-nouveau-message-header')?.addEventListener('click', () => nouveauMessage());
-        container.querySelector('#btn-nouveau-message-empty')?.addEventListener('click', () => nouveauMessage());
-        container.querySelector('#btn-configurer-emailjs')?.addEventListener('click', () => configurerEmailJS());
-        container.querySelector('#btn-exporter-conversations')?.addEventListener('click', () => exporterConversations());
-        container.querySelector('#btn-importer-conversations')?.addEventListener('click', () => importerConversations());
-        container.querySelector('#close-nouveau-message-modal')?.addEventListener('click', () => closeNouveauMessageModal());
-        container.querySelector('#cancel-nouveau-message')?.addEventListener('click', () => closeNouveauMessageModal());
-        container.querySelector('#close-config-emailjs-modal')?.addEventListener('click', () => closeConfigEmailJSModal());
-        container.querySelector('#cancel-config-emailjs')?.addEventListener('click', () => closeConfigEmailJSModal());
-
-        // Fonctions modales
-        function nouveauMessage() {
-            const modal = container.querySelector('#modal-nouveau-message');
-            modal.style.display = 'flex';
-            container.querySelector('#form-nouveau-message').reset();
-        }
-
-        function closeNouveauMessageModal() {
-            const modal = container.querySelector('#modal-nouveau-message');
-            modal.style.display = 'none';
-        }
-
-        function configurerEmailJS() {
-            const modal = container.querySelector('#modal-config-emailjs');
-            modal.style.display = 'flex';
-            
-            container.querySelector('#config-service-id').value = config.emailjsServiceId || '';
-            container.querySelector('#config-template-id').value = config.emailjsTemplateId || '';
-            container.querySelector('#config-public-key').value = config.emailjsPublicKey || '';
-            container.querySelector('#config-signature').value = config.signatureEmail || '';
-        }
-
-        function closeConfigEmailJSModal() {
-            const modal = container.querySelector('#modal-config-emailjs');
-            modal.style.display = 'none';
-        }
-
-        function exporterConversations() {
-            const dataStr = `// MESSAGERIE_DATA - Données de la messagerie eProf
-// Ce fichier est généré automatiquement lors de l'export
-// Pour restaurer vos conversations, importez ce fichier via le bouton "Restaurer"
-
-const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, null, 4)};`;
-            
-            const blob = new Blob([dataStr], { type: 'text/javascript' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'messagerie-data.js';
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            alert('✅ Conversations exportées avec succès !');
-        }
-
-        function importerConversations() {
-            container.querySelector('#import-conversations-input').click();
-        }
-
-        // Fonctions de données
-        function sauvegarderConversations() {
-            localStorage.setItem('eprof_messagerie_conversations', JSON.stringify(conversations));
-        }
-
-        function sauvegarderModeles() {
-            localStorage.setItem('eprof_messagerie_modeles', JSON.stringify(modeles));
-        }
-
-        function sauvegarderConfig() {
-            localStorage.setItem('eprof_messagerie_config', JSON.stringify(config));
-        }
-
-        function afficherConversations() {
-            const listContainer = container.querySelector('#conversations-list');
-            
-            let conversationsFiltrees = conversations.filter(conv => {
-                const matchSearch = searchTerm === '' || 
-                    conv.destinataire.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    conv.destinataire.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    conv.sujet.toLowerCase().includes(searchTerm.toLowerCase());
-                
-                const matchFilter = activeFilter === 'tous' ||
-                    (activeFilter === 'non-lu' && conv.messages.some(m => !m.lu && m.auteur === 'destinataire')) ||
-                    (activeFilter !== 'non-lu' && conv.destinataire.type === activeFilter);
-                
-                return matchSearch && matchFilter;
-            });
-            
-            // Trier par dernière mise à jour
-            conversationsFiltrees.sort((a, b) => (b.lastUpdate || 0) - (a.lastUpdate || 0));
-            
-            if (conversationsFiltrees.length === 0) {
-                listContainer.innerHTML = '<div class="empty-state" style="padding: 40px 20px;"><p style="color: #64748b; text-align: center;">Aucune conversation</p></div>';
-                return;
-            }
-            
-            listContainer.innerHTML = conversationsFiltrees.map(conv => {
-                const initiales = conv.destinataire.nom.charAt(0) + (conv.destinataire.prenom ? conv.destinataire.prenom.charAt(0) : '');
-                const unreadCount = conv.messages.filter(m => !m.lu && m.auteur === 'destinataire').length;
-                const lastMessage = conv.messages[conv.messages.length - 1];
-                const preview = lastMessage ? lastMessage.contenu.substring(0, 50) + '...' : 'Pas de message';
-                const date = lastMessage ? new Date(lastMessage.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
-                
-                return `
-                    <div class="conversation-item ${currentConversationId === conv.id ? 'active' : ''} ${unreadCount > 0 ? 'unread' : ''}" 
-                         onclick="afficherConversation('${conv.id}')">
-                        <div class="conversation-avatar">${initiales}</div>
-                        <div class="conversation-info">
-                            <div class="conversation-name">
-                                <span>${conv.destinataire.nom} ${conv.destinataire.prenom || ''}</span>
-                                ${unreadCount > 0 ? `<span class="conversation-badge">${unreadCount}</span>` : ''}
-                            </div>
-                            <div class="conversation-subject">${conv.sujet}</div>
-                            <div class="conversation-preview">${preview}</div>
-                            <div class="conversation-date">${date}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function afficherConversation(conversationId) {
-            currentConversationId = conversationId;
-            const conv = conversations.find(c => c.id === conversationId);
-            if (!conv) return;
-            
-            // Marquer tous les messages comme lus
-            conv.messages.forEach(m => { if (m.auteur === 'destinataire') m.lu = true; });
-            sauvegarderConversations();
-            
-            const messagesPanel = container.querySelector('#messages-panel');
-            const infoPanel = container.querySelector('#info-panel');
-            
-            // Grouper messages par date
-            const messagesByDate = {};
-            conv.messages.forEach(msg => {
-                const dateKey = new Date(msg.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                if (!messagesByDate[dateKey]) messagesByDate[dateKey] = [];
-                messagesByDate[dateKey].push(msg);
-            });
-            
-            const messagesHTML = Object.entries(messagesByDate).map(([date, msgs]) => `
-                <div class="message-group">
-                    <div class="message-date-separator"><span>${date}</span></div>
-                    ${msgs.map(msg => `
-                        <div class="message-item ${msg.auteur === 'moi' ? 'sent' : 'received'}">
-                            <div class="message-bubble">
-                                <div class="message-content">${msg.contenu.replace(/\n/g, '<br>')}</div>
-                                ${msg.pieceJointe ? `
-                                    <div class="message-attachment">
-                                        📎 ${msg.pieceJointe}
-                                    </div>
-                                ` : ''}
-                                <div class="message-meta">
-                                    <span>${new Date(msg.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    ${msg.auteur === 'moi' ? '<span class="message-status">✓✓</span>' : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-            
-            messagesPanel.innerHTML = `
-                <div class="messages-header">
-                    <div class="messages-header-info">
-                        <h3>${conv.destinataire.nom} ${conv.destinataire.prenom || ''}</h3>
-                        <p>${conv.destinataire.type} ${conv.classe ? '• ' + conv.classe : ''}</p>
-                    </div>
-                    <div class="messages-actions">
-                        <button class="btn-messagerie btn-secondary-msg" onclick="exporterConversationPDF('${conv.id}')">
-                            📄 Export PDF
-                        </button>
-                        <button class="btn-messagerie btn-danger-msg" onclick="archiverConversation('${conv.id}')">
-                            🗑️ Archiver
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="messages-content" id="messages-content">
-                    ${messagesHTML}
-                </div>
-                
-                <div class="message-composer">
-                    <div class="composer-toolbar">
-                        <button onclick="chargerModeleMessage('${conv.id}')">📝 Modèle</button>
-                        <button onclick="ajouterPieceJointe('${conv.id}')">📎 Pièce jointe</button>
-                    </div>
-                    <div class="composer-input">
-                        <textarea id="message-input-${conv.id}" placeholder="Écrivez votre message..."></textarea>
-                        <button class="send-btn" onclick="envoyerMessage('${conv.id}')">Envoyer</button>
-                    </div>
-                </div>
-            `;
-            
-            // Scroll vers le bas
-            setTimeout(() => {
-                const messagesContent = container.querySelector('#messages-content');
-                if (messagesContent) messagesContent.scrollTop = messagesContent.scrollHeight;
-            }, 100);
-            
-            // Mettre à jour infos panel
-            infoPanel.innerHTML = `
-                <div class="info-section">
-                    <h3>👤 Informations</h3>
-                    <div class="info-card">
-                        <div class="info-row">
-                            <div class="info-label">Nom</div>
-                            <div class="info-value">${conv.destinataire.nom} ${conv.destinataire.prenom || ''}</div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-label">Type</div>
-                            <div class="info-value">${conv.destinataire.type}</div>
-                        </div>
-                        ${conv.destinataire.email ? `
-                            <div class="info-row">
-                                <div class="info-label">Email</div>
-                                <div class="info-value">${conv.destinataire.email}</div>
-                            </div>
-                        ` : ''}
-                        ${conv.classe ? `
-                            <div class="info-row">
-                                <div class="info-label">Classe</div>
-                                <div class="info-value">${conv.classe}</div>
-                            </div>
-                        ` : ''}
-                        <div class="info-row">
-                            <div class="info-label">Messages</div>
-                            <div class="info-value">${conv.messages.length}</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="info-section">
-                    <h3>📝 Modèles</h3>
-                    <div class="modeles-list">
-                        ${modeles.map(m => `
-                            <div class="modele-item" onclick="utiliserModele('${conv.id}', '${m.id}')">
-                                <h4>${m.titre}</h4>
-                                <p>${m.sujet}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div class="info-section">
-                    <h3>⚙️ Actions</h3>
-                    <div class="action-buttons">
-                        <button class="btn-messagerie btn-secondary-msg" onclick="exporterConversationPDF('${conv.id}')">
-                            📄 Export PDF
-                        </button>
-                        <button class="btn-messagerie btn-secondary-msg" onclick="exporterConversations()">
-                            💾 Exporter tout
-                        </button>
-                        <button class="btn-messagerie btn-danger-msg" onclick="archiverConversation('${conv.id}')">
-                            🗑️ Archiver
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            afficherConversations();
-        }
-
-        window.envoyerMessage = async function(conversationId) {
-            const conv = conversations.find(c => c.id === conversationId);
-            if (!conv) return;
-            
-            const textarea = container.querySelector(`#message-input-${conversationId}`);
-            const contenu = textarea.value.trim();
-            
-            if (!contenu) return;
-            
-            const message = {
-                id: 'msg_' + Date.now(),
-                auteur: 'moi',
-                contenu: contenu,
-                date: new Date().toISOString(),
-                lu: true
-            };
-            
-            conv.messages.push(message);
-            conv.lastUpdate = Date.now();
-            
-            // Envoyer via EmailJS si configuré
-            if (config.emailjsServiceId && config.emailjsTemplateId && config.emailjsPublicKey && typeof emailjs !== 'undefined') {
-                try {
-                    await emailjs.send(config.emailjsServiceId, config.emailjsTemplateId, {
-                        to_email: conv.destinataire.email,
-                        to_name: `${conv.destinataire.nom} ${conv.destinataire.prenom || ''}`,
-                        subject: `Re: ${conv.sujet}`,
-                        message: contenu + '\n\n' + config.signatureEmail
-                    });
-                    
-                    message.statut = 'envoyé';
-                    alert('✅ Email envoyé avec succès !');
-                } catch (error) {
-                    console.error('Erreur EmailJS:', error);
-                    message.statut = 'erreur';
-                    alert('⚠️ Erreur lors de l\'envoi. Message sauvegardé localement.');
-                }
-            }
-            
-            sauvegarderConversations();
-            afficherConversation(conversationId);
-            textarea.value = '';
-        };
-
-        container.querySelector('#form-nouveau-message').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const destinataire = {
-                nom: container.querySelector('#nouveau-destinataire-nom').value.trim(),
-                prenom: container.querySelector('#nouveau-destinataire-prenom').value.trim(),
-                type: container.querySelector('#nouveau-destinataire-type').value,
-                email: container.querySelector('#nouveau-destinataire-email').value.trim()
-            };
-            
-            const sujet = container.querySelector('#nouveau-sujet').value.trim();
-            const contenu = container.querySelector('#nouveau-message').value.trim();
-            const classe = container.querySelector('#nouveau-classe').value;
-            
-            const conversation = {
-                id: 'conv_' + Date.now(),
-                destinataire: destinataire,
-                classe: classe,
-                sujet: sujet,
-                messages: [{
-                    id: 'msg_' + Date.now(),
-                    auteur: 'moi',
-                    contenu: contenu,
-                    date: new Date().toISOString(),
-                    lu: true
-                }],
-                statut: 'ouvert',
-                lastUpdate: Date.now()
-            };
-            
-            // Envoyer via EmailJS si configuré
-            if (config.emailjsServiceId && config.emailjsTemplateId && config.emailjsPublicKey && typeof emailjs !== 'undefined') {
-                try {
-                    await emailjs.send(config.emailjsServiceId, config.emailjsTemplateId, {
-                        to_email: destinataire.email,
-                        to_name: `${destinataire.nom} ${destinataire.prenom || ''}`,
-                        subject: sujet,
-                        message: contenu + '\n\n' + config.signatureEmail
-                    });
-                    
-                    conversation.messages[0].statut = 'envoyé';
-                    alert('✅ Email envoyé avec succès !');
-                } catch (error) {
-                    console.error('Erreur EmailJS:', error);
-                    conversation.messages[0].statut = 'erreur';
-                    alert('⚠️ Erreur lors de l\'envoi. Conversation sauvegardée localement.');
-                }
-            } else {
-                alert('⚠️ EmailJS non configuré. Conversation sauvegardée localement uniquement.');
-            }
-            
-            conversations.push(conversation);
-            sauvegarderConversations();
-            closeNouveauMessageModal();
-            afficherConversations();
-            afficherConversation(conversation.id);
-        });
-
-        container.querySelector('#form-config-emailjs').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            config.emailjsServiceId = container.querySelector('#config-service-id').value.trim();
-            config.emailjsTemplateId = container.querySelector('#config-template-id').value.trim();
-            config.emailjsPublicKey = container.querySelector('#config-public-key').value.trim();
-            config.signatureEmail = container.querySelector('#config-signature').value.trim();
-            
-            if (config.emailjsPublicKey && typeof emailjs !== 'undefined') {
-                emailjs.init(config.emailjsPublicKey);
-            }
-            
-            sauvegarderConfig();
-            closeConfigEmailJSModal();
-            alert('✅ Configuration EmailJS enregistrée !');
-        });
-
-        container.querySelector('#import-conversations-input').addEventListener('change', async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            try {
-                const texte = await file.text();
-                const match = texte.match(/const MESSAGERIE_DATA = ({[\s\S]*?});/);
-                
-                if (match && match[1]) {
-                    const data = JSON.parse(match[1]);
-                    
-                    if (confirm(`Importer ${data.conversations?.length || 0} conversation(s) ?\n\n⚠️ Cela remplacera les données actuelles.`)) {
-                        conversations = data.conversations || [];
-                        modeles = data.modeles || modeles;
-                        config = { ...config, ...data.config };
-                        
-                        sauvegarderConversations();
-                        sauvegarderModeles();
-                        sauvegarderConfig();
-                        
-                        afficherConversations();
-                        alert('✅ Conversations importées avec succès !');
-                    }
-                }
-            } catch (error) {
-                console.error('Erreur import:', error);
-                alert('❌ Erreur lors de l\'importation.');
-            }
-            
-            e.target.value = '';
-        });
-
-        window.archiverConversation = function(conversationId) {
-            if (confirm('Archiver cette conversation ?')) {
-                const index = conversations.findIndex(c => c.id === conversationId);
-                if (index !== -1) {
-                    conversations[index].statut = 'archivé';
-                    sauvegarderConversations();
-                    currentConversationId = null;
-                    afficherConversations();
-                    container.querySelector('#messages-panel').innerHTML = '<div class="empty-messages"><div class="empty-messages-icon">💬</div><h3>Conversation archivée</h3></div>';
-                }
-            }
-        };
-
-        window.utiliserModele = function(conversationId, modeleId) {
-            const modele = modeles.find(m => m.id === modeleId);
-            if (modele) {
-                const textarea = container.querySelector(`#message-input-${conversationId}`);
-                if (textarea) textarea.value = modele.contenu;
-            }
-        };
-
-        window.chargerModeleMessage = function(conversationId) {
-            if (modeles.length === 0) {
-                alert('Aucun modèle disponible');
-                return;
-            }
-            
-            const modeleChoisi = modeles[0]; // Simplifier: prendre le premier
-            utiliserModele(conversationId, modeleChoisi.id);
-        };
-
-        window.ajouterPieceJointe = function(conversationId) {
-            alert('Fonctionnalité à venir : ajout de pièces jointes');
-        };
-
-        window.exporterConversationPDF = function(conversationId) {
-            alert('Fonctionnalité à venir : export PDF d\'une conversation');
-        };
-
-        // Filtres
-        container.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                activeFilter = this.dataset.filter;
-                afficherConversations();
-            });
-        });
-
-        // Recherche
-        container.querySelector('#search-conversations').addEventListener('input', function(e) {
-            searchTerm = e.target.value;
-            afficherConversations();
-        });
-
-        // Affichage initial
-        afficherConversations();
-        
-        if (modeles.length > 0) {
-            const modelesListPanel = container.querySelector('#modeles-list');
-            if (modelesListPanel) {
-                modelesListPanel.innerHTML = modeles.map(m => `
-                    <div class="modele-item">
-                        <h4>${m.titre}</h4>
-                        <p>${m.sujet}</p>
-                    </div>
-                `).join('');
-            }
-        }
+        container.innerHTML = '<h2>Messagerie indisponible</h2><p>Le module n’a pas pu être chargé.</p>';
     }
 
     // ========================================
@@ -3729,6 +3043,43 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
         });
     }
 
+    function formatEnseignantNomPrenom(enseignant) {
+        if (!enseignant) return '';
+        const nom = String(enseignant.nom || '').trim();
+        const prenom = String(enseignant.prenom || '').trim();
+        if (!nom && !prenom) return '';
+        return [nom ? nom.toUpperCase() : '', prenom].filter(Boolean).join(' ');
+    }
+
+    function retirerEmojisTexte(texte) {
+        return String(texte || '')
+            .replace(/[\uFE0F\u200D]/g, '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function getEnseignantNomPrenomLocal() {
+        try {
+            const parametres = JSON.parse(localStorage.getItem('parametres') || '{}');
+            return formatEnseignantNomPrenom(parametres.enseignant);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    async function remplirChampEmargementProf(input) {
+        if (!input) return;
+        let nom = getEnseignantNomPrenomLocal();
+        if (!nom && window.EprofStore && await window.EprofStore.isOnlineReady()) {
+            const teacherId = await window.EprofStore.getTeacherId();
+            const { data } = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
+            const profile = data && data[0];
+            if (profile) nom = formatEnseignantNomPrenom(profile);
+        }
+        input.value = retirerEmojisTexte(nom);
+    }
+
     // ========================================
     function renderSuiviEleves(container) {
         const listesEleves = getListsForTeacher();
@@ -3845,7 +3196,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                                 <input type="text" id="emargement-salle" placeholder="ex. B204" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
                             </label>
                             <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Enseignant
-                                <input type="text" id="emargement-prof" placeholder="Nom du professeur" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
+                                <input type="text" id="emargement-prof" placeholder="NOM Prénom" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
                             </label>
                             <label style="display:flex;flex-direction:column;gap:4px;font-size:0.85rem;font-weight:600;">Classe (affichée)
                                 <input type="text" id="emargement-classe-libelle" placeholder="Laissée vide = nom de la classe" style="padding:8px;border:2px solid #e2e8f0;border-radius:6px;font-weight:400;">
@@ -4746,11 +4097,8 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                 const dateInput = container.querySelector('#emargement-date');
                 if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
                 const profInput = container.querySelector('#emargement-prof');
-                if (profInput && !profInput.value) {
-                    const nameEl = document.getElementById('user-name-display');
-                    if (nameEl && nameEl.textContent && nameEl.textContent !== 'Enseignant') {
-                        profInput.value = nameEl.textContent.trim();
-                    }
+                if (profInput) {
+                    remplirChampEmargementProf(profInput);
                 }
                 const classeLibelle = container.querySelector('#emargement-classe-libelle');
                 if (classeLibelle && classeActuelle) classeLibelle.value = classeActuelle;
@@ -4815,7 +4163,7 @@ const MESSAGERIE_DATA = ${JSON.stringify({ conversations, modeles, config }, nul
                     sousTitre: (container.querySelector('#emargement-sous-titre') || {}).value || '',
                     date: (container.querySelector('#emargement-date') || {}).value || '',
                     salle: (container.querySelector('#emargement-salle') || {}).value || '',
-                    prof: (container.querySelector('#emargement-prof') || {}).value || '',
+                    prof: retirerEmojisTexte((container.querySelector('#emargement-prof') || {}).value || ''),
                     classeLibelle: (container.querySelector('#emargement-classe-libelle') || {}).value || ''
                 };
                 

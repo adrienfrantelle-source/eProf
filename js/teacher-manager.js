@@ -200,6 +200,7 @@ class TeacherManager {
             const teacherId = await window.EprofStore.getTeacherId();
             const { data, error } = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
             const profile = !error && data && data[0];
+            if (profile) this.syncEnseignantNomPrenom(profile);
             if (profile && Array.isArray(profile.classes) && profile.classes.length > 0) {
                 this.teacherConfig = {
                     classes: profile.classes,
@@ -235,6 +236,21 @@ class TeacherManager {
                 };
             }
         }
+    }
+
+    syncEnseignantNomPrenom(profile) {
+        if (!profile) return;
+        try {
+            const parametres = JSON.parse(localStorage.getItem('parametres') || '{}');
+            if (!parametres.enseignant) {
+                parametres.enseignant = { nom: '', prenom: '', matiere: '', email: '' };
+            }
+            if (profile.nom) parametres.enseignant.nom = profile.nom;
+            if (profile.prenom) parametres.enseignant.prenom = profile.prenom;
+            if (profile.matiere) parametres.enseignant.matiere = profile.matiere;
+            if (profile.email) parametres.enseignant.email = profile.email;
+            localStorage.setItem('parametres', JSON.stringify(parametres));
+        } catch (e) { /* ignore */ }
     }
 
     saveTeacherConfig() {

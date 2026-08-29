@@ -63,6 +63,12 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      (`school_students`, import CSV via `admin_replace_class_students`),
      drapeau `profiles.actif`, et fonctions de gestion des comptes
      (`admin_list_accounts`, `admin_set_account_active`, `admin_set_admin_role`).
+   - `0015_vue_profs_couleurs_suggestions.sql` : couleurs de classes partagées,
+     familles de jeux, édition des suggestions par l'auteur, vue d'ensemble admin.
+   - `0016_suggestions_lock_after_triage.sql` : verrouillage des suggestions après triage.
+   - `0017_messagerie.sql` : messagerie interne (canaux, membres, messages texte/liens),
+     annuaire des collègues, et nettoyage auto (historique au 31 juillet, canaux
+     inactifs au bout de 6 mois).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
