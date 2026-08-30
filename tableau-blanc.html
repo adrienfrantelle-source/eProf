@@ -14,8 +14,9 @@
         <input type="text" id="canvas-text-input" placeholder="Texte…" maxlength="200">
     </div>
 
-    <div class="top-left-controls chrome-ui">
+    <div class="top-left-controls">
         <a id="back-btn" class="control-btn" href="index.html" title="Retour à eProf">🏠 Retour</a>
+        <button type="button" id="pin-chrome-btn" class="control-btn pin-chrome-btn" title="Épingler les barres (elles restent visibles)" aria-pressed="false">📌</button>
     </div>
 
     <div class="top-controls chrome-ui">
@@ -523,7 +524,7 @@
         <button type="button" id="change-bg-image-btn" onclick="changeBackgroundImage()">🖼️ Changer l'image</button>
         <p class="hint shortcuts-hint">
             Dessin : bouton ✏️ (grille avec noms). Couleur et épaisseur restent dans la barre.
-            Raccourcis : Ctrl+Z / Ctrl+Y (par page) · Flèches ← → pages · Échap ferme le panneau · F11 plein écran
+            📌 épingler les barres pour qu’elles restent visibles. Raccourcis : Ctrl+Z / Ctrl+Y (par page) · Flèches ← → pages · Échap ferme le panneau · F11 plein écran
         </p>
         <button type="button" onclick="resetAll()">🔄 Réinitialiser tout</button>
         <div class="resize-handle"></div>

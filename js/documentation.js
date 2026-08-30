@@ -184,7 +184,7 @@
                 '<strong>Ctrl+Z</strong> / <strong>Ctrl+Y</strong> annulent et rétablissent <em>sur la page en cours</em>. Les flèches changent de page. 💾 exporte la page avec le fond (image, ligné, PDF posé…).',
                 'Dans <strong>🙋 Tirage</strong>, cochez une ou plusieurs classes, marquez les absents, et utilisez la file « déjà tirés ». Le bouton <strong>🎲</strong> est réservé au dé.',
                 'Les groupes se glissent d’une carte à l’autre. Un PDF peut être posé en fond de page pour annoter par-dessus.',
-                'Le bouton 🏠 Retour ramène à eProf. En projection, la barre se masque toute seule : survolez la pastille en bas pour la ramener (un clic sur le tableau ne la réaffiche pas).'
+                'Le bouton <strong>🏠 Retour</strong> reste toujours visible (haut gauche) et ramène à eProf. À côté, <strong>📌</strong> épingle les barres pour qu’elles ne se masquent plus. Sinon, survolez la pastille en bas pour ramener la barre ; un clic sur le tableau la masque.'
             ],
             tip: 'Plein écran : F11 ou 🖥️. Fonds dans ⚙️ : Images (dossier img), blanc, noir, ligné, quadrillé. Sur un fond sombre, le crayon passe automatiquement en blanc si vous n’avez pas choisi une autre couleur.'
         },

@@ -16,6 +16,7 @@ const PANEL_COLORS_KEY = 'panelColors';
 const MANUAL_STUDENTS_KEY = 'tableauBlancManualStudents';
 const QR_HISTORY_KEY = 'tableauBlancQrHistory';
 const BG_TYPE_LEGACY = 'tableauBlancBgType';
+const CHROME_PIN_KEY = 'tableauBlancChromePinned';
 
 let canvas, ctx;
 let currentTool = 'draw';
@@ -56,6 +57,7 @@ let pdfControlsCollapsed = false;
 let pickedHistory = [];
 let currentGroups = [];
 let chromeTimer = null;
+let chromePinned = false;
 let laserRaf = 0;
 
 function emptyPage() {
@@ -113,6 +115,7 @@ window.addEventListener('DOMContentLoaded', () => {
     bootStudentPicker();
     applyTimerModeUi();
     markBoardStyleButtons();
+    loadChromePinned();
     bumpChrome();
 });
 
@@ -137,11 +140,24 @@ function bindChrome() {
     });
     const peek = document.getElementById('toolbar-peek');
     const toolbar = document.getElementById('main-toolbar');
+    const topLeft = document.querySelector('.top-left-controls');
+    const topRight = document.querySelector('.top-controls');
+    const pageNav = document.querySelector('.page-navigation');
     peek?.addEventListener('mouseenter', showChrome);
     peek?.addEventListener('mouseleave', () => scheduleHideChrome(400));
     peek?.addEventListener('touchstart', showChrome, { passive: true });
     toolbar?.addEventListener('mouseenter', showChrome);
-    toolbar?.addEventListener('mouseleave', () => scheduleHideChrome(400));
+    toolbar?.addEventListener('mouseleave', () => scheduleHideChrome(800));
+    topLeft?.addEventListener('mouseenter', showChrome);
+    topLeft?.addEventListener('mouseleave', () => scheduleHideChrome(800));
+    topRight?.addEventListener('mouseenter', showChrome);
+    topRight?.addEventListener('mouseleave', () => scheduleHideChrome(800));
+    pageNav?.addEventListener('mouseenter', showChrome);
+    pageNav?.addEventListener('mouseleave', () => scheduleHideChrome(800));
+    document.getElementById('pin-chrome-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleChromePin();
+    });
     document.getElementById('whiteboard-canvas')?.addEventListener('pointerdown', hideChromeForBoard);
     document.addEventListener('click', (e) => {
         const wrap = document.querySelector('.draw-folder-wrap');
@@ -150,23 +166,49 @@ function bindChrome() {
     document.addEventListener('keydown', onGlobalKey);
 }
 
+function loadChromePinned() {
+    chromePinned = localStorage.getItem(CHROME_PIN_KEY) === '1';
+    applyChromePinned();
+}
+
+function toggleChromePin() {
+    chromePinned = !chromePinned;
+    localStorage.setItem(CHROME_PIN_KEY, chromePinned ? '1' : '0');
+    applyChromePinned();
+    if (chromePinned) showChrome();
+    else scheduleHideChrome(1200);
+}
+
+function applyChromePinned() {
+    document.body.classList.toggle('chrome-pinned', chromePinned);
+    const btn = document.getElementById('pin-chrome-btn');
+    if (!btn) return;
+    btn.classList.toggle('is-pinned', chromePinned);
+    btn.setAttribute('aria-pressed', chromePinned ? 'true' : 'false');
+    btn.title = chromePinned
+        ? 'Désépingler les barres'
+        : 'Épingler les barres (elles restent visibles)';
+}
+
 function showChrome() {
     document.body.classList.remove('chrome-hidden');
     clearTimeout(chromeTimer);
 }
 
 function hideChromeForBoard() {
-    if (hasOpenPanel()) return;
+    if (chromePinned || hasOpenPanel()) return;
     hideChromeNow();
 }
 
 function hideChromeNow() {
+    if (chromePinned) return;
     clearTimeout(chromeTimer);
     closeDrawWheel();
     document.body.classList.add('chrome-hidden');
 }
 
 function scheduleHideChrome(delay) {
+    if (chromePinned) return;
     clearTimeout(chromeTimer);
     if (hasOpenPanel()) return;
     chromeTimer = setTimeout(hideChromeNow, delay);
@@ -174,7 +216,7 @@ function scheduleHideChrome(delay) {
 
 function bumpChrome() {
     showChrome();
-    if (hasOpenPanel()) return;
+    if (chromePinned || hasOpenPanel()) return;
     scheduleHideChrome(3000);
 }
 
