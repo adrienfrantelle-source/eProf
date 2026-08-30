@@ -23,8 +23,13 @@
 }
 
 .eprof-config-dialog {
-    width: min(1040px, 100%);
-    max-height: min(88vh, 860px);
+    position: relative;
+    width: min(1040px, calc(100vw - 40px));
+    height: min(88vh, 860px);
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 40px);
+    min-width: min(560px, calc(100vw - 40px));
+    min-height: min(420px, calc(100vh - 40px));
     display: flex;
     flex-direction: column;
     background: #fff;
@@ -467,6 +472,28 @@
     filter: brightness(1.05);
 }
 
+.eprof-config-resize {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    z-index: 3;
+    background:
+        linear-gradient(135deg, transparent 0 46%, #94a3b8 46% 54%, transparent 54% 70%, #94a3b8 70% 78%, transparent 78%);
+}
+
+.eprof-config-resize:hover {
+    filter: brightness(0.7);
+}
+
+body.eprof-config-resizing,
+body.eprof-config-resizing * {
+    cursor: nwse-resize !important;
+    user-select: none !important;
+}
+
 body.eprof-config-open {
     overflow: hidden;
 }
@@ -528,7 +555,13 @@ body.theme-sombre .eprof-config-close {
         width: 100%;
         max-height: 100%;
         height: 100%;
+        min-width: 0;
+        min-height: 0;
         border-radius: 0;
+    }
+
+    .eprof-config-resize {
+        display: none;
     }
 
     .eprof-config-body {

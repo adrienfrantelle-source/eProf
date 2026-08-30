@@ -360,16 +360,15 @@ class TeacherManager {
         const ref = window.EprofReferentiel && typeof window.EprofReferentiel.findClass === 'function'
             ? window.EprofReferentiel.findClass(className)
             : null;
-        if (ref && ref.niveau) return ref.niveau;
-        const n = String(className || '').toLowerCase();
-        if (n.includes('4e') || n.includes('4ème') || n.includes('4eme')) return '4e';
-        if (n.includes('3e') || n.includes('3ème') || n.includes('3eme')) return '3e';
+        const n = String((ref && ref.niveau) || className || '').toLowerCase();
+        if (n.includes('tle') || n.includes('terminale')) return 'Terminale';
         if (n.includes('2nde') || n.includes('seconde')) return '2nde';
         if (n.includes('1ère') || n.includes('1ere') || n.includes('premiere')) return '1ère';
-        if (n.includes('tle') || n.includes('terminale')) return 'Terminale';
-        if (n.includes('6e') || n.includes('6ème')) return '6e';
-        if (n.includes('5e') || n.includes('5ème')) return '5e';
-        return 'Autres';
+        if (n.includes('4e') || n.includes('4ème') || n.includes('4eme')) return '4e';
+        if (n.includes('3e') || n.includes('3ème') || n.includes('3eme')) return '3e';
+        if (n.includes('6e') || n.includes('6ème') || n.includes('6eme')) return '6e';
+        if (n.includes('5e') || n.includes('5ème') || n.includes('5eme')) return '5e';
+        return (ref && ref.niveau) ? ref.niveau : 'Autres';
     }
 
     groupClassesByNiveau(names) {
@@ -380,10 +379,15 @@ class TeacherManager {
             if (!groups[niveau]) groups[niveau] = [];
             groups[niveau].push(name);
         });
-        return order.filter((niveau) => groups[niveau] && groups[niveau].length).map((niveau) => ({
+        const known = order.filter((niveau) => groups[niveau] && groups[niveau].length).map((niveau) => ({
             niveau,
             classes: groups[niveau]
         }));
+        const extras = Object.keys(groups)
+            .filter((niveau) => order.indexOf(niveau) === -1)
+            .sort(function (a, b) { return a.localeCompare(b, 'fr'); })
+            .map((niveau) => ({ niveau, classes: groups[niveau] }));
+        return known.concat(extras);
     }
 
     showInitialConfig() {
@@ -424,6 +428,7 @@ class TeacherManager {
                         <button type="button" class="eprof-config-btn eprof-config-btn-ghost" id="eprof-config-cancel">Annuler</button>
                         <button type="button" class="eprof-config-btn eprof-config-btn-primary" id="save-config-btn">Enregistrer</button>
                     </footer>
+                    <div class="eprof-config-resize" title="Redimensionner" aria-label="Redimensionner la fenêtre"></div>
                 </div>
             </div>
         `;
@@ -456,6 +461,7 @@ class TeacherManager {
         overlay.classList.add('is-open');
         overlay.style.display = 'flex';
         document.body.classList.add('eprof-config-open');
+        this.applyConfigModalSize();
         this.renderConfigModal();
         const search = document.getElementById('eprof-config-class-search');
         if (search) {
@@ -492,6 +498,7 @@ class TeacherManager {
         overlay.dataset.bound = '1';
 
         overlay.addEventListener('click', (e) => {
+            if (this._configJustResized) return;
             if (e.target === overlay) this.closeConfigModal();
         });
 
@@ -593,6 +600,70 @@ class TeacherManager {
                 this.commitRenameSubject(e.target.value);
             }
         }, true);
+
+        this.bindConfigModalResize(overlay);
+    }
+
+    applyConfigModalSize() {
+        const dialog = document.querySelector('#initial-config-modal .eprof-config-dialog');
+        if (!dialog) return;
+        try {
+            const stored = JSON.parse(localStorage.getItem('eprofConfigModalSize') || 'null');
+            if (stored && stored.w && stored.h) {
+                const maxW = window.innerWidth - 40;
+                const maxH = window.innerHeight - 40;
+                dialog.style.width = Math.min(maxW, Math.max(560, stored.w)) + 'px';
+                dialog.style.height = Math.min(maxH, Math.max(420, stored.h)) + 'px';
+            }
+        } catch (e) {}
+    }
+
+    bindConfigModalResize(overlay) {
+        const dialog = overlay.querySelector('.eprof-config-dialog');
+        const handle = overlay.querySelector('.eprof-config-resize');
+        if (!dialog || !handle) return;
+
+        let drag = null;
+        handle.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = dialog.getBoundingClientRect();
+            drag = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+            document.body.classList.add('eprof-config-resizing');
+        });
+        handle.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            dialog.style.width = '';
+            dialog.style.height = '';
+            try { localStorage.removeItem('eprofConfigModalSize'); } catch (err) {}
+        });
+
+        const onMove = (e) => {
+            if (!drag) return;
+            const maxW = window.innerWidth - 40;
+            const maxH = window.innerHeight - 40;
+            const w = Math.min(maxW, Math.max(560, drag.w + 2 * (e.clientX - drag.x)));
+            const h = Math.min(maxH, Math.max(420, drag.h + 2 * (e.clientY - drag.y)));
+            dialog.style.width = w + 'px';
+            dialog.style.height = h + 'px';
+        };
+        const onUp = () => {
+            if (!drag) return;
+            drag = null;
+            document.body.classList.remove('eprof-config-resizing');
+            this._configJustResized = true;
+            setTimeout(() => { this._configJustResized = false; }, 50);
+            const rect = dialog.getBoundingClientRect();
+            try {
+                localStorage.setItem('eprofConfigModalSize', JSON.stringify({
+                    w: Math.round(rect.width),
+                    h: Math.round(rect.height)
+                }));
+            } catch (err) {}
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
     }
 
     visibleClassNames() {
