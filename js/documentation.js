@@ -46,6 +46,7 @@
                 'Cliquez un événement existant pour le modifier ou le supprimer.',
                 'Utilisez <strong>Importer emploi du temps (CSV)</strong> pour charger vos cours, et <strong>Exporter</strong> pour en garder une copie.',
                 'Le bouton <strong>Aide</strong> du calendrier rappelle le format du fichier CSV attendu.',
+                'Les boutons <strong>Calendrier scolaire</strong>, <strong>Dates de stage</strong> et <strong>Périodes 26-27</strong> ouvrent les documents de l’année.',
                 'Les heures de début/fin et l’affichage du samedi se règlent dans Paramètres → Calendrier. Les vacances scolaires suivent l’année choisie.'
             ],
             tip: 'Les éléments créés dans l’Agenda apparaissent aussi ici. Un seul planning, deux façons de le consulter. Pour élargir la plage horaire, passez par Paramètres.'

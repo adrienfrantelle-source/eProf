@@ -662,6 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
             openImageModal('Dates de stage', 'images/Dates de stage.png', 'Dates de stage');
         }
 
+        function openPeriodesImageModal() {
+            openImageModal('Périodes 2026-2027', 'images/Périodes 26-27.png', 'Périodes 2026-2027');
+        }
+
         async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
             var events = (await loadCalendarEvents()).map(toDisplayEvent);
@@ -687,12 +691,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     stageDatesButton: {
                         text: '🏢 Dates de stage',
                         click: openStageImageModal
+                    },
+                    periodesButton: {
+                        text: '📆 Périodes 26-27',
+                        click: openPeriodesImageModal
                     }
                 },
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
-                    right: 'calendarSchoolButton stageDatesButton timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
+                    right: 'calendarSchoolButton stageDatesButton periodesButton timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
                 },
                 buttonText: {
                     today: 'Aujourd\'hui',
