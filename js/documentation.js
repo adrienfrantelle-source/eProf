@@ -25,12 +25,12 @@
             lead: 'Configurez votre profil, vos classes, l’affichage et le barème.',
             tool: 'parametres',
             steps: [
-                'Ouvrez <strong>Paramètres</strong> dans le menu ou depuis l’accueil.',
+                'Ouvrez <strong>Paramètres</strong> dans le menu ou depuis l’accueil. Le sommaire en haut permet d’aller directement à une section ; chaque bloc se replie.',
                 'Renseignez nom, prénom, matière et e-mail. En ligne, le profil de l’établissement est utilisé en priorité.',
-                'Dans la configuration enseignant, cochez uniquement les classes que vous avez. Elles apparaissent ensuite dans le suivi, le plan de classe et les trombinoscopes.',
-                'Choisissez le thème (clair / sombre), la taille de police et le mode mobile.',
-                'Ajustez les seuils d’alertes (oublis, mots) et le barème du carnet de notes (sur 20, sur 10 ou lettres).',
-                'La section « Mon compte » permet de changer l’identifiant ou le mot de passe.'
+                'Cliquez <strong>Gérer mes classes et matières</strong> pour cocher uniquement les classes que vous avez. Elles apparaissent ensuite dans le suivi, le plan de classe et les trombinoscopes.',
+                'Choisissez l’année scolaire (trombinoscopes, vacances du calendrier) puis le thème, la taille de police et le mode mobile — l’aperçu est immédiat.',
+                'Dans Calendrier, réglez les heures affichées et l’éventuel samedi. Dans Notation, choisissez le barème (sur 20 ou sur 10) et les seuils d’alertes (oublis, mots) utilisés dans le suivi.',
+                'La section « Mon compte » permet de changer l’identifiant ou le mot de passe. Le bouton Enregistrer, toujours visible en bas, sauvegarde le reste.'
             ],
             tip: 'Sans classes sélectionnées, plusieurs outils restent vides. C’est presque toujours la première chose à régler.'
         },
@@ -45,9 +45,10 @@
                 'Cliquez un jour pour ajouter un événement, un todo ou un rendez-vous (titre, lieu, horaires).',
                 'Cliquez un événement existant pour le modifier ou le supprimer.',
                 'Utilisez <strong>Importer emploi du temps (CSV)</strong> pour charger vos cours, et <strong>Exporter</strong> pour en garder une copie.',
-                'Le bouton <strong>Aide</strong> du calendrier rappelle le format du fichier CSV attendu.'
+                'Le bouton <strong>Aide</strong> du calendrier rappelle le format du fichier CSV attendu.',
+                'Les heures de début/fin et l’affichage du samedi se règlent dans Paramètres → Calendrier. Les vacances scolaires suivent l’année choisie.'
             ],
-            tip: 'Les éléments créés dans l’Agenda apparaissent aussi ici. Un seul planning, deux façons de le consulter.'
+            tip: 'Les éléments créés dans l’Agenda apparaissent aussi ici. Un seul planning, deux façons de le consulter. Pour élargir la plage horaire, passez par Paramètres.'
         },
         {
             id: 'agenda',

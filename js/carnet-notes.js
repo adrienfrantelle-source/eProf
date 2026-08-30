@@ -7,6 +7,15 @@ let cloudHydrated = false;
 let cloudHydratePromise = null;
 let cloudAutoSaveTimer = null;
 
+function getAnneeScolaireFromPrefs() {
+    try {
+        const p = JSON.parse(localStorage.getItem('parametres') || '{}');
+        return p.anneeScolaire || '2026-2027';
+    } catch (e) {
+        return '2026-2027';
+    }
+}
+
 // ===== CHARGEMENT =====
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Carnet de notes chargé');
@@ -152,7 +161,7 @@ function initClassSelector() {
             classEmptyMessage.style.display = 'block';
         }
         if (select) {
-            select.innerHTML = '<option value="">-- Les listes 2026-2027 arrivent bientôt --</option>';
+            select.innerHTML = '<option value="">-- Les listes ' + getAnneeScolaireFromPrefs() + ' arrivent bientôt --</option>';
         }
     }
 }
@@ -699,7 +708,7 @@ function renderNotesTable() {
     const students = getStudentsForClass(currentClass);
     
     if (students.length === 0) {
-        wrapper.innerHTML = '<div class="empty-state"><p>Aucune liste d’élèves n’est encore disponible pour <strong>' + currentClass + '</strong> en 2026-2027.</p><p>Les listes de l’année précédente restent consultables dans le module Archives.</p></div>';
+        wrapper.innerHTML = '<div class="empty-state"><p>Aucune liste d’élèves n’est encore disponible pour <strong>' + currentClass + '</strong> en ' + getAnneeScolaireFromPrefs() + '.</p><p>Les listes de l’année précédente restent consultables dans le module Archives.</p></div>';
         return;
     }
     

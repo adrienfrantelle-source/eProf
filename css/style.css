@@ -2201,6 +2201,22 @@ footer {
     font-weight: 600;
 }
 
+.badge-mots-alerte {
+    position: absolute;
+    top: 40px;
+    right: 10px;
+    background: #dc2626;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.badge-oublis-alerte {
+    background: #b91c1c;
+}
+
 /* Positionnement du lien dans la sidebar pour permettre le badge */
 .sidebar nav a {
     position: relative;
@@ -2806,6 +2822,83 @@ body.theme-sombre .jeux-famille-vide {
 .parametres-sections {
     max-width: 900px;
     margin: 0 auto;
+    padding-bottom: 8px;
+}
+
+#parametres-module {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.param-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.param-page-header h2 {
+    margin: 0;
+}
+
+.param-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.param-sync-status {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.param-sync-status.online {
+    color: #065f46;
+    background: #d1fae5;
+}
+
+.param-sync-status.offline {
+    color: #475569;
+    background: #e2e8f0;
+}
+
+.param-doc-btn {
+    padding: 10px 16px !important;
+    font-size: 0.95rem !important;
+}
+
+.param-toc {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0 12px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.param-toc a {
+    text-decoration: none;
+    color: #1e40af;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #e0e7ff;
+}
+
+.param-toc a:hover {
+    background: #c7d2fe;
 }
 
 .param-section {
@@ -2814,6 +2907,31 @@ body.theme-sombre .jeux-famille-vide {
     margin-bottom: 25px;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    scroll-margin-top: 56px;
+}
+
+.param-section > summary {
+    color: #1e293b;
+    margin: -8px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.param-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+.param-section > summary::before {
+    content: '▸ ';
+    color: #64748b;
+}
+
+.param-section[open] > summary::before {
+    content: '▾ ';
 }
 
 .param-section h3 {
@@ -2822,6 +2940,13 @@ body.theme-sombre .jeux-famille-vide {
     padding-bottom: 10px;
     border-bottom: 2px solid #e2e8f0;
     font-size: 1.3rem;
+}
+
+.param-hint {
+    margin: 4px 0 0;
+    font-size: 0.9em;
+    color: #64748b;
+    line-height: 1.4;
 }
 
 .param-form {
@@ -2905,10 +3030,25 @@ body.theme-sombre .jeux-famille-vide {
 }
 
 .param-save {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
     text-align: center;
-    margin-top: 30px;
-    padding-top: 30px;
+    margin-top: 12px;
+    padding: 14px 12px 16px;
     border-top: 2px solid #e2e8f0;
+    background: rgba(248, 250, 252, 0.96);
+    box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.param-actions .btn-action.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+}
+
+.param-actions .btn-action.btn-secondary {
+    background: #64748b;
+    color: white;
 }
 
 .btn-save {
@@ -2996,6 +3136,36 @@ body.theme-sombre .carte-eleve,
 body.theme-sombre .modale-eleve-content {
     background: #334155;
     color: #e2e8f0;
+}
+
+body.theme-sombre .param-section > summary,
+body.theme-sombre .param-section h3 {
+    color: #f1f5f9;
+    border-bottom-color: #475569;
+}
+
+body.theme-sombre .param-toc {
+    background: #1e293b;
+    border-bottom-color: #475569;
+}
+
+body.theme-sombre .param-toc a {
+    background: #1e3a8a;
+    color: #dbeafe;
+}
+
+body.theme-sombre .param-save {
+    background: rgba(30, 41, 59, 0.96);
+    border-top-color: #475569;
+}
+
+body.theme-sombre .param-hint {
+    color: #94a3b8;
+}
+
+body.theme-sombre .param-sync-status {
+    background: #1e293b;
+    color: #cbd5e1;
 }
 
 body.theme-sombre h2,

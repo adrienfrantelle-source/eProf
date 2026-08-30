@@ -14,6 +14,148 @@ document.addEventListener('DOMContentLoaded', () => {
         return { version: 'V2.3.7' };
     }
 
+    function readAppParametres() {
+        try { return JSON.parse(localStorage.getItem('parametres') || '{}'); } catch (e) { return {}; }
+    }
+
+    function getAnneeScolaire() {
+        return readAppParametres().anneeScolaire || '2026-2027';
+    }
+
+    function getAlertesSeuils() {
+        const a = readAppParametres().alertes || {};
+        const oublis = parseInt(a.seuilOublis, 10);
+        const mots = parseInt(a.seuilMots, 10);
+        return {
+            seuilOublis: oublis > 0 ? oublis : 3,
+            seuilMots: mots > 0 ? mots : 5
+        };
+    }
+
+    function getCalendarDisplayPrefs() {
+        const c = readAppParametres().calendrier || {};
+        function toSlot(t, fallback) {
+            const v = String(t || fallback);
+            return v.length === 5 ? v + ':00' : v;
+        }
+        return {
+            slotMinTime: toSlot(c.heureDebut, '08:00'),
+            slotMaxTime: toSlot(c.heureFin, '20:00'),
+            hiddenDays: c.afficherSamedi ? [0] : [0, 6]
+        };
+    }
+
+    function formatYmd(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + d;
+    }
+
+    function easterSunday(year) {
+        const a = year % 19;
+        const b = Math.floor(year / 100);
+        const c = year % 100;
+        const d = Math.floor(b / 4);
+        const e = b % 4;
+        const f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4);
+        const k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31);
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(year, month - 1, day);
+    }
+
+    function addDays(date, n) {
+        const d = new Date(date.getTime());
+        d.setDate(d.getDate() + n);
+        return d;
+    }
+
+    function feriesPourAnneeCivile(year) {
+        const paques = easterSunday(year);
+        return [
+            { title: '🎉 Jour de l\'An', start: year + '-01-01' },
+            { title: '🌱 Lundi de Pâques', start: formatYmd(addDays(paques, 1)) },
+            { title: '🏭 Fête du Travail', start: year + '-05-01' },
+            { title: '🎖️ Victoire 1945', start: year + '-05-08' },
+            { title: '☁️ Ascension', start: formatYmd(addDays(paques, 39)) },
+            { title: '🌼 Lundi de Pentecôte', start: formatYmd(addDays(paques, 50)) },
+            { title: '🇫🇷 Fête Nationale', start: year + '-07-14' },
+            { title: '☀️ Assomption', start: year + '-08-15' },
+            { title: '🍂 Toussaint', start: year + '-11-01' },
+            { title: '🪖 Armistice', start: year + '-11-11' },
+            { title: '🎄 Noël', start: year + '-12-25' }
+        ].map(function (ev) { return Object.assign({ allDay: true }, ev); });
+    }
+
+    function getCalendrierScolaireEvents(annee) {
+        const parts = String(annee || '2026-2027').split('-');
+        const y1 = parseInt(parts[0], 10) || 2026;
+        const y2 = parseInt(parts[1], 10) || (y1 + 1);
+        const debut = new Date(y1, 8, 1);
+        const fin = new Date(y2, 7, 31);
+        const feries = feriesPourAnneeCivile(y1).concat(feriesPourAnneeCivile(y2)).filter(function (ev) {
+            const d = new Date(ev.start);
+            return d >= debut && d <= fin;
+        });
+        const fond = function (title, start, end, color) {
+            return { title: title, start: start, end: end, display: 'background', backgroundColor: color, allDay: true };
+        };
+        const vacancesParAnnee = {
+            '2025-2026': [
+                fond('🏖️ Vacances de la Toussaint', '2025-10-18', '2025-11-03', '#fef3c7'),
+                fond('🎄 Vacances de Noël', '2025-12-20', '2026-01-05', '#dbeafe'),
+                fond('⛷️ Vacances d\'hiver', '2026-02-07', '2026-02-23', '#e0e7ff'),
+                fond('🌸 Vacances de printemps', '2026-04-04', '2026-04-20', '#fce7f3'),
+                fond('☀️ Vacances d\'été', '2026-07-04', '2026-09-01', '#fef08a')
+            ],
+            '2026-2027': [
+                fond('🏖️ Vacances de la Toussaint', '2026-10-17', '2026-11-02', '#fef3c7'),
+                fond('🎄 Vacances de Noël', '2026-12-19', '2027-01-04', '#dbeafe'),
+                fond('⛷️ Vacances d\'hiver', '2027-02-13', '2027-03-01', '#e0e7ff'),
+                fond('🌸 Vacances de printemps', '2027-04-10', '2027-04-26', '#fce7f3'),
+                fond('☀️ Vacances d\'été', '2027-07-03', '2027-09-01', '#fef08a')
+            ],
+            '2027-2028': [
+                fond('🏖️ Vacances de la Toussaint', '2027-10-23', '2027-11-03', '#fef3c7'),
+                fond('🎄 Vacances de Noël', '2027-12-18', '2028-01-03', '#dbeafe'),
+                fond('⛷️ Vacances d\'hiver', '2028-02-19', '2028-03-06', '#e0e7ff'),
+                fond('🌸 Vacances de printemps', '2028-04-15', '2028-05-02', '#fce7f3'),
+                fond('☀️ Vacances d\'été', '2028-07-08', '2028-09-04', '#fef08a')
+            ]
+        };
+        return feries.concat(vacancesParAnnee[annee] || vacancesParAnnee['2026-2027']);
+    }
+
+    function defaultAppParametres(enseignant) {
+        return {
+            enseignant: enseignant || { nom: '', prenom: '', matiere: '', email: '' },
+            anneeScolaire: '2026-2027',
+            calendrier: { heureDebut: '08:00', heureFin: '20:00', afficherSamedi: false },
+            affichage: { theme: 'clair', taillePolice: 'moyen', modeMobile: 'auto' },
+            alertes: { seuilOublis: 3, seuilMots: 5 },
+            notation: {
+                systeme: 'sur20',
+                mentions: [
+                    { emoji: '🏆', label: 'Très bien', seuilMin: 16 },
+                    { emoji: '😊', label: 'Bien', seuilMin: 14 },
+                    { emoji: '🙂', label: 'Assez bien', seuilMin: 12 },
+                    { emoji: '😐', label: 'Passable', seuilMin: 10 },
+                    { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
+                ]
+            }
+        };
+    }
+
+    function isProtectedLocalStorageKey(key) {
+        return /auth|supabase|^sb-/i.test(String(key || ''));
+    }
+
     function getVisibleTeacherClasses() {
         if (window.getTeacherClassNames) return window.getTeacherClassNames().slice().sort();
         if (window.teacherManager && window.teacherManager.getTeacherClasses) {
@@ -244,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="tool-icon">📸</span>
                         <div class="tool-content">
                             <div class="tool-title">Trombinoscopes</div>
-                            <div class="tool-description">Année 2026-2027 et archives</div>
+                            <div class="tool-description">Année ${getAnneeScolaire()} et archives</div>
                         </div>
                     </button>
                     <button class="tool-card" data-tool="archives">
@@ -523,73 +665,17 @@ document.addEventListener('DOMContentLoaded', () => {
         async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
             var events = (await loadCalendarEvents()).map(toDisplayEvent);
-
-            var joursFeries = [
-                { title: '🎉 Jour de l\'An', start: '2026-01-01', allDay: true },
-                { title: '🌱 Lundi de Pâques', start: '2026-04-06', allDay: true },
-                { title: '🏭 Fête du Travail', start: '2026-05-01', allDay: true },
-                { title: '🎖️ Victoire 1945', start: '2026-05-08', allDay: true },
-                { title: '☁️ Ascension', start: '2026-05-14', allDay: true },
-                { title: '🌼 Lundi de Pentecôte', start: '2026-05-25', allDay: true },
-                { title: '🇫🇷 Fête Nationale', start: '2026-07-14', allDay: true },
-                { title: '☀️ Assomption', start: '2026-08-15', allDay: true },
-                { title: '🍂 Toussaint', start: '2026-11-01', allDay: true },
-                { title: '🪖 Armistice', start: '2026-11-11', allDay: true },
-                { title: '🎄 Noël', start: '2026-12-25', allDay: true }
-            ];
-
-            var vacancesScolaires = [
-                {
-                    title: '🏖️ Vacances de la Toussaint',
-                    start: '2026-10-17',
-                    end: '2026-11-02',
-                    display: 'background',
-                    backgroundColor: '#fef3c7',
-                    allDay: true
-                },
-                {
-                    title: '🎄 Vacances de Noël',
-                    start: '2026-12-19',
-                    end: '2027-01-04',
-                    display: 'background',
-                    backgroundColor: '#dbeafe',
-                    allDay: true
-                },
-                {
-                    title: '⛷️ Vacances d\'hiver',
-                    start: '2027-02-13',
-                    end: '2027-03-01',
-                    display: 'background',
-                    backgroundColor: '#e0e7ff',
-                    allDay: true
-                },
-                {
-                    title: '🌸 Vacances de printemps',
-                    start: '2027-04-10',
-                    end: '2027-04-26',
-                    display: 'background',
-                    backgroundColor: '#fce7f3',
-                    allDay: true
-                },
-                {
-                    title: '☀️ Vacances d\'été',
-                    start: '2027-07-03',
-                    end: '2027-09-01',
-                    display: 'background',
-                    backgroundColor: '#fef08a',
-                    allDay: true
-                }
-            ];
-            
-            var allEvents = events.concat(joursFeries, vacancesScolaires);
+            var anneeCal = getAnneeScolaire();
+            var calPrefs = getCalendarDisplayPrefs();
+            var allEvents = events.concat(getCalendrierScolaireEvents(anneeCal));
             
             var calendar = new window.FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
                 locale: 'fr',
                 firstDay: 1,
-                weekends: false,
-                slotMinTime: '08:00:00',
-                slotMaxTime: '20:00:00',
+                hiddenDays: calPrefs.hiddenDays,
+                slotMinTime: calPrefs.slotMinTime,
+                slotMaxTime: calPrefs.slotMaxTime,
                 nowIndicator: true,
                 scrollTime: new Date().toTimeString().slice(0, 8),
                 dayHeaderFormat: { weekday: 'short' },
@@ -2864,7 +2950,7 @@ if (typeof module !== 'undefined' && module.exports) {
     // TROMBINOSCOPES
     // ========================================
     function renderTrombinoscopes(container) {
-        const annee = '2026-2027';
+        const annee = getAnneeScolaire();
         const listes = getListsForTeacher();
         const classes = getVisibleTeacherClasses();
 
@@ -3410,20 +3496,24 @@ if (typeof module !== 'undefined' && module.exports) {
                 
                 // Total de mots (motsAMettre normaux + groupes de mots d'oublis)
                 const totalMots = motsAMettre.length + nbGroupesMotsOublis;
-                const totalMotsNonMis = nbMotsNonMis + (oublisNonTraites.length >= 3 ? 1 : 0);
+                const seuils = getAlertesSeuils();
+                const totalMotsNonMis = nbMotsNonMis + (oublisNonTraites.length >= seuils.seuilOublis ? 1 : 0);
                 
-                // Badge oublis : orange si mot à mettre (3+ oublis non traités), rouge sinon
+                // Badge oublis : alerte si le seuil d’oublis non traités est atteint
                 let badgeOublis = '';
-                if (oublisNonTraites.length >= 3) {
+                if (oublisNonTraites.length >= seuils.seuilOublis) {
                     badgeOublis = `<div class="badge-mots">📋 Mot à mettre</div>`;
                 } else if (nbOublis > 0) {
-                    badgeOublis = `<div class="badge-oublis">📦 ${nbOublis}</div>`;
+                    const alerteOublis = nbOublis >= seuils.seuilOublis ? ' badge-oublis-alerte' : '';
+                    badgeOublis = `<div class="badge-oublis${alerteOublis}">📦 ${nbOublis}</div>`;
                 }
                 
-                // Badge mots : toujours affiché si total > 0, vert si tous mis, orange sinon
+                // Badge mots : alerte si le seuil de mots non mis est atteint
                 let badgeMots = '';
                 if (totalMots > 0) {
-                    const badgeClass = totalMotsNonMis === 0 ? 'badge-mots-mis' : 'badge-mots';
+                    const badgeClass = totalMotsNonMis === 0
+                        ? 'badge-mots-mis'
+                        : (totalMotsNonMis >= seuils.seuilMots ? 'badge-mots-alerte' : 'badge-mots');
                     badgeMots = `<div class="${badgeClass}" style="top: 40px;">📝 ${totalMots}</div>`;
                 }
                 
@@ -3906,13 +3996,13 @@ if (typeof module !== 'undefined' && module.exports) {
                 // Compter les oublis non traités
                 const oublisNonTraites = oublis.filter(o => !o.motMis);
                 
-                // Alerte si 3 oublis non traités ou plus
+                const seuils = getAlertesSeuils();
                 let alerteHtml = '';
-                if (oublisNonTraites.length >= 3) {
+                if (oublisNonTraites.length >= seuils.seuilOublis) {
                     alerteHtml = `
                         <div class="alerte-oublis">
                             <strong>⚠️ ATTENTION !</strong>
-                            <p>${oublisNonTraites.length} oublis enregistrés - Mettre un mot dans le carnet de correspondance</p>
+                            <p>${oublisNonTraites.length} oubli(s) non traités (seuil : ${seuils.seuilOublis}) — Mettre un mot dans le carnet de correspondance</p>
                             <button class="btn-mot-mis" id="confirmer-mot-btn">✓ Mot mis dans le carnet</button>
                         </div>
                     `;
@@ -4804,7 +4894,7 @@ if (typeof module !== 'undefined' && module.exports) {
             <div id="suivi-eleves-module">
                 <h2>📒 Carnet de notes</h2>
                 <div class="selection-classe-suivi empty-state-box">
-                    <h3>Les listes de l’année 2026-2027 ne sont pas encore ajoutées.</h3>
+                    <h3>Les listes de l’année ${getAnneeScolaire()} ne sont pas encore ajoutées.</h3>
                     <p>Les anciennes données sont désormais centralisées dans l’archive.</p>
                 </div>
             </div>
@@ -5960,27 +6050,22 @@ if (typeof module !== 'undefined' && module.exports) {
     // PARAMÈTRES
     // ========================================
     async function renderParametres(container) {
-        // Charger les paramètres depuis localStorage
-        let parametres = JSON.parse(localStorage.getItem('parametres') || JSON.stringify({
-            enseignant: { nom: '', prenom: '', matiere: '', email: '' },
-            anneeScolaire: '2026-2027',
-            calendrier: { heureDebut: '08:00', heureFin: '20:00', dureeCoursDefaut: 60, afficherSamedi: false },
-            affichage: { theme: 'clair', taillePolice: 'moyen', modeMobile: 'auto' },
-            alertes: { seuilOublis: 3, seuilMots: 5 },
-            notation: {
-                systeme: 'sur20',
-                mentions: [
-                    { emoji: '🏆', label: 'Très bien', seuilMin: 16 },
-                    { emoji: '😊', label: 'Bien', seuilMin: 14 },
-                    { emoji: '🙂', label: 'Assez bien', seuilMin: 12 },
-                    { emoji: '😐', label: 'Passable', seuilMin: 10 },
-                    { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
-                ]
-            },
-            periodes: {} // Structure: { "2nde LCQ": { type: "trimestres", trimestres: [{nom, debut, fin}] }, ... }
-        }));
+        const defaults = defaultAppParametres();
+        let parametres = defaults;
+        try {
+            const stored = JSON.parse(localStorage.getItem('parametres') || '{}');
+            parametres = {
+                enseignant: Object.assign({}, defaults.enseignant, stored.enseignant || {}),
+                anneeScolaire: stored.anneeScolaire || defaults.anneeScolaire,
+                calendrier: Object.assign({}, defaults.calendrier, stored.calendrier || {}),
+                affichage: Object.assign({}, defaults.affichage, stored.affichage || {}),
+                alertes: Object.assign({}, defaults.alertes, stored.alertes || {}),
+                notation: Object.assign({}, defaults.notation, stored.notation || {})
+            };
+        } catch (e) {
+            parametres = defaultAppParametres();
+        }
 
-        // Migration douce : anciens seuils fixes -> liste de mentions configurable
         if (!Array.isArray(parametres.notation.mentions) || parametres.notation.mentions.length === 0) {
             const n = parametres.notation;
             parametres.notation.mentions = [
@@ -5991,12 +6076,16 @@ if (typeof module !== 'undefined' && module.exports) {
                 { emoji: '📚', label: 'À retravailler', seuilMin: 0 }
             ];
         }
+        if (parametres.notation.systeme === 'lettres') {
+            parametres.notation.systeme = 'sur20';
+        }
         if (!parametres.affichage.modeMobile) {
             parametres.affichage.modeMobile = 'auto';
         }
         delete parametres.enseignant.etablissement;
+        delete parametres.calendrier.dureeCoursDefaut;
+        delete parametres.periodes;
 
-        // Si un enseignant est connecté en ligne, le profil Supabase fait foi pour ses infos perso
         if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
             const teacherId = await window.EprofStore.getTeacherId();
             const { data, error } = await window.EprofStore.list('profiles', { filters: { id: teacherId } });
@@ -6012,13 +6101,27 @@ if (typeof module !== 'undefined' && module.exports) {
 
         container.innerHTML = `
             <div id="parametres-module">
-                <h2>⚙️ Paramètres</h2>
-                
+                <div class="param-page-header">
+                    <h2>⚙️ Paramètres</h2>
+                    <div class="param-toolbar">
+                        <span id="param-sync-status" class="param-sync-status">⚪ Vérification…</span>
+                        <button type="button" id="param-ouvrir-doc" class="btn-action btn-secondary param-doc-btn">📖 Documentation</button>
+                    </div>
+                </div>
+
+                <nav class="param-toc" aria-label="Sommaire des paramètres">
+                    <a href="#param-sec-profil">Profil</a>
+                    <a href="#param-sec-affichage">Affichage</a>
+                    <a href="#param-sec-calendrier">Calendrier</a>
+                    <a href="#param-sec-notation">Notation</a>
+                    <a href="#param-sec-compte">Compte</a>
+                    <a href="#param-sec-donnees">Données</a>
+                </nav>
+
                 <div class="parametres-sections">
-                    
-                    <!-- Section 1: Informations enseignant -->
-                    <div class="param-section">
-                        <h3>📋 Informations de l'enseignant</h3>
+
+                    <details class="param-section" id="param-sec-profil" open>
+                        <summary>📋 Profil et année scolaire</summary>
                         <div class="param-form">
                             <div class="param-row">
                                 <label>Nom :</label>
@@ -6036,13 +6139,6 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <label>Email :</label>
                                 <input type="email" id="param-email" value="${parametres.enseignant.email}" placeholder="email@exemple.fr">
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Section 2: Année scolaire -->
-                    <div class="param-section">
-                        <h3>📅 Année scolaire</h3>
-                        <div class="param-form">
                             <div class="param-row">
                                 <label>Année scolaire :</label>
                                 <select id="param-annee">
@@ -6051,37 +6147,15 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="2027-2028" ${parametres.anneeScolaire === '2027-2028' ? 'selected' : ''}>2027-2028</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Section 3: Calendrier -->
-                    <div class="param-section">
-                        <h3>🕐 Paramètres du calendrier</h3>
-                        <div class="param-form">
-                            <div class="param-row">
-                                <label>Heure de début :</label>
-                                <input type="time" id="param-heure-debut" value="${parametres.calendrier.heureDebut}">
-                            </div>
-                            <div class="param-row">
-                                <label>Heure de fin :</label>
-                                <input type="time" id="param-heure-fin" value="${parametres.calendrier.heureFin}">
-                            </div>
-                            <div class="param-row">
-                                <label>Durée d'un cours (minutes) :</label>
-                                <input type="number" id="param-duree-cours" value="${parametres.calendrier.dureeCoursDefaut}" min="15" max="240" step="15">
-                            </div>
-                            <div class="param-row">
-                                <label>
-                                    <input type="checkbox" id="param-afficher-samedi" ${parametres.calendrier.afficherSamedi ? 'checked' : ''}>
-                                    Afficher le samedi dans le calendrier
-                                </label>
+                            <p class="param-hint">L’année scolaire est utilisée pour les trombinoscopes, les vacances / jours fériés du calendrier, et les libellés du carnet de notes.</p>
+                            <div class="param-actions">
+                                <button type="button" id="param-gerer-classes" class="btn-action btn-primary">📚 Gérer mes classes et matières</button>
                             </div>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- Section 4: Affichage -->
-                    <div class="param-section">
-                        <h3>🎨 Préférences d'affichage</h3>
+                    <details class="param-section" id="param-sec-affichage">
+                        <summary>🎨 Affichage</summary>
                         <div class="param-form">
                             <div class="param-row">
                                 <label>Thème :</label>
@@ -6106,66 +6180,60 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="inactive" ${parametres.affichage.modeMobile === 'inactive' ? 'selected' : ''}>Toujours désactivé</option>
                                 </select>
                             </div>
+                            <p class="param-hint">Le thème, la police et le mode mobile s’appliquent immédiatement. Enregistrez pour les conserver.</p>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- Section 5: Alertes et seuils -->
-                    <div class="param-section">
-                        <h3>🔔 Alertes et seuils</h3>
+                    <details class="param-section" id="param-sec-calendrier">
+                        <summary>🕐 Calendrier</summary>
                         <div class="param-form">
                             <div class="param-row">
-                                <label>Nombre d'oublis pour badge rouge :</label>
-                                <input type="number" id="param-seuil-oublis" value="${parametres.alertes.seuilOublis}" min="1" max="20">
+                                <label>Heure de début :</label>
+                                <input type="time" id="param-heure-debut" value="${parametres.calendrier.heureDebut}">
                             </div>
                             <div class="param-row">
-                                <label>Nombre de mots à mettre pour alerte :</label>
-                                <input type="number" id="param-seuil-mots" value="${parametres.alertes.seuilMots}" min="1" max="50">
+                                <label>Heure de fin :</label>
+                                <input type="time" id="param-heure-fin" value="${parametres.calendrier.heureFin}">
                             </div>
+                            <div class="param-row">
+                                <label>
+                                    <input type="checkbox" id="param-afficher-samedi" ${parametres.calendrier.afficherSamedi ? 'checked' : ''}>
+                                    Afficher le samedi dans le calendrier
+                                </label>
+                            </div>
+                            <p class="param-hint">Ces horaires et le samedi s’appliquent à la vue planning. Les vacances (zone B) suivent l’année scolaire choisie.</p>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- Section 6: Barème de notation -->
-                    <div class="param-section">
-                        <h3>📊 Barème de notation</h3>
+                    <details class="param-section" id="param-sec-notation">
+                        <summary>📊 Notation et alertes</summary>
                         <div class="param-form">
                             <div class="param-row">
                                 <label>Système de notation :</label>
                                 <select id="param-systeme-notation">
                                     <option value="sur20" ${parametres.notation.systeme === 'sur20' ? 'selected' : ''}>Sur 20</option>
                                     <option value="sur10" ${parametres.notation.systeme === 'sur10' ? 'selected' : ''}>Sur 10</option>
-                                    <option value="lettres" ${parametres.notation.systeme === 'lettres' ? 'selected' : ''}>Lettres (A-F)</option>
                                 </select>
                             </div>
-                            <p style="font-size: 0.9em; color: #64748b; margin: 4px 0 12px;">
-                                Chaque mention s'applique à partir de sa note minimale, exprimée sur l'échelle choisie ci-dessus. Les mentions apparaissent automatiquement dans le carnet de notes à côté des moyennes. Cliquez sur un smiley pour le changer.
-                            </p>
+                            <p class="param-hint">Chaque mention s’applique à partir de sa note minimale, sur l’échelle choisie. Elles apparaissent dans le carnet à côté des moyennes. Cliquez sur un smiley pour le changer.</p>
                             <div id="mentions-list"></div>
                             <div class="param-actions" style="margin-top: 10px;">
                                 <button id="btn-ajouter-mention" type="button" class="btn-action btn-primary">➕ Ajouter une mention</button>
                             </div>
+                            <div class="param-row">
+                                <label>Nombre d'oublis pour un mot :</label>
+                                <input type="number" id="param-seuil-oublis" value="${parametres.alertes.seuilOublis}" min="1" max="20">
+                            </div>
+                            <div class="param-row">
+                                <label>Nombre de mots pour alerte :</label>
+                                <input type="number" id="param-seuil-mots" value="${parametres.alertes.seuilMots}" min="1" max="50">
+                            </div>
+                            <p class="param-hint">Ces seuils pilotent les badges et l’alerte « mot à mettre » dans le suivi des élèves.</p>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- Section 7: Gestion des données -->
-                    <div class="param-section">
-                        <h3>💾 Gestion des données</h3>
-                        <div class="param-actions">
-                            <button id="btn-exporter-donnees" class="btn-action btn-success">
-                                📥 Exporter toutes les données
-                            </button>
-                            <button id="btn-importer-donnees" class="btn-action btn-primary">
-                                📤 Importer des données
-                            </button>
-                            <button id="btn-reinitialiser" class="btn-action btn-danger">
-                                🗑️ Réinitialiser l'application
-                            </button>
-                            <input type="file" id="fichier-import" accept=".json" style="display:none;">
-                        </div>
-                    </div>
-
-                    <!-- Section 8: Compte (identifiant / mot de passe) -->
-                    <div class="param-section">
-                        <h3>🔐 Mon compte</h3>
+                    <details class="param-section" id="param-sec-compte">
+                        <summary>🔐 Mon compte</summary>
                         <div class="param-form">
                             <div class="param-row">
                                 <label>Nouvel identifiant :</label>
@@ -6190,9 +6258,25 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <button id="btn-deconnexion" class="btn-action btn-danger">🚪 Se déconnecter</button>
                             </div>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- Bouton de sauvegarde général -->
+                    <details class="param-section" id="param-sec-donnees">
+                        <summary>💾 Données locales</summary>
+                        <div class="param-actions">
+                            <button id="btn-importer-donnees" class="btn-action btn-primary">
+                                📤 Importer des données
+                            </button>
+                            <button id="btn-reset-prefs" class="btn-action btn-secondary">
+                                ↺ Réinitialiser les préférences
+                            </button>
+                            <button id="btn-reset-local" class="btn-action btn-danger">
+                                🗑️ Effacer les données locales
+                            </button>
+                            <input type="file" id="fichier-import" accept=".json" style="display:none;">
+                        </div>
+                        <p class="param-hint">Les préférences : thème, horaires, barème, seuils (le profil enseignant est conservé). L’effacement local supprime le suivi, le calendrier, les jeux, etc. sur cet appareil, sans déconnecter le compte.</p>
+                    </details>
+
                     <div class="param-save">
                         <button id="btn-sauvegarder-parametres" class="btn-save">
                             💾 Enregistrer les paramètres
@@ -6203,156 +6287,71 @@ if (typeof module !== 'undefined' && module.exports) {
             </div>
         `;
 
-        // ===== GESTION DES PÉRIODES PAR CLASSE =====
-        // Note : la sélection de classe (#param-classe-select) n'existe plus dans ce
-        // gabarit tant que les listes 2026-2027 ne sont pas importées ; on protège
-        // donc ce bloc pour ne pas casser le reste de la page Paramètres.
-        const classeSelect = container.querySelector('#param-classe-select');
-        const configPeriodesDiv = container.querySelector('#config-periodes-classe');
-
-        if (classeSelect && configPeriodesDiv) {
-        classeSelect.addEventListener('change', function() {
-            const classe = this.value;
-            if (!classe) {
-                configPeriodesDiv.style.display = 'none';
-                return;
-            }
-
-            configPeriodesDiv.style.display = 'block';
-            
-            const configClasse = parametres.periodes[classe] || { type: 'trimestres', periodes: [] };
-
-            configPeriodesDiv.innerHTML = `
-                <div class="config-periodes-header">
-                    <h4>⚙️ ${classe}</h4>
-                    <div class="type-periodes-selector">
-                        <label class="radio-option ${configClasse.type === 'trimestres' ? 'active' : ''}">
-                            <input type="radio" name="type-${classe.replace(/\s/g, '-')}" value="trimestres" ${configClasse.type === 'trimestres' ? 'checked' : ''}>
-                            <span>📅 Trimestres</span>
-                        </label>
-                        <label class="radio-option ${configClasse.type === 'semestres' ? 'active' : ''}">
-                            <input type="radio" name="type-${classe.replace(/\s/g, '-')}" value="semestres" ${configClasse.type === 'semestres' ? 'checked' : ''}>
-                            <span>📆 Semestres</span>
-                        </label>
-                    </div>
-                </div>
-                <div id="liste-periodes-${classe.replace(/\s/g, '-')}" class="liste-periodes">
-                    <!-- Liste des périodes -->
-                </div>
-                <button id="btn-ajouter-periode-${classe.replace(/\s/g, '-')}" class="btn-add-periode">
-                    ➕ Ajouter une période
-                </button>
-            `;
-
-            const radioOptions = configPeriodesDiv.querySelectorAll('.radio-option');
-            const radios = configPeriodesDiv.querySelectorAll(`input[name="type-${classe.replace(/\s/g, '-')}"]`);
-            const listePeriodes = configPeriodesDiv.querySelector(`#liste-periodes-${classe.replace(/\s/g, '-')}`);
-            const btnAjouter = configPeriodesDiv.querySelector(`#btn-ajouter-periode-${classe.replace(/\s/g, '-')}`);
-
-            function afficherPeriodes() {
-                const config = parametres.periodes[classe] || { type: 'trimestres', periodes: [] };
-                
-                if (config.periodes.length === 0) {
-                    listePeriodes.innerHTML = '<p style="color: #64748b; font-style: italic;">Aucune période définie.</p>';
-                } else {
-                    listePeriodes.innerHTML = config.periodes.map((periode, index) => `
-                        <div class="periode-item">
-                            <div class="periode-content">
-                                <strong>${periode.nom}</strong>
-                                <span>Du ${periode.debut} au ${periode.fin}</span>
-                            </div>
-                            <button class="btn-supprimer-periode" data-index="${index}">🗑️</button>
-                        </div>
-                    `).join('');
-
-                    // Boutons supprimer
-                    listePeriodes.querySelectorAll('.btn-supprimer-periode').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const index = parseInt(this.getAttribute('data-index'));
-                            if (confirm(`Supprimer "${config.periodes[index].nom}" ?`)) {
-                                config.periodes.splice(index, 1);
-                                parametres.periodes[classe] = config;
-                                localStorage.setItem('parametres', JSON.stringify(parametres));
-                                afficherPeriodes();
-                            }
-                        });
-                    });
-                }
-            }
-
-            radios.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    // Mettre à jour les styles actifs
-                    radioOptions.forEach(opt => opt.classList.remove('active'));
-                    this.parentElement.classList.add('active');
-                    
-                    if (!parametres.periodes[classe]) {
-                        parametres.periodes[classe] = { type: this.value, periodes: [] };
-                    } else {
-                        parametres.periodes[classe].type = this.value;
-                    }
-                    localStorage.setItem('parametres', JSON.stringify(parametres));
-                });
-            });
-
-            btnAjouter.addEventListener('click', function() {
-                const config = parametres.periodes[classe] || { type: radios[0].checked ? radios[0].value : radios[1].value, periodes: [] };
-                const numPeriode = config.periodes.length + 1;
-                const typePeriode = config.type === 'trimestres' ? 'Trimestre' : 'Semestre';
-
-                // Créer un formulaire d'ajout simple
-                const formHTML = `
-                    <div class="form-periode">
-                        <input type="text" id="new-periode-nom" placeholder="Nom" value="${typePeriode} ${numPeriode}" style="flex: 2;">
-                        <input type="date" id="new-periode-debut" style="flex: 1;">
-                        <input type="date" id="new-periode-fin" style="flex: 1;">
-                        <button class="btn-valider-periode">✓</button>
-                        <button class="btn-annuler-periode">✗</button>
-                    </div>
-                `;
-                
-                listePeriodes.insertAdjacentHTML('beforeend', formHTML);
-                const form = listePeriodes.querySelector('.form-periode:last-child');
-                const nomInput = form.querySelector('#new-periode-nom');
-                const debutInput = form.querySelector('#new-periode-debut');
-                const finInput = form.querySelector('#new-periode-fin');
-                const btnValider = form.querySelector('.btn-valider-periode');
-                const btnAnnuler = form.querySelector('.btn-annuler-periode');
-
-                btnValider.addEventListener('click', function() {
-                    const nom = nomInput.value.trim();
-                    const debut = debutInput.value;
-                    const fin = finInput.value;
-
-                    if (!nom || !debut || !fin) {
-                        alert('⚠️ Veuillez remplir tous les champs');
-                        return;
-                    }
-
-                    config.periodes.push({ nom, debut, fin });
-                    parametres.periodes[classe] = config;
-                    localStorage.setItem('parametres', JSON.stringify(parametres));
-                    form.remove();
-                    afficherPeriodes();
-                });
-
-                btnAnnuler.addEventListener('click', function() {
-                    form.remove();
-                });
-
-                nomInput.focus();
-            });
-
-            afficherPeriodes();
-        });
-        }
-
-        // ===== COMPTE (identifiant / mot de passe) =====
         const compteMessage = container.querySelector('#param-compte-message');
         function afficherMessageCompte(texte, succes) {
             if (!compteMessage) return;
             compteMessage.textContent = texte;
             compteMessage.style.color = succes ? '#059669' : '#dc2626';
+        }
+
+        container.querySelectorAll('.param-toc a').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                const id = this.getAttribute('href');
+                const target = id ? container.querySelector(id) : null;
+                if (!target) return;
+                e.preventDefault();
+                if (target.tagName === 'DETAILS') target.open = true;
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        const btnGererClasses = container.querySelector('#param-gerer-classes');
+        if (btnGererClasses) {
+            btnGererClasses.addEventListener('click', function () {
+                if (window.teacherManager && typeof window.teacherManager.showInitialConfig === 'function') {
+                    window.teacherManager.showInitialConfig();
+                }
+            });
+        }
+
+        const btnOuvrirDoc = container.querySelector('#param-ouvrir-doc');
+        if (btnOuvrirDoc) {
+            btnOuvrirDoc.addEventListener('click', function () {
+                if (window.EprofDocumentation) {
+                    window.EprofDocumentation.render(mainContent, {
+                        startId: 'parametres',
+                        openTool: function (tool) {
+                            handleDashboardTool(tool);
+                            if (tool === 'calendar') highlightSidebar('calendar-link');
+                            else highlightSidebar(tool);
+                        }
+                    });
+                } else {
+                    handleDashboardTool('documentation');
+                }
+            });
+        }
+
+        (async function paintParamSync() {
+            const el = container.querySelector('#param-sync-status');
+            if (!el) return;
+            const online = window.EprofStore && await window.EprofStore.isOnlineReady();
+            el.textContent = online ? '🟢 En ligne — le profil se synchronise' : '⚪ Hors ligne — enregistrement local';
+            el.classList.toggle('online', !!online);
+            el.classList.toggle('offline', !online);
+        })();
+
+        const themeSelect = container.querySelector('#param-theme');
+        const tailleSelect = container.querySelector('#param-taille-police');
+        const mobileSelect = container.querySelector('#param-mode-mobile');
+        if (themeSelect) {
+            themeSelect.addEventListener('change', function () { appliquerTheme(this.value); });
+        }
+        if (tailleSelect) {
+            tailleSelect.addEventListener('change', function () { appliquerTaillePolice(this.value); });
+        }
+        if (mobileSelect) {
+            mobileSelect.addEventListener('change', function () { appliquerModeMobile(this.value); });
         }
 
         const btnChangerIdentifiant = container.querySelector('#btn-changer-identifiant');
@@ -6413,7 +6412,6 @@ if (typeof module !== 'undefined' && module.exports) {
             });
         }
 
-        // ===== BARÈME DE NOTATION (mentions configurables) =====
         const MENTION_EMOJIS = ['🏆', '🥇', '🌟', '⭐', '😃', '😊', '🙂', '😐', '😕', '😟', '📈', '📉', '📚', '💪', '👍', '👎', '✅', '⚠️', '🔥', '🎯'];
 
         function getEchelleNotation() {
@@ -6478,14 +6476,12 @@ if (typeof module !== 'undefined' && module.exports) {
             });
         }
 
-        // Un clic hors des palettes les referme toutes
         document.addEventListener('click', function () {
             container.querySelectorAll('.mention-emoji-panel').forEach(p => { p.style.display = 'none'; });
         });
 
         renderMentionsList();
 
-        // Changer d'échelle convertit les seuils pour conserver le sens des mentions
         const selectSysteme = container.querySelector('#param-systeme-notation');
         let echelleCourante = getEchelleNotation();
         selectSysteme.addEventListener('change', function () {
@@ -6510,28 +6506,28 @@ if (typeof module !== 'undefined' && module.exports) {
             });
         }
 
-        // ===== SAUVEGARDE DES PARAMÈTRES =====
         const btnSauvegarder = container.querySelector('#btn-sauvegarder-parametres');
         btnSauvegarder.addEventListener('click', async function() {
             parametres.enseignant.nom = container.querySelector('#param-nom').value;
             parametres.enseignant.prenom = container.querySelector('#param-prenom').value;
             parametres.enseignant.matiere = container.querySelector('#param-matiere').value;
             parametres.enseignant.email = container.querySelector('#param-email').value;
-            
+
             parametres.anneeScolaire = container.querySelector('#param-annee').value;
-            
+
             parametres.calendrier.heureDebut = container.querySelector('#param-heure-debut').value;
             parametres.calendrier.heureFin = container.querySelector('#param-heure-fin').value;
-            parametres.calendrier.dureeCoursDefaut = parseInt(container.querySelector('#param-duree-cours').value);
             parametres.calendrier.afficherSamedi = container.querySelector('#param-afficher-samedi').checked;
-            
+            delete parametres.calendrier.dureeCoursDefaut;
+            delete parametres.periodes;
+
             parametres.affichage.theme = container.querySelector('#param-theme').value;
             parametres.affichage.taillePolice = container.querySelector('#param-taille-police').value;
             parametres.affichage.modeMobile = container.querySelector('#param-mode-mobile').value;
-            
-            parametres.alertes.seuilOublis = parseInt(container.querySelector('#param-seuil-oublis').value);
-            parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value);
-            
+
+            parametres.alertes.seuilOublis = parseInt(container.querySelector('#param-seuil-oublis').value, 10);
+            parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value, 10);
+
             parametres.notation.systeme = container.querySelector('#param-systeme-notation').value;
             parametres.notation.echelle = getEchelleNotation();
             parametres.notation.mentions = Array.from(container.querySelectorAll('.mention-row')).map(row => ({
@@ -6541,13 +6537,11 @@ if (typeof module !== 'undefined' && module.exports) {
             }));
 
             localStorage.setItem('parametres', JSON.stringify(parametres));
-            
-            // Appliquer le thème
+
             appliquerTheme(parametres.affichage.theme);
             appliquerTaillePolice(parametres.affichage.taillePolice);
             appliquerModeMobile(parametres.affichage.modeMobile);
 
-            // Synchroniser le profil enseignant en ligne (si connecté)
             if (window.EprofStore && await window.EprofStore.isOnlineReady()) {
                 const teacherId = await window.EprofStore.getTeacherId();
                 const { error } = await window.EprofStore.upsert('profiles', [{
@@ -6561,34 +6555,10 @@ if (typeof module !== 'undefined' && module.exports) {
                     console.error('❌ Synchronisation du profil en ligne échouée', error);
                 }
             }
-            
+
             alert('✅ Paramètres enregistrés avec succès !');
         });
 
-        // ===== EXPORT DES DONNÉES =====
-        const btnExporter = container.querySelector('#btn-exporter-donnees');
-        btnExporter.addEventListener('click', function() {
-            const donnees = {
-                parametres: parametres,
-                suiviEleves: JSON.parse(localStorage.getItem('suiviEleves') || '{}'),
-                jeuxPedagogiques: JSON.parse(localStorage.getItem('jeuxPedagogiques') || '[]'),
-                ressourcesPedagogiques: JSON.parse(localStorage.getItem('ressourcesPedagogiques') || '[]'),
-                calendrier: JSON.parse(localStorage.getItem('calendrier') || '[]'),
-                exportDate: new Date().toISOString()
-            };
-
-            const blob = new Blob([JSON.stringify(donnees, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `eProf-backup-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            alert('✅ Données exportées avec succès !');
-        });
-
-        // ===== IMPORT DES DONNÉES =====
         const btnImporter = container.querySelector('#btn-importer-donnees');
         const fichierInput = container.querySelector('#fichier-import');
 
@@ -6604,14 +6574,14 @@ if (typeof module !== 'undefined' && module.exports) {
             reader.onload = function(event) {
                 try {
                     const donnees = JSON.parse(event.target.result);
-                    
-                    if (confirm('⚠️ Attention : l\'importation remplacera toutes les données actuelles. Continuer ?')) {
+
+                    if (confirm('⚠️ Attention : l\'importation remplacera les données correspondantes. Continuer ?')) {
                         if (donnees.parametres) localStorage.setItem('parametres', JSON.stringify(donnees.parametres));
                         if (donnees.suiviEleves) localStorage.setItem('suiviEleves', JSON.stringify(donnees.suiviEleves));
                         if (donnees.jeuxPedagogiques) localStorage.setItem('jeuxPedagogiques', JSON.stringify(donnees.jeuxPedagogiques));
                         if (donnees.ressourcesPedagogiques) localStorage.setItem('ressourcesPedagogiques', JSON.stringify(donnees.ressourcesPedagogiques));
                         if (donnees.calendrier) localStorage.setItem('calendrier', JSON.stringify(donnees.calendrier));
-                        
+
                         alert('✅ Données importées avec succès ! La page va se recharger.');
                         location.reload();
                     }
@@ -6622,19 +6592,46 @@ if (typeof module !== 'undefined' && module.exports) {
             reader.readAsText(file);
         });
 
-        // ===== RÉINITIALISATION =====
-        const btnReinitialiser = container.querySelector('#btn-reinitialiser');
-        btnReinitialiser.addEventListener('click', function() {
-            if (confirm('⚠️ ATTENTION : Cette action supprimera TOUTES les données de l\'application. Cette action est irréversible. Continuer ?')) {
-                if (confirm('Êtes-vous vraiment sûr ? Toutes vos données seront perdues.')) {
-                    localStorage.clear();
-                    alert('✅ Application réinitialisée. La page va se recharger.');
-                    location.reload();
+        const btnResetPrefs = container.querySelector('#btn-reset-prefs');
+        if (btnResetPrefs) {
+            btnResetPrefs.addEventListener('click', function () {
+                if (!confirm('Réinitialiser les préférences (thème, horaires, barème, seuils) ? Votre profil enseignant est conservé.')) {
+                    return;
                 }
-            }
-        });
+                const reset = defaultAppParametres(parametres.enseignant);
+                localStorage.setItem('parametres', JSON.stringify(reset));
+                appliquerTheme(reset.affichage.theme);
+                appliquerTaillePolice(reset.affichage.taillePolice);
+                appliquerModeMobile(reset.affichage.modeMobile);
+                alert('✅ Préférences réinitialisées. La page va se recharger.');
+                location.reload();
+            });
+        }
 
-        // Appliquer le thème et la taille actuelle
+        const btnResetLocal = container.querySelector('#btn-reset-local');
+        if (btnResetLocal) {
+            btnResetLocal.addEventListener('click', function () {
+                if (!confirm('⚠️ Cette action supprime les données locales de l’application sur cet appareil (suivi, calendrier, jeux…). Le compte reste connecté.')) {
+                    return;
+                }
+                const confirmation = window.prompt('Pour confirmer, tapez SUPPRIMER :');
+                if (confirmation !== 'SUPPRIMER') {
+                    alert('Annulé.');
+                    return;
+                }
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    keys.push(localStorage.key(i));
+                }
+                keys.forEach(function (k) {
+                    if (!k || isProtectedLocalStorageKey(k)) return;
+                    localStorage.removeItem(k);
+                });
+                alert('✅ Données locales effacées. La page va se recharger.');
+                location.reload();
+            });
+        }
+
         appliquerTheme(parametres.affichage.theme);
         appliquerTaillePolice(parametres.affichage.taillePolice);
         appliquerModeMobile(parametres.affichage.modeMobile);
@@ -6715,7 +6712,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                 </div>
                                 
                                 <div id="import-liste-zone" style="display:none;">
-                                    <label>Liste 2026-2027 :</label>
+                                    <label>Liste ${getAnneeScolaire()} :</label>
                                     <select id="liste-classe-select" style="width:100%;padding:10px;margin:10px 0;border:2px solid #3b82f6;border-radius:6px;font-size:1rem;">
                                         ${(function () {
                                             const listes = getListsForTeacher();
