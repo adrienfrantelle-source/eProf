@@ -135,31 +135,47 @@ function bindChrome() {
         e.stopPropagation();
         toggleDrawWheel();
     });
-    document.getElementById('toolbar-peek')?.addEventListener('click', bumpChrome);
-    document.getElementById('toolbar-peek')?.addEventListener('mouseenter', bumpChrome);
+    const peek = document.getElementById('toolbar-peek');
+    const toolbar = document.getElementById('main-toolbar');
+    peek?.addEventListener('mouseenter', showChrome);
+    peek?.addEventListener('mouseleave', () => scheduleHideChrome(400));
+    peek?.addEventListener('touchstart', showChrome, { passive: true });
+    toolbar?.addEventListener('mouseenter', showChrome);
+    toolbar?.addEventListener('mouseleave', () => scheduleHideChrome(400));
+    document.getElementById('whiteboard-canvas')?.addEventListener('pointerdown', hideChromeForBoard);
     document.addEventListener('click', (e) => {
         const wrap = document.querySelector('.draw-folder-wrap');
         if (wrap && !wrap.contains(e.target)) closeDrawWheel();
     });
-    document.addEventListener('mousemove', onPointerActivity);
-    document.addEventListener('mousedown', onPointerActivity);
-    document.addEventListener('touchstart', onPointerActivity, { passive: true });
     document.addEventListener('keydown', onGlobalKey);
 }
 
-function onPointerActivity() {
-    bumpChrome();
+function showChrome() {
+    document.body.classList.remove('chrome-hidden');
+    clearTimeout(chromeTimer);
+}
+
+function hideChromeForBoard() {
+    if (hasOpenPanel()) return;
+    hideChromeNow();
+}
+
+function hideChromeNow() {
+    clearTimeout(chromeTimer);
+    closeDrawWheel();
+    document.body.classList.add('chrome-hidden');
+}
+
+function scheduleHideChrome(delay) {
+    clearTimeout(chromeTimer);
+    if (hasOpenPanel()) return;
+    chromeTimer = setTimeout(hideChromeNow, delay);
 }
 
 function bumpChrome() {
-    document.body.classList.remove('chrome-hidden');
-    clearTimeout(chromeTimer);
-    const panelOpen = [...document.querySelectorAll('.tool-panel')].some(p => p.style.display !== 'none');
-    if (panelOpen) return;
-    chromeTimer = setTimeout(() => {
-        closeDrawWheel();
-        document.body.classList.add('chrome-hidden');
-    }, 3000);
+    showChrome();
+    if (hasOpenPanel()) return;
+    scheduleHideChrome(3000);
 }
 
 function hasOpenPanel() {

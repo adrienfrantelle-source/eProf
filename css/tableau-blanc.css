@@ -363,18 +363,18 @@ a.control-btn {
 
 .toolbar-peek {
     width: 92px;
-    height: 10px;
+    height: 14px;
     border: none;
     border-radius: 10px 10px 0 0;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     box-shadow: 0 -2px 12px rgba(102, 126, 234, 0.5);
-    cursor: pointer;
+    cursor: default;
     padding: 0;
     flex-shrink: 0;
 }
 
 .toolbar-peek:hover {
-    height: 12px;
+    height: 16px;
     box-shadow: 0 -4px 16px rgba(102, 126, 234, 0.7);
 }
 
