@@ -21,7 +21,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #1a2236 0%, #2d3e57 100%);
     min-height: 100vh;
-    padding: 20px;
+    padding: 16px 20px;
 }
 
 /* ===== BANNIÈRE MODIFICATIONS NON SAUVEGARDÉES EN LIGNE ===== */
@@ -114,7 +114,8 @@ header h1 {
 
 /* ===== CONTAINER ===== */
 .container {
-    max-width: 1400px;
+    max-width: none;
+    width: 100%;
     margin: 0 auto;
 }
 
@@ -170,7 +171,7 @@ header h1 {
 /* ===== SECTION ÉVALUATIONS ===== */
 #evaluations-section {
     background: white;
-    padding: 30px;
+    padding: 22px 24px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
@@ -341,8 +342,8 @@ header h1 {
 /* ===== GRILLE DES ÉVALUATIONS ===== */
 .evaluations-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
     margin-bottom: 20px;
     max-height: 1000px;
     overflow: hidden;
@@ -425,11 +426,11 @@ header h1 {
 
 .notes-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     background: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 8px;
-    overflow: hidden;
 }
 
 .notes-table thead {
@@ -438,20 +439,31 @@ header h1 {
 }
 
 .notes-table th {
-    padding: 12px;
+    padding: 10px 8px;
     text-align: left;
     font-weight: 600;
     border-bottom: 2px solid var(--border-color);
 }
 
+.notes-table th.col-eleve {
+    width: 16%;
+    min-width: 140px;
+}
+
+.notes-table th.col-moy-gen {
+    width: 72px;
+    text-align: center;
+    background: #312e81;
+}
+
 .notes-table th.eval-header {
     text-align: center;
-    font-size: 0.85rem;
-    min-width: 80px;
+    font-size: 0.82rem;
+    word-wrap: break-word;
 }
 
 .notes-table td {
-    padding: 12px;
+    padding: 8px 6px;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -461,8 +473,11 @@ header h1 {
 
 .notes-table input[type="number"],
 .notes-table input[type="text"] {
-    width: 60px;
-    padding: 6px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 6px 4px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     text-align: center;
@@ -482,10 +497,17 @@ header h1 {
     font-weight: 600;
 }
 
-.student-average {
+.student-average,
+.student-average-gen {
     font-weight: 700;
     color: var(--secondary-color);
-    font-size: 1.1rem;
+    font-size: 1rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.student-average-gen {
+    background: #eef2ff;
 }
 
 .class-average-row {
@@ -997,15 +1019,14 @@ header h1 {
 }
 
 /* Rendre les noms d'élèves cliquables */
-.notes-table tbody tr td:first-child {
+.notes-table tbody tr td.student-name-cell {
     cursor: pointer;
-    transition: all 0.3s;
+    transition: background 0.2s, color 0.2s;
     font-weight: 500;
     color: var(--primary-color);
 }
 
-.notes-table tbody tr td:first-child:hover {
-    background: linear-gradient(90deg, #667eea20, transparent);
+.notes-table tbody tr td.student-name-cell:hover {
+    background: #eef2ff;
     color: var(--secondary-color);
-    transform: translateX(5px);
 }

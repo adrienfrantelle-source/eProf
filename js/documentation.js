@@ -13,7 +13,7 @@
                 'Connectez-vous avec l’identifiant fourni par l’établissement (sans taper @jeannedelanoue.com : il est déjà ajouté).',
                 'À la première connexion, choisissez vos classes et, si besoin, les matières associées. Vous pourrez les modifier plus tard dans Paramètres.',
                 'Vérifiez le badge en haut à droite : <strong>🟢 En ligne</strong> signifie que vos données se synchronisent. <strong>⚪ Hors ligne</strong> : vous pouvez continuer, la synchro reprendra ensuite.',
-                'L’accueil et le menu de gauche donnent accès à tous les outils. Cliquez une carte ou un lien pour ouvrir un module.',
+                'L’accueil et le menu de gauche donnent accès à tous les outils. Cliquez une carte ou un lien pour ouvrir un module. Le bouton ◀ en haut du menu réduit la barre latérale pour gagner de la place.',
                 'Revenez ici dès que vous avez un doute : chaque tutoriel décrit un outil, étape par étape.'
             ],
             tip: 'Une idée ou un blocage ? Le bouton « Suggestions & bugs » du footer transmet votre message à l’administrateur.'
@@ -74,7 +74,7 @@
                 'Ouvrez <strong>Carnet de notes</strong> : l’outil s’ouvre dans un nouvel onglet.',
                 'Choisissez la classe, puis créez une évaluation (nom, date, coefficient, barème).',
                 'Saisissez les notes dans le tableau. Tapez <strong>a</strong> pour une absence : elle est convertie automatiquement.',
-                'Les moyennes et mentions se mettent à jour selon le barème défini dans Paramètres.',
+                'La colonne <strong>Moy.</strong>, juste à droite du nom, affiche la moyenne générale de la période choisie, sans ouvrir la fiche de l’élève. Les moyennes par matière restent en fin de groupe.',
                 'Vous pouvez exporter ou imprimer une fiche, et revenir à eProf sans perdre le carnet (sauvegarde en ligne si vous êtes connecté).'
             ],
             tip: 'Les moyennes d’un élève sont aussi visibles dans le suivi des élèves, onglet « Moyennes ».'
@@ -91,7 +91,7 @@
                 'Onglet <strong>Oublis</strong> : cochez le matériel manquant (manuel, cours, travail non fait…), choisissez la date, puis Ajouter.',
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
                 'Onglet <strong>Moyennes</strong> : consultez les résultats issus du carnet de notes.',
-                'Depuis la classe, vous pouvez aussi générer une <strong>liste d’émargement</strong> à imprimer.'
+                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots et moyennes).'
             ],
             tip: 'Les badges rouges apparaissent quand le nombre d’oublis ou de mots dépasse le seuil fixé dans Paramètres.'
         },

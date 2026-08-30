@@ -75,23 +75,24 @@
     <div id="eprof-announcements" class="annonces-zone"></div>
     <div class="layout">
         <aside class="sidebar">
+            <button type="button" class="sidebar-toggle" id="sidebar-toggle" title="Réduire le menu" aria-expanded="true" aria-label="Réduire le menu">◀</button>
             <nav>
                 <ul>
-                    <li><a href="#" id="dashboard-link">🏠 Accueil</a></li>
-                    <li><a href="#" id="calendar-link">📅 Calendrier</a></li>
-                    <li class="tools-title">🛠️ Outils</li>
-                    <li><a href="#" data-tool="tableau-blanc">📋 Tableau blanc</a></li>
-                    <li><a href="#" data-tool="plan-classe">🪑 Plan de classe</a></li>
-                    <li><a href="#" data-tool="jeu">🎮 Jeux pédagogiques</a></li>
-                    <li><a href="#" data-tool="trombinoscopes">📸 Trombinoscopes</a></li>
-                    <li><a href="#" data-tool="eleves">👨‍🎓 Suivi des élèves</a></li>
-                    <li><a href="#" data-tool="notes">📒 Carnet de notes</a></li>
-                    <li><a href="#" data-tool="agenda">🗓️ Agenda</a></li>
-                    <li><a href="#" data-tool="converter">🔄 Conversion de fichier</a></li>
-                    <li><a href="#" data-tool="archives">📦 Archives</a></li>
-                    <li><a href="#" data-tool="messagerie">💬 Messagerie <span class="sidebar-msg-badge" id="sidebar-msg-unread" hidden></span></a></li>
-                    <li><a href="#" data-tool="ressources">📚 Ressources pédagogiques</a></li>
-                    <li><a href="#" data-tool="parametres">⚙️ Paramètres</a></li>
+                    <li><a href="#" id="dashboard-link"><span class="sidebar-icon">🏠</span><span class="sidebar-label">Accueil</span></a></li>
+                    <li><a href="#" id="calendar-link"><span class="sidebar-icon">📅</span><span class="sidebar-label">Calendrier</span></a></li>
+                    <li class="tools-title"><span class="sidebar-icon">🛠️</span><span class="sidebar-label">Outils</span></li>
+                    <li><a href="#" data-tool="tableau-blanc"><span class="sidebar-icon">📋</span><span class="sidebar-label">Tableau blanc</span></a></li>
+                    <li><a href="#" data-tool="plan-classe"><span class="sidebar-icon">🪑</span><span class="sidebar-label">Plan de classe</span></a></li>
+                    <li><a href="#" data-tool="jeu"><span class="sidebar-icon">🎮</span><span class="sidebar-label">Jeux pédagogiques</span></a></li>
+                    <li><a href="#" data-tool="trombinoscopes"><span class="sidebar-icon">📸</span><span class="sidebar-label">Trombinoscopes</span></a></li>
+                    <li><a href="#" data-tool="eleves"><span class="sidebar-icon">👨‍🎓</span><span class="sidebar-label">Suivi des élèves</span></a></li>
+                    <li><a href="#" data-tool="notes"><span class="sidebar-icon">📒</span><span class="sidebar-label">Carnet de notes</span></a></li>
+                    <li><a href="#" data-tool="agenda"><span class="sidebar-icon">🗓️</span><span class="sidebar-label">Agenda</span></a></li>
+                    <li><a href="#" data-tool="converter"><span class="sidebar-icon">🔄</span><span class="sidebar-label">Conversion de fichier</span></a></li>
+                    <li><a href="#" data-tool="archives"><span class="sidebar-icon">📦</span><span class="sidebar-label">Archives</span></a></li>
+                    <li><a href="#" data-tool="messagerie"><span class="sidebar-icon">💬</span><span class="sidebar-label">Messagerie</span> <span class="sidebar-msg-badge" id="sidebar-msg-unread" hidden></span></a></li>
+                    <li><a href="#" data-tool="ressources"><span class="sidebar-icon">📚</span><span class="sidebar-label">Ressources pédagogiques</span></a></li>
+                    <li><a href="#" data-tool="parametres"><span class="sidebar-icon">⚙️</span><span class="sidebar-label">Paramètres</span></a></li>
                 </ul>
             </nav>
         </aside>
@@ -107,7 +108,7 @@
             <div class="footer-info">
                 <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
                 <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
-                <p class="footer-version" id="footer-version">Version V2.3.6</p>
+                <p class="footer-version" id="footer-version">Version V2.3.7</p>
                 <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
             </div>
             <button type="button" class="footer-docs-btn" id="docs-trigger" title="Tutoriels pour prendre eProf en main">📖 Documentation</button>

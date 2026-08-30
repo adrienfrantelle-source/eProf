@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLegacyYearData();
 
     function getAppVersionInfo() {
-        return { version: 'V2.3.6' };
+        return { version: 'V2.3.7' };
     }
 
     function getVisibleTeacherClasses() {
@@ -131,6 +131,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 100);
     
+    (function initSidebarCollapse() {
+        const btn = document.getElementById('sidebar-toggle');
+        if (!btn) return;
+        const key = 'eprofSidebarCollapsed';
+        function apply(collapsed) {
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            btn.title = collapsed ? 'Agrandir le menu' : 'Réduire le menu';
+            btn.setAttribute('aria-label', btn.title);
+            btn.textContent = collapsed ? '▶' : '◀';
+            try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+        }
+        try { apply(localStorage.getItem(key) === '1'); } catch (e) { apply(false); }
+        btn.addEventListener('click', function () {
+            apply(!document.body.classList.contains('sidebar-collapsed'));
+        });
+    })();
+
     updateFooterVersion();
 
     const logoutBtn = document.getElementById('logout-btn');
@@ -3121,10 +3139,13 @@ if (typeof module !== 'undefined' && module.exports) {
                 </div>
                 `}
                 
-                <!-- Génération de liste d'émargement -->
-                <div id="emargement-container" style="display: none; margin-top: 30px;">
-                    <button id="generer-emargement-btn" class="btn-primary" style="width: 100%;">
+                <!-- Génération de liste d'émargement / fiches -->
+                <div id="emargement-container" class="suivi-export-actions" style="display: none; margin-top: 20px;">
+                    <button id="generer-emargement-btn" class="btn-primary">
                         📋 Générer une liste d'émargement
+                    </button>
+                    <button type="button" id="generer-fiche-classe-btn" class="btn-secondary">
+                        📄 Générer une fiche de la classe
                     </button>
                 </div>
                 
@@ -3141,7 +3162,10 @@ if (typeof module !== 'undefined' && module.exports) {
                 <div id="modale-eleve" class="modale-eleve" style="display: none;">
                     <div class="modale-eleve-content">
                         <span class="close-modale-eleve">&times;</span>
-                        <h3 id="nom-eleve-modale"></h3>
+                        <div class="modale-eleve-title-row">
+                            <h3 id="nom-eleve-modale"></h3>
+                            <button type="button" id="generer-fiche-eleve-btn" class="btn-secondary">📄 Fiche</button>
+                        </div>
                         
                         <div class="tabs-modale">
                             <button class="tab-btn active" data-tab="oublis">📦 Oublis de matériel</button>
@@ -3193,6 +3217,24 @@ if (typeof module !== 'undefined' && module.exports) {
                         <div id="tab-notes" class="tab-content" style="display: none;">
                             <h4>Moyennes</h4>
                             <p style="color: #64748b; font-style: italic;">Chargement des notes…</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modale fiche de suivi -->
+                <div id="modale-fiche-suivi" class="modale-eleve" style="display: none;">
+                    <div class="modale-eleve-content" style="max-width: 520px;">
+                        <span class="close-modale-fiche">&times;</span>
+                        <h3 id="titre-modale-fiche">📄 Fiche de suivi</h3>
+                        <p class="fiche-suivi-hint">Cochez les informations à inclure. La fiche s’ouvre pour impression ou enregistrement PDF.</p>
+                        <div class="fiche-suivi-options">
+                            <label><input type="checkbox" id="fiche-inclure-oublis" checked> 📦 Oublis de matériel</label>
+                            <label><input type="checkbox" id="fiche-inclure-mots" checked> 📝 Mots à mettre</label>
+                            <label><input type="checkbox" id="fiche-inclure-moyennes" checked> 📊 Moyennes (carnet de notes)</label>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 18px;">
+                            <button type="button" id="confirmer-fiche-suivi" class="btn-primary" style="flex: 1;">Générer la fiche</button>
+                            <button type="button" class="close-modale-fiche-btn btn-secondary" style="flex: 1;">Annuler</button>
                         </div>
                     </div>
                 </div>
@@ -4083,6 +4125,228 @@ if (typeof module !== 'undefined' && module.exports) {
             chargerCarnetPourSuivi(true);
         });
         
+        function escapeFicheHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function formatDateFiche(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            return isNaN(d.getTime()) ? String(value) : d.toLocaleDateString('fr-FR');
+        }
+
+        function resumeMoyennesFiche(eleve) {
+            const evaluationsClasse = (carnetCacheSuivi.evaluations || {})[classeActuelle] || [];
+            const notesEleve = trouverNotesEleve((carnetCacheSuivi.notes || {})[classeActuelle] || {}, eleve);
+            if (!evaluationsClasse.length || !notesEleve) return null;
+            const enSemestres = window.EprofReferentiel
+                ? window.EprofReferentiel.getPeriodType(classeActuelle) === 'semestre'
+                : /terminale|tle|1ère|1ere/i.test(String(classeActuelle));
+            const periodes = enSemestres ? ['semestre1', 'semestre2'] : ['trimestre1', 'trimestre2', 'trimestre3'];
+            const labels = enSemestres ? ['Semestre 1', 'Semestre 2'] : ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+            const parPeriode = periodes.map(function (periode, index) {
+                const evalsP = evaluationsClasse.filter(function (ev) {
+                    return normaliserPeriodeSuivi(ev.period) === normaliserPeriodeSuivi(periode)
+                        && ev.nonSignificative !== true;
+                });
+                const bySubject = {};
+                evalsP.forEach(function (ev) {
+                    (bySubject[ev.subject] = bySubject[ev.subject] || []).push(ev);
+                });
+                const matieres = [];
+                let somme = 0;
+                let n = 0;
+                Object.keys(bySubject).forEach(function (matiere) {
+                    let s = 0;
+                    let c = 0;
+                    const details = [];
+                    bySubject[matiere].forEach(function (ev) {
+                        const note = notesEleve[ev.id];
+                        if (note === undefined || note === 'abs' || note === null || note === '') return;
+                        const n20 = (parseFloat(note) / ev.maxPoints) * 20;
+                        s += n20 * ev.coefficient;
+                        c += ev.coefficient;
+                        details.push({
+                            titre: ev.title,
+                            date: ev.date,
+                            note: note,
+                            max: ev.maxPoints,
+                            coef: ev.coefficient,
+                            note20: n20
+                        });
+                    });
+                    if (c > 0) {
+                        const moy = s / c;
+                        matieres.push({ nom: matiere, moyenne: moy, details: details });
+                        somme += moy;
+                        n += 1;
+                    }
+                });
+                return { label: labels[index], moyenne: n > 0 ? somme / n : null, matieres: matieres };
+            });
+            const valides = parPeriode.filter(function (p) { return p.moyenne !== null; });
+            return {
+                generale: valides.length
+                    ? valides.reduce(function (acc, p) { return acc + p.moyenne; }, 0) / valides.length
+                    : null,
+                periodes: parPeriode
+            };
+        }
+
+        function htmlFicheEleve(eleve, options) {
+            const data = suiviData[eleve.nomComplet] || {};
+            const oublis = data.oublis || [];
+            const mots = data.motsAMettre || [];
+            let html = '<article class="fiche-eleve"><h2>' + escapeFicheHtml(eleve.nomComplet) + '</h2>';
+            if (options.oublis) {
+                html += '<h3>Oublis de matériel</h3>';
+                if (!oublis.length) {
+                    html += '<p class="vide">Aucun oubli enregistré.</p>';
+                } else {
+                    html += '<ul>' + oublis.map(function (o) {
+                        const statut = o.motMis ? ' · mot mis' : '';
+                        return '<li>' + escapeFicheHtml(formatDateFiche(o.date)) + ' — ' +
+                            escapeFicheHtml(o.materiel || '') + escapeFicheHtml(statut) + '</li>';
+                    }).join('') + '</ul>';
+                }
+            }
+            if (options.mots) {
+                html += '<h3>Mots à mettre</h3>';
+                if (!mots.length) {
+                    html += '<p class="vide">Aucun mot enregistré.</p>';
+                } else {
+                    html += '<ul>' + mots.map(function (m) {
+                        const statut = m.mis ? ' · mis le ' + formatDateFiche(m.dateMis) : ' · à mettre';
+                        return '<li>' + escapeFicheHtml(formatDateFiche(m.date)) + ' — ' +
+                            escapeFicheHtml(m.motif || '') + escapeFicheHtml(statut) + '</li>';
+                    }).join('') + '</ul>';
+                }
+            }
+            if (options.moyennes) {
+                const resume = resumeMoyennesFiche(eleve);
+                html += '<h3>Moyennes</h3>';
+                if (!resume) {
+                    html += '<p class="vide">Aucune note enregistrée pour cet élève.</p>';
+                } else {
+                    if (resume.generale !== null) {
+                        html += '<p><strong>Moyenne générale :</strong> ' + resume.generale.toFixed(2) + ' / 20</p>';
+                    }
+                    resume.periodes.forEach(function (p) {
+                        html += '<h4>' + escapeFicheHtml(p.label) +
+                            (p.moyenne !== null ? ' — ' + p.moyenne.toFixed(2) + ' / 20' : ' — sans note') + '</h4>';
+                        if (p.matieres.length) {
+                            html += '<ul>' + p.matieres.map(function (mat) {
+                                return '<li>' + escapeFicheHtml(mat.nom) + ' : ' + mat.moyenne.toFixed(2) + ' / 20</li>';
+                            }).join('') + '</ul>';
+                        }
+                    });
+                }
+            }
+            html += '</article>';
+            return html;
+        }
+
+        function imprimerFichesSuivi(eleves, options) {
+            const pourClasse = eleves.length > 1;
+            const titre = pourClasse
+                ? 'Fiches de suivi — ' + (classeActuelle || '')
+                : 'Fiche de suivi — ' + (eleves[0] && eleves[0].nomComplet || '');
+            const corps = eleves.map(function (eleve) {
+                return htmlFicheEleve(eleve, options);
+            }).join('');
+            const w = window.open('', '_blank');
+            if (!w) {
+                alert('Autorisez les fenêtres contextuelles pour générer la fiche.');
+                return;
+            }
+            w.document.write('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' +
+                escapeFicheHtml(titre) + '</title><style>' +
+                'body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#0f172a;}' +
+                'h1{font-size:1.4rem;margin:0 0 4px;} .meta{color:#64748b;margin:0 0 18px;}' +
+                '.fiche-eleve{page-break-after:always;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:18px;}' +
+                '.fiche-eleve:last-child{page-break-after:auto;}' +
+                'h2{margin:0 0 12px;font-size:1.2rem;} h3{margin:16px 0 6px;font-size:1rem;color:#1e3a8a;}' +
+                'h4{margin:10px 0 4px;font-size:0.95rem;} ul{margin:0 0 8px 1.2em;padding:0;}' +
+                '.vide{color:#64748b;font-style:italic;} @media print{body{margin:12mm;}}' +
+                '</style></head><body><h1>' + escapeFicheHtml(titre) + '</h1>' +
+                '<p class="meta">eProf · ' + escapeFicheHtml(classeActuelle || '') + ' · ' +
+                escapeFicheHtml(new Date().toLocaleDateString('fr-FR')) + '</p>' +
+                corps + '</body></html>');
+            w.document.close();
+            w.focus();
+            setTimeout(function () { w.print(); }, 250);
+        }
+
+        let ficheScope = 'classe';
+        const modaleFiche = container.querySelector('#modale-fiche-suivi');
+        const titreModaleFiche = container.querySelector('#titre-modale-fiche');
+
+        function ouvrirModaleFiche(scope) {
+            ficheScope = scope;
+            if (titreModaleFiche) {
+                titreModaleFiche.textContent = scope === 'eleve'
+                    ? '📄 Fiche de ' + (eleveSelectionne || 'l’élève')
+                    : '📄 Fiche de la classe';
+            }
+            if (modaleFiche) modaleFiche.style.display = 'flex';
+        }
+
+        function fermerModaleFiche() {
+            if (modaleFiche) modaleFiche.style.display = 'none';
+        }
+
+        const btnFicheClasse = container.querySelector('#generer-fiche-classe-btn');
+        if (btnFicheClasse) {
+            btnFicheClasse.addEventListener('click', function () {
+                if (!elevesActuels.length) {
+                    alert('Sélectionnez d’abord une classe.');
+                    return;
+                }
+                ouvrirModaleFiche('classe');
+            });
+        }
+        const btnFicheEleve = container.querySelector('#generer-fiche-eleve-btn');
+        if (btnFicheEleve) {
+            btnFicheEleve.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!eleveSelectionne) return;
+                ouvrirModaleFiche('eleve');
+            });
+        }
+        container.querySelectorAll('.close-modale-fiche, .close-modale-fiche-btn').forEach(function (btn) {
+            btn.addEventListener('click', fermerModaleFiche);
+        });
+        if (modaleFiche) {
+            modaleFiche.addEventListener('click', function (e) {
+                if (e.target === modaleFiche) fermerModaleFiche();
+            });
+        }
+        const confirmerFiche = container.querySelector('#confirmer-fiche-suivi');
+        if (confirmerFiche) {
+            confirmerFiche.addEventListener('click', function () {
+                const options = {
+                    oublis: !!(container.querySelector('#fiche-inclure-oublis') || {}).checked,
+                    mots: !!(container.querySelector('#fiche-inclure-mots') || {}).checked,
+                    moyennes: !!(container.querySelector('#fiche-inclure-moyennes') || {}).checked
+                };
+                if (!options.oublis && !options.mots && !options.moyennes) {
+                    alert('Cochez au moins une information à inclure.');
+                    return;
+                }
+                const eleves = ficheScope === 'eleve'
+                    ? elevesActuels.filter(function (e) { return e.nomComplet === eleveSelectionne; })
+                    : elevesActuels.slice();
+                if (!eleves.length) {
+                    alert('Aucun élève à inclure.');
+                    return;
+                }
+                fermerModaleFiche();
+                imprimerFichesSuivi(eleves, options);
+            });
+        }
+
         // Gestion de la liste d'émargement
         const emargementContainer = container.querySelector('#emargement-container');
         const genererEmargementBtn = container.querySelector('#generer-emargement-btn');

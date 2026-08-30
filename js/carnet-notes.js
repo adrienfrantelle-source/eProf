@@ -713,7 +713,8 @@ function renderNotesTable() {
     
     // En-tête
     html += '<thead><tr>';
-    html += '<th rowspan="2">Élève</th>';
+    html += '<th rowspan="2" class="col-eleve">Élève</th>';
+    html += '<th rowspan="2" class="col-moy-gen" title="Moyenne générale de la période sélectionnée">Moy.</th>';
     
     // Grouper les évaluations par matière
     const evalsBySubject = {};
@@ -753,8 +754,12 @@ function renderNotesTable() {
             notes[currentClass][studentName] = {};
         }
         
+        const generalAverage = calculateStudentAverage(studentName, filteredEvals);
+        const generalMention = (generalAverage !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(generalAverage, 20) : null;
+        
         html += '<tr>';
         html += `<td class="student-name-cell" onclick="openStudentStats('${studentName.replace(/'/g, "\\'")}')" title="Cliquez pour voir les statistiques">${studentName}</td>`;
+        html += `<td class="student-average-gen">${generalAverage !== null ? generalAverage.toFixed(2) : '-'}${generalMention ? ' ' + generalMention.emoji : ''}</td>`;
         
         // Pour chaque matière
         Object.keys(evalsBySubject).forEach(subject => {
@@ -779,8 +784,11 @@ function renderNotesTable() {
     });
     
     // Ligne moyenne de classe
+    const classGeneralAvg = calculateClassAverage(students, filteredEvals);
+    const classGeneralMention = (classGeneralAvg !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(classGeneralAvg, 20) : null;
     html += '<tr class="class-average-row">';
     html += '<td><strong>Moyenne de classe</strong></td>';
+    html += `<td class="student-average-gen">${classGeneralAvg !== null ? classGeneralAvg.toFixed(2) : '-'}${classGeneralMention ? ' ' + classGeneralMention.emoji : ''}</td>`;
     
     Object.keys(evalsBySubject).forEach(subject => {
         const subjectEvals = evalsBySubject[subject];
@@ -860,53 +868,58 @@ function saveNoteWithoutRender(studentName, evalId, value, maxPoints) {
     saveData();
 }
 
+function formatAverageCell(value) {
+    if (value === null || value === undefined) return '-';
+    const mention = window.EprofBareme ? window.EprofBareme.getMentionForNote(value, 20) : null;
+    return value.toFixed(2) + (mention ? ' ' + mention.emoji : '');
+}
+
 function updateAveragesDisplay() {
     const evals = evaluations[currentClass] || [];
-    
-    // Obtenir la période sélectionnée via les boutons
     const periodFilterValue = getSelectedPeriod();
-    
-    let filteredEvals = periodFilterValue === 'all' 
-        ? evals 
+    let filteredEvals = periodFilterValue === 'all'
+        ? evals
         : evals.filter(e => e.period === periodFilterValue);
-    
     filteredEvals = [...filteredEvals].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
     const students = getStudentsForClass(currentClass);
-    
-    // Mettre à jour les moyennes des élèves
-    const rows = document.querySelectorAll('.notes-table tbody tr:not(.class-average-row)');
-    rows.forEach((row, index) => {
-        if (index < students.length) {
-            const student = students[index];
-            const studentName = student.prenom + ' ' + student.nom;
-            const average = calculateStudentAverage(studentName, filteredEvals);
-            const avgCell = row.querySelector('.student-average');
-            if (avgCell) {
-                avgCell.textContent = average !== null ? average.toFixed(2) : '-';
-            }
-        }
+
+    const evalsBySubject = {};
+    filteredEvals.forEach(function (evaluation) {
+        if (!evalsBySubject[evaluation.subject]) evalsBySubject[evaluation.subject] = [];
+        evalsBySubject[evaluation.subject].push(evaluation);
     });
-    
-    // Mettre à jour la ligne de moyenne de classe
-    const classAvgRow = document.querySelector('.class-average-row');
-    if (classAvgRow) {
-        const classAverage = calculateClassAverage(students, filteredEvals);
-        const classAvgCell = classAvgRow.querySelector('.student-average');
-        if (classAvgCell) {
-            classAvgCell.textContent = classAverage !== null ? classAverage.toFixed(2) : '-';
-        }
-        
-        // Mettre à jour les moyennes par évaluation
-        const avgCells = classAvgRow.querySelectorAll('td');
-        filteredEvals.forEach((eval, index) => {
-            const evalAverage = calculateEvalAverage(eval.id, students);
-            // Index + 2 car les 2 premières colonnes sont "Élève" et "Moyenne"
-            if (avgCells[index + 2]) {
-                avgCells[index + 2].textContent = evalAverage !== null ? evalAverage.toFixed(2) : '-';
+    const subjects = Object.keys(evalsBySubject);
+
+    document.querySelectorAll('.notes-table tbody tr:not(.class-average-row)').forEach(function (row, index) {
+        if (index >= students.length) return;
+        const studentName = students[index].prenom + ' ' + students[index].nom;
+        const genCell = row.querySelector('.student-average-gen');
+        if (genCell) genCell.textContent = formatAverageCell(calculateStudentAverage(studentName, filteredEvals));
+        const subjectCells = row.querySelectorAll('.student-average');
+        subjects.forEach(function (subject, i) {
+            if (subjectCells[i]) {
+                subjectCells[i].textContent = formatAverageCell(calculateStudentAverageBySubject(studentName, evalsBySubject[subject]));
             }
         });
-    }
+    });
+
+    const classAvgRow = document.querySelector('.class-average-row');
+    if (!classAvgRow) return;
+    const classGenCell = classAvgRow.querySelector('.student-average-gen');
+    if (classGenCell) classGenCell.textContent = formatAverageCell(calculateClassAverage(students, filteredEvals));
+    const classTds = classAvgRow.querySelectorAll('td');
+    let col = 2;
+    subjects.forEach(function (subject) {
+        evalsBySubject[subject].forEach(function (evaluation) {
+            const evalAverage = calculateEvalAverage(evaluation.id, students);
+            if (classTds[col]) classTds[col].textContent = evalAverage !== null ? evalAverage.toFixed(2) : '-';
+            col += 1;
+        });
+        if (classTds[col]) {
+            classTds[col].textContent = formatAverageCell(calculateClassAverageBySubject(students, evalsBySubject[subject]));
+        }
+        col += 1;
+    });
 }
 
 
