@@ -385,6 +385,87 @@
             afficher(container.querySelector('#recherche-ressource').value);
         }
 
+        function parseVisibilite(raw, fallback) {
+            const v = String(raw || '').trim().toLowerCase();
+            if (v === 'public' || v === 'publique' || v === 'ouvert') return 'public';
+            if (v === 'prive' || v === 'privé' || v === 'privee' || v === 'privée') return 'prive';
+            return fallback;
+        }
+
+        async function editFolder(folder) {
+            if (!folder || String(folder.teacher_id) !== String(myId)) return;
+            const saisie = prompt('Nom du dossier', folder.nom);
+            if (saisie == null) return;
+            const nextNom = saisie.trim();
+            if (!nextNom) {
+                alert('Saisissez un nom de dossier.');
+                return;
+            }
+            if (nextNom === DOSSIER_OFFICIEL) {
+                alert('Ce nom est réservé au dossier commun.');
+                return;
+            }
+            if (myFolders().some(function (f) {
+                return String(f.id) !== String(folder.id) && f.nom.toLowerCase() === nextNom.toLowerCase();
+            })) {
+                alert('Vous avez déjà un dossier avec ce nom.');
+                return;
+            }
+            const visSaisie = prompt('Visibilité : prive ou public', folder.visibilite === 'public' ? 'public' : 'prive');
+            if (visSaisie == null) return;
+            const visibilite = parseVisibilite(visSaisie, folder.visibilite);
+            const key = 'folder:' + folder.id;
+            folder.nom = nextNom;
+            folder.visibilite = visibilite;
+            items.forEach(function (it) {
+                if (it.sectionKey === key) it.famille = nextNom;
+            });
+            persistLocal();
+            if (folder.id && String(folder.id).indexOf('local-') !== 0 && window.EprofStore) {
+                const res = await window.EprofStore.update('pedagogical_resource_folders', folder.id, {
+                    nom: nextNom,
+                    visibilite: visibilite
+                });
+                if (res.error) {
+                    alert('Modification impossible : ' + res.error.message);
+                } else {
+                    persistSection(key);
+                }
+            }
+            afficher(container.querySelector('#recherche-ressource').value);
+        }
+
+        async function deleteFolder(folder) {
+            if (!folder || String(folder.teacher_id) !== String(myId)) return;
+            const key = 'folder:' + folder.id;
+            const n = items.filter(function (it) { return it.sectionKey === key; }).length;
+            const msg = n
+                ? 'Supprimer le dossier « ' + folder.nom + ' » ?\n\nLes ressources déjà enregistrées seront déplacées dans Général (leur contenu ne change pas).'
+                : 'Supprimer le dossier « ' + folder.nom + ' » ?';
+            if (!confirm(msg)) return;
+            items.forEach(function (it) {
+                if (it.sectionKey === key) {
+                    it.folder_id = null;
+                    it.famille = 'Général';
+                    it.sectionKey = 'general';
+                }
+            });
+            const general = items.filter(function (it) { return it.sectionKey === 'general'; })
+                .sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
+            general.forEach(function (it, i) { it.position = i; });
+            folders = folders.filter(function (f) { return f !== folder; });
+            delete collapsedFamilles[key];
+            localStorage.setItem(LS_COLLAPSED, JSON.stringify(collapsedFamilles));
+            persistLocal();
+            await persistSection('general');
+            if (folder.id && String(folder.id).indexOf('local-') !== 0 && window.EprofStore) {
+                const res = await window.EprofStore.remove('pedagogical_resource_folders', folder.id);
+                if (res.error) alert('Suppression impossible : ' + res.error.message);
+            }
+            refreshFamilleSelect('general');
+            afficher(container.querySelector('#recherche-ressource').value);
+        }
+
         async function editItem(item) {
             if (!canWriteItem(item)) return;
             const titre = prompt('Titre de la ressource', item.titre);
@@ -455,6 +536,12 @@
                 const hideBtn = section.kind === 'shared'
                     ? '<button type="button" class="ressources-hide-btn" data-folder="' + escapeAttr(section.folder.id) + '">Masquer</button>'
                     : '';
+                const folderActions = (section.kind === 'mine' && section.folder)
+                    ? '<span class="jeux-famille-actions">' +
+                        '<button type="button" class="btn-editer-famille" data-folder="' + escapeAttr(section.folder.id) + '" title="Modifier le dossier" aria-label="Modifier le dossier">✏️</button>' +
+                        '<button type="button" class="btn-supprimer-famille" data-folder="' + escapeAttr(section.folder.id) + '" title="Supprimer le dossier" aria-label="Supprimer le dossier">🗑️</button>' +
+                      '</span>'
+                    : '';
                 const cls = ['jeux-famille'];
                 if (section.kind === 'officiel') cls.push('jeux-famille-officielle');
                 if (section.kind === 'shared') cls.push('jeux-famille-partagee');
@@ -466,7 +553,7 @@
                     '<span>' + (section.kind === 'officiel' ? '🏛️' : section.visibilite === 'public' ? '🌐' : '📁') + ' ' + escapeHtml(section.nom) + '</span>' +
                     tags.join('') +
                     '<small>' + groupe.length + '</small>' +
-                    '</button>' + hideBtn +
+                    '</button>' + hideBtn + folderActions +
                     '</div>' +
                     '<div class="jeux-grid" style="' + (closed ? 'display:none;' : '') + '">' + cartes + '</div>' +
                     '</section>'
@@ -487,6 +574,22 @@
                     e.preventDefault();
                     e.stopPropagation();
                     hideFolder(btn.getAttribute('data-folder'));
+                });
+            });
+
+            container.querySelectorAll('.btn-editer-famille').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    editFolder(folderById(btn.getAttribute('data-folder')));
+                });
+            });
+
+            container.querySelectorAll('.btn-supprimer-famille').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    deleteFolder(folderById(btn.getAttribute('data-folder')));
                 });
             });
 

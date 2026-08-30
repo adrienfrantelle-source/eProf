@@ -5023,11 +5023,23 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             };
         }
 
+        function getFamillesExtra() {
+            try {
+                const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
+                return Array.isArray(extras) ? extras.filter(Boolean) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function setFamillesExtra(list) {
+            localStorage.setItem('jeuxFamillesExtra', JSON.stringify(list));
+        }
+
         function getFamilles() {
             const set = {};
             jeux.forEach(function (j) { set[j.famille || 'Général'] = true; });
-            const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
-            extras.forEach(function (f) { if (f) set[f] = true; });
+            getFamillesExtra().forEach(function (f) { if (f) set[f] = true; });
             set['Général'] = true;
             return Object.keys(set).sort(function (a, b) {
                 if (a === 'Général') return -1;
@@ -5134,6 +5146,63 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
             }
         }
 
+        function renommerFamille(ancienne) {
+            if (!ancienne || ancienne === 'Général') return;
+            const saisie = prompt('Nom du dossier', ancienne);
+            if (saisie == null) return;
+            const nouvelle = saisie.trim();
+            if (!nouvelle) {
+                alert('⚠️ Saisissez un nom de dossier.');
+                return;
+            }
+            if (nouvelle === ancienne) return;
+            if (nouvelle === 'Général') {
+                alert('⚠️ Ce nom est réservé.');
+                return;
+            }
+            const existe = getFamilles().some(function (f) {
+                return f !== ancienne && f.toLowerCase() === nouvelle.toLowerCase();
+            });
+            if (existe) {
+                alert('⚠️ Un dossier avec ce nom existe déjà.');
+                return;
+            }
+            const extras = getFamillesExtra().filter(function (f) { return f !== ancienne; });
+            extras.push(nouvelle);
+            setFamillesExtra(extras);
+            if (Object.prototype.hasOwnProperty.call(collapsedFamilles, ancienne)) {
+                collapsedFamilles[nouvelle] = collapsedFamilles[ancienne];
+                delete collapsedFamilles[ancienne];
+                localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
+            }
+            jeux.forEach(function (j) {
+                if ((j.famille || 'Général') === ancienne) j.famille = nouvelle;
+            });
+            persistPositionsFamille(nouvelle);
+            const select = container.querySelector('#jeu-famille');
+            if (select && select.value === ancienne) select.value = nouvelle;
+            afficherJeux(container.querySelector('#recherche-jeu').value);
+        }
+
+        function supprimerFamille(nom) {
+            if (!nom || nom === 'Général') return;
+            const n = jeuxDeFamille(nom).length;
+            const msg = n
+                ? 'Supprimer le dossier « ' + nom + ' » ?\n\nLes jeux déjà enregistrés seront déplacés dans Général (leur contenu ne change pas).'
+                : 'Supprimer le dossier « ' + nom + ' » ?';
+            if (!confirm(msg)) return;
+            setFamillesExtra(getFamillesExtra().filter(function (f) { return f !== nom; }));
+            delete collapsedFamilles[nom];
+            localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
+            jeux.forEach(function (j) {
+                if ((j.famille || 'Général') === nom) j.famille = 'Général';
+            });
+            persistPositionsFamille('Général');
+            const select = container.querySelector('#jeu-famille');
+            if (select && select.value === nom) select.value = 'Général';
+            afficherJeux(container.querySelector('#recherche-jeu').value);
+        }
+
         async function deplacerJeu(jeu, nouvelleFamille, beforeJeu) {
             if (!jeu || !nouvelleFamille) return;
             const ancienne = jeu.famille || 'Général';
@@ -5207,13 +5276,22 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                 const cartes = groupes[famille].length
                     ? groupes[famille].map(jeuCardHtml).join('')
                     : '<p class="jeux-famille-vide">Glissez un jeu ici</p>';
+                const folderActions = famille !== 'Général'
+                    ? `<span class="jeux-famille-actions">
+                            <button type="button" class="btn-editer-famille" data-famille="${escapeAttr(famille)}" title="Modifier le dossier" aria-label="Modifier le dossier">✏️</button>
+                            <button type="button" class="btn-supprimer-famille" data-famille="${escapeAttr(famille)}" title="Supprimer le dossier" aria-label="Supprimer le dossier">🗑️</button>
+                        </span>`
+                    : '';
                 return `
                     <section class="jeux-famille" data-famille="${escapeAttr(famille)}">
-                        <button type="button" class="jeux-famille-toggle" aria-expanded="${closed ? 'false' : 'true'}">
-                            <span class="jeux-famille-chevron">${closed ? '▶' : '▼'}</span>
-                            <span>📁 ${famille}</span>
-                            <small>${groupes[famille].length}</small>
-                        </button>
+                        <div class="jeux-famille-head">
+                            <button type="button" class="jeux-famille-toggle" aria-expanded="${closed ? 'false' : 'true'}">
+                                <span class="jeux-famille-chevron">${closed ? '▶' : '▼'}</span>
+                                <span>📁 ${famille}</span>
+                                <small>${groupes[famille].length}</small>
+                            </button>
+                            ${folderActions}
+                        </div>
                         <div class="jeux-grid" style="${closed ? 'display:none;' : ''}">
                             ${cartes}
                         </div>
@@ -5227,6 +5305,22 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                     collapsedFamilles[famille] = !collapsedFamilles[famille];
                     localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
                     afficherJeux(container.querySelector('#recherche-jeu').value);
+                });
+            });
+
+            container.querySelectorAll('.btn-editer-famille').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    renommerFamille(btn.getAttribute('data-famille'));
+                });
+            });
+
+            container.querySelectorAll('.btn-supprimer-famille').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    supprimerFamille(btn.getAttribute('data-famille'));
                 });
             });
 
@@ -5473,9 +5567,9 @@ if (typeof module !== 'undefined' && module.exports) {
                     alert('⚠️ Saisissez un nom de dossier.');
                     return;
                 }
-                const extras = JSON.parse(localStorage.getItem('jeuxFamillesExtra') || '[]');
+                const extras = getFamillesExtra();
                 if (extras.indexOf(nom) === -1) extras.push(nom);
-                localStorage.setItem('jeuxFamillesExtra', JSON.stringify(extras));
+                setFamillesExtra(extras);
                 collapsedFamilles[nom] = false;
                 localStorage.setItem('jeuxFamillesCollapsed', JSON.stringify(collapsedFamilles));
                 if (input) input.value = '';

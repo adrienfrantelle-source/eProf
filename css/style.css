@@ -2266,6 +2266,33 @@ footer {
     gap: 8px;
 }
 
+.jeux-famille-actions {
+    display: inline-flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.jeux-famille-actions button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.btn-editer-famille:hover {
+    background: #e2e8f0;
+}
+
+.btn-supprimer-famille:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
 .jeux-famille-toggle {
     width: 100%;
     flex: 1;
@@ -2438,6 +2465,20 @@ footer {
     border: 2px dashed #e2e8f0;
     border-radius: 10px;
     margin: 0;
+}
+
+body.theme-sombre .jeux-famille-actions button {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre .btn-editer-famille:hover {
+    background: #334155;
+}
+
+body.theme-sombre .btn-supprimer-famille:hover {
+    background: #7f1d1d;
+    border-color: #ef4444;
 }
 
 body.theme-sombre .jeux-famille-toggle {
