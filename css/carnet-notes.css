@@ -456,6 +456,19 @@ header h1 {
     background: #312e81;
 }
 
+.th-subject-group {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: 2px solid #fff;
+}
+
+.col-moy-matiere {
+    background: #f1f5f9;
+    color: #1e293b;
+    font-weight: 700;
+    text-align: center;
+}
+
 .notes-table th.eval-header {
     text-align: center;
     font-size: 0.82rem;
@@ -506,8 +519,16 @@ header h1 {
     white-space: nowrap;
 }
 
+.student-average {
+    background: #f8fafc;
+}
+
 .student-average-gen {
     background: #eef2ff;
+}
+
+.student-average-class {
+    background: #e0e7ff;
 }
 
 .class-average-row {
@@ -1115,8 +1136,19 @@ html.theme-sombre .notes-table th {
     border-bottom-color: #475569;
 }
 
-html.theme-sombre .notes-table th.col-moy-gen {
-    background: #1e1b4b;
+html.theme-sombre .notes-table th.col-moy-gen,
+html.theme-sombre .col-moy-matiere {
+    background: #312e81;
+    color: #e0e7ff;
+}
+
+html.theme-sombre .th-subject-group {
+    border-color: #1e293b;
+}
+
+html.theme-sombre .notes-table thead .eval-header {
+    background: #0f172a;
+    color: #e2e8f0;
 }
 
 html.theme-sombre .notes-table td {
@@ -1129,16 +1161,27 @@ html.theme-sombre .notes-table tbody tr:hover {
 }
 
 html.theme-sombre .student-average,
-html.theme-sombre .student-average-gen {
-    color: #93c5fd;
+html.theme-sombre .student-average-gen,
+html.theme-sombre .student-average-class {
+    color: #e2e8f0;
+    background: #1e1b4b;
 }
 
-html.theme-sombre .student-average-gen {
-    background: #1e1b4b;
+html.theme-sombre .student-average-class {
+    background: #312e81;
+    color: #c7d2fe;
 }
 
 html.theme-sombre .class-average-row {
     background: #0f172a;
+}
+
+html.theme-sombre .class-average-row td {
+    color: #e2e8f0;
+}
+
+html.theme-sombre .empty-state strong {
+    color: #f1f5f9;
 }
 
 html.theme-sombre .notes-table tbody tr td.student-name-cell {

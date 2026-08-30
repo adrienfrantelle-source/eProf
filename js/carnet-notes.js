@@ -26,12 +26,46 @@ function applyCarnetDisplayTheme() {
     if (document.body) document.body.classList.toggle('theme-sombre', sombre);
     if (sombre && window.Chart && window.Chart.defaults) {
         Chart.defaults.color = '#cbd5e1';
-        Chart.defaults.borderColor = '#475569';
         if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
             Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
             Chart.defaults.plugins.legend.labels.color = '#e2e8f0';
         }
     }
+}
+
+function isCarnetDarkTheme() {
+    return document.documentElement.classList.contains('theme-sombre') ||
+        (document.body && document.body.classList.contains('theme-sombre'));
+}
+
+function carnetChartColors() {
+    const dark = isCarnetDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#1e293b',
+        muted: dark ? '#94a3b8' : '#64748b',
+        grid: dark ? 'rgba(148, 163, 184, 0.22)' : 'rgba(15, 23, 42, 0.08)',
+        pointBorder: dark ? '#1e293b' : '#fff'
+    };
+}
+
+function carnetRadarScaleOptions() {
+    const c = carnetChartColors();
+    return {
+        suggestedMin: 0,
+        suggestedMax: 20,
+        ticks: {
+            stepSize: 5,
+            showLabelBackdrop: false,
+            backdropColor: 'transparent',
+            color: c.muted
+        },
+        grid: { color: c.grid },
+        angleLines: { color: c.grid },
+        pointLabels: {
+            color: c.text,
+            font: { size: 13, weight: '600' }
+        }
+    };
 }
 
 // ===== CHARGEMENT =====
@@ -756,7 +790,7 @@ function renderNotesTable() {
     // Première ligne d'en-tête : Matières avec colspan
     Object.keys(evalsBySubject).forEach(subject => {
         const subjectEvals = evalsBySubject[subject];
-        html += `<th colspan="${subjectEvals.length + 1}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: 2px solid white;">${subject}</th>`;
+        html += `<th class="th-subject-group" colspan="${subjectEvals.length + 1}">${subject}</th>`;
     });
     html += '</tr><tr>';
     
@@ -768,7 +802,7 @@ function renderNotesTable() {
             const infos = nonSignif ? 'non comptée' : `/${eval.maxPoints} (×${eval.coefficient})`;
             html += `<th class="eval-header${nonSignif ? ' eval-non-significative' : ''}" title="${eval.subject} - ${new Date(eval.date).toLocaleDateString('fr-FR')}${nonSignif ? ' — note non significative' : ''}">${nonSignif ? '📌 ' : ''}${eval.title}<br><small>${infos}</small></th>`;
         });
-        html += `<th style="background: #f1f5f9; font-weight: bold;">Moy. ${subject}</th>`;
+        html += `<th class="col-moy-matiere">Moy. ${subject}</th>`;
     });
     html += '</tr></thead>';
     
@@ -805,7 +839,7 @@ function renderNotesTable() {
             // Moyenne pour cette matière
             const subjectAverage = calculateStudentAverageBySubject(studentName, subjectEvals);
             const subjectMention = (subjectAverage !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(subjectAverage, 20) : null;
-            html += `<td class="student-average" style="background: #f8fafc; font-weight: 600;">${subjectAverage !== null ? subjectAverage.toFixed(2) : '-'}${subjectMention ? ' ' + subjectMention.emoji : ''}</td>`;
+            html += `<td class="student-average">${subjectAverage !== null ? subjectAverage.toFixed(2) : '-'}${subjectMention ? ' ' + subjectMention.emoji : ''}</td>`;
         });
         
         html += '</tr>';
@@ -830,7 +864,7 @@ function renderNotesTable() {
         // Moyenne générale de la classe pour cette matière
         const classSubjectAvg = calculateClassAverageBySubject(students, subjectEvals);
         const classMention = (classSubjectAvg !== null && window.EprofBareme) ? window.EprofBareme.getMentionForNote(classSubjectAvg, 20) : null;
-        html += `<td class="student-average" style="background: #e0e7ff; font-weight: 700;">${classSubjectAvg !== null ? classSubjectAvg.toFixed(2) : '-'}${classMention ? ' ' + classMention.emoji : ''}</td>`;
+        html += `<td class="student-average student-average-class">${classSubjectAvg !== null ? classSubjectAvg.toFixed(2) : '-'}${classMention ? ' ' + classMention.emoji : ''}</td>`;
     });
     
     html += '</tr>';
@@ -1734,6 +1768,7 @@ function renderMoyennesChart(moyennesParMatiere) {
     const backgroundColors = matieres.map((_, i) => colors[i % colors.length]);
     const borderColors = backgroundColors.map(c => c.replace('0.8', '1'));
     
+    const palette = carnetChartColors();
     currentStatsChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1757,6 +1792,7 @@ function renderMoyennesChart(moyennesParMatiere) {
                 title: {
                     display: true,
                     text: 'Moyennes par matière',
+                    color: palette.text,
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -1768,13 +1804,15 @@ function renderMoyennesChart(moyennesParMatiere) {
                     beginAtZero: true,
                     max: 20,
                     ticks: {
-                        stepSize: 5
+                        stepSize: 5,
+                        color: palette.muted
                     },
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+                        color: palette.grid
                     }
                 },
                 x: {
+                    ticks: { color: palette.text },
                     grid: {
                         display: false
                     }
@@ -1805,18 +1843,16 @@ function renderRadarMatieresChart(canvasId, moyennesParMatiere, kind) {
                 backgroundColor: kind === 'student' ? 'rgba(102, 126, 234, 0.25)' : 'rgba(16, 185, 129, 0.25)',
                 borderColor: kind === 'student' ? 'rgba(102, 126, 234, 1)' : 'rgba(16, 185, 129, 1)',
                 borderWidth: 2,
-                pointBackgroundColor: kind === 'student' ? '#667eea' : '#10b981'
+                pointBackgroundColor: kind === 'student' ? '#667eea' : '#10b981',
+                pointBorderColor: carnetChartColors().pointBorder,
+                pointBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
             scales: {
-                r: {
-                    suggestedMin: 0,
-                    suggestedMax: 20,
-                    ticks: { stepSize: 5 }
-                }
+                r: carnetRadarScaleOptions()
             },
             plugins: {
                 legend: { display: false }
@@ -2104,6 +2140,7 @@ function renderClassMoyennesChart(moyennesParMatiere) {
     const backgroundColors = matieres.map((_, i) => colors[i % colors.length]);
     const borderColors = backgroundColors.map(c => c.replace('0.8', '1'));
     
+    const palette = carnetChartColors();
     currentClassStatsChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -2125,6 +2162,7 @@ function renderClassMoyennesChart(moyennesParMatiere) {
                 title: {
                     display: true,
                     text: 'Moyennes par matière',
+                    color: palette.text,
                     font: { size: 16, weight: 'bold' }
                 }
             },
@@ -2132,10 +2170,10 @@ function renderClassMoyennesChart(moyennesParMatiere) {
                 y: {
                     beginAtZero: true,
                     max: 20,
-                    ticks: { stepSize: 5 },
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    ticks: { stepSize: 5, color: palette.muted },
+                    grid: { color: palette.grid }
                 },
-                x: { grid: { display: false } }
+                x: { ticks: { color: palette.text }, grid: { display: false } }
             }
         }
     });
@@ -2205,6 +2243,7 @@ function renderClassEvolutionChart(evolutionData) {
     
     const data = evolutionData.map(d => d.avg);
     
+    const palette = carnetChartColors();
     currentClassEvolutionChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -2220,7 +2259,7 @@ function renderClassEvolutionChart(evolutionData) {
                 pointRadius: 6,
                 pointHoverRadius: 8,
                 pointBackgroundColor: 'rgba(16, 185, 129, 1)',
-                pointBorderColor: '#fff',
+                pointBorderColor: palette.pointBorder,
                 pointBorderWidth: 2
             }]
         },
@@ -2232,6 +2271,7 @@ function renderClassEvolutionChart(evolutionData) {
                 title: {
                     display: true,
                     text: 'Évolution des moyennes dans le temps',
+                    color: palette.text,
                     font: { size: 16, weight: 'bold' }
                 }
             },
@@ -2239,10 +2279,10 @@ function renderClassEvolutionChart(evolutionData) {
                 y: {
                     beginAtZero: true,
                     max: 20,
-                    ticks: { stepSize: 5 },
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    ticks: { stepSize: 5, color: palette.muted },
+                    grid: { color: palette.grid }
                 },
-                x: { grid: { display: false } }
+                x: { ticks: { color: palette.muted }, grid: { display: false } }
             }
         }
     });
@@ -2306,16 +2346,17 @@ function renderClassDistributionChart(distributionData) {
                 title: {
                     display: true,
                     text: 'Distribution des moyennes',
+                    color: carnetChartColors().text,
                     font: { size: 16, weight: 'bold' }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { stepSize: 1 },
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    ticks: { stepSize: 1, color: carnetChartColors().muted },
+                    grid: { color: carnetChartColors().grid }
                 },
-                x: { grid: { display: false } }
+                x: { ticks: { color: carnetChartColors().muted }, grid: { display: false } }
             }
         }
     });
@@ -2418,6 +2459,7 @@ function renderEvolutionChart(allNotes) {
     
     const data = notesSorted.map(n => n.noteSur20);
     
+    const palette = carnetChartColors();
     currentEvolutionChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -2433,7 +2475,7 @@ function renderEvolutionChart(allNotes) {
                 pointRadius: 6,
                 pointHoverRadius: 8,
                 pointBackgroundColor: 'rgba(102, 126, 234, 1)',
-                pointBorderColor: '#fff',
+                pointBorderColor: palette.pointBorder,
                 pointBorderWidth: 2
             }]
         },
@@ -2447,6 +2489,7 @@ function renderEvolutionChart(allNotes) {
                 title: {
                     display: true,
                     text: 'Évolution des notes dans le temps',
+                    color: palette.text,
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -2458,13 +2501,15 @@ function renderEvolutionChart(allNotes) {
                     beginAtZero: true,
                     max: 20,
                     ticks: {
-                        stepSize: 5
+                        stepSize: 5,
+                        color: palette.muted
                     },
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+                        color: palette.grid
                     }
                 },
                 x: {
+                    ticks: { color: palette.muted },
                     grid: {
                         display: false
                     }
