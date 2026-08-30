@@ -3226,11 +3226,33 @@ if (typeof module !== 'undefined' && module.exports) {
                     <div class="modale-eleve-content" style="max-width: 520px;">
                         <span class="close-modale-fiche">&times;</span>
                         <h3 id="titre-modale-fiche">📄 Fiche de suivi</h3>
-                        <p class="fiche-suivi-hint">Cochez les informations à inclure. La fiche s’ouvre pour impression ou enregistrement PDF.</p>
+                        <p class="fiche-suivi-cible" id="fiche-suivi-cible"></p>
+                        <p class="fiche-suivi-hint">Choisissez ce que la fiche doit contenir, puis générez un document prêt à imprimer ou à enregistrer en PDF.</p>
                         <div class="fiche-suivi-options">
-                            <label><input type="checkbox" id="fiche-inclure-oublis" checked> 📦 Oublis de matériel</label>
-                            <label><input type="checkbox" id="fiche-inclure-mots" checked> 📝 Mots à mettre</label>
-                            <label><input type="checkbox" id="fiche-inclure-moyennes" checked> 📊 Moyennes (carnet de notes)</label>
+                            <label class="fiche-opt">
+                                <input type="checkbox" id="fiche-inclure-oublis" checked>
+                                <span class="fiche-opt-icon">📦</span>
+                                <span class="fiche-opt-text">
+                                    <strong>Oublis de matériel</strong>
+                                    <small>Date, matériel oublié, mot déjà mis ou non</small>
+                                </span>
+                            </label>
+                            <label class="fiche-opt">
+                                <input type="checkbox" id="fiche-inclure-mots" checked>
+                                <span class="fiche-opt-icon">📝</span>
+                                <span class="fiche-opt-text">
+                                    <strong>Mots à mettre</strong>
+                                    <small>Motifs, dates, statut (à mettre / déjà mis)</small>
+                                </span>
+                            </label>
+                            <label class="fiche-opt">
+                                <input type="checkbox" id="fiche-inclure-moyennes" checked>
+                                <span class="fiche-opt-icon">📊</span>
+                                <span class="fiche-opt-text">
+                                    <strong>Moyennes</strong>
+                                    <small>Moyenne générale, périodes et matières du carnet</small>
+                                </span>
+                            </label>
                         </div>
                         <div style="display: flex; gap: 10px; margin-top: 18px;">
                             <button type="button" id="confirmer-fiche-suivi" class="btn-primary" style="flex: 1;">Générer la fiche</button>
@@ -4198,51 +4220,85 @@ if (typeof module !== 'undefined' && module.exports) {
             const data = suiviData[eleve.nomComplet] || {};
             const oublis = data.oublis || [];
             const mots = data.motsAMettre || [];
-            let html = '<article class="fiche-eleve"><h2>' + escapeFicheHtml(eleve.nomComplet) + '</h2>';
+            let html = '<article class="fiche">' +
+                '<header class="fiche-head">' +
+                '<p class="fiche-kicker">eProf · Suivi des élèves</p>' +
+                '<h2>' + escapeFicheHtml(eleve.nomComplet) + '</h2>' +
+                '<p class="fiche-meta">' + escapeFicheHtml(classeActuelle || '') +
+                (eleve.sexe ? ' · ' + escapeFicheHtml(eleve.sexe) : '') +
+                '</p></header>';
+
             if (options.oublis) {
-                html += '<h3>Oublis de matériel</h3>';
+                html += '<section class="bloc"><div class="bloc-head"><span>📦 Oublis de matériel</span><em>' +
+                    oublis.length + '</em></div>';
                 if (!oublis.length) {
                     html += '<p class="vide">Aucun oubli enregistré.</p>';
                 } else {
-                    html += '<ul>' + oublis.map(function (o) {
-                        const statut = o.motMis ? ' · mot mis' : '';
-                        return '<li>' + escapeFicheHtml(formatDateFiche(o.date)) + ' — ' +
-                            escapeFicheHtml(o.materiel || '') + escapeFicheHtml(statut) + '</li>';
-                    }).join('') + '</ul>';
+                    html += '<table><thead><tr><th>Date</th><th>Matériel</th><th>Statut</th></tr></thead><tbody>' +
+                        oublis.map(function (o) {
+                            const ok = !!o.motMis;
+                            return '<tr><td>' + escapeFicheHtml(formatDateFiche(o.date)) + '</td><td>' +
+                                escapeFicheHtml(o.materiel || '') + '</td><td><span class="pill ' +
+                                (ok ? 'ok' : 'warn') + '">' + (ok ? 'Mot mis' : 'À traiter') +
+                                '</span></td></tr>';
+                        }).join('') + '</tbody></table>';
                 }
+                html += '</section>';
             }
+
             if (options.mots) {
-                html += '<h3>Mots à mettre</h3>';
+                html += '<section class="bloc"><div class="bloc-head"><span>📝 Mots</span><em>' +
+                    mots.length + '</em></div>';
                 if (!mots.length) {
                     html += '<p class="vide">Aucun mot enregistré.</p>';
                 } else {
-                    html += '<ul>' + mots.map(function (m) {
-                        const statut = m.mis ? ' · mis le ' + formatDateFiche(m.dateMis) : ' · à mettre';
-                        return '<li>' + escapeFicheHtml(formatDateFiche(m.date)) + ' — ' +
-                            escapeFicheHtml(m.motif || '') + escapeFicheHtml(statut) + '</li>';
-                    }).join('') + '</ul>';
+                    html += '<table><thead><tr><th>Date</th><th>Motif</th><th>Statut</th></tr></thead><tbody>' +
+                        mots.map(function (m) {
+                            const ok = !!m.mis;
+                            return '<tr><td>' + escapeFicheHtml(formatDateFiche(m.date)) + '</td><td>' +
+                                escapeFicheHtml(m.motif || '') + '</td><td><span class="pill ' +
+                                (ok ? 'ok' : 'warn') + '">' +
+                                (ok ? 'Mis' + (m.dateMis ? ' le ' + formatDateFiche(m.dateMis) : '') : 'À mettre') +
+                                '</span></td></tr>';
+                        }).join('') + '</tbody></table>';
                 }
+                html += '</section>';
             }
+
             if (options.moyennes) {
                 const resume = resumeMoyennesFiche(eleve);
-                html += '<h3>Moyennes</h3>';
+                html += '<section class="bloc"><div class="bloc-head"><span>📊 Moyennes</span></div>';
                 if (!resume) {
                     html += '<p class="vide">Aucune note enregistrée pour cet élève.</p>';
                 } else {
-                    if (resume.generale !== null) {
-                        html += '<p><strong>Moyenne générale :</strong> ' + resume.generale.toFixed(2) + ' / 20</p>';
-                    }
+                    const gen = resume.generale;
+                    const genClass = gen === null ? '' : (gen >= 10 ? 'ok' : 'warn');
+                    html += '<div class="moy-hero ' + genClass + '">' +
+                        '<span>Moyenne générale</span>' +
+                        '<strong>' + (gen !== null ? gen.toFixed(2) : '—') + '</strong>' +
+                        '<small>/ 20</small></div>';
+                    html += '<div class="periodes">';
                     resume.periodes.forEach(function (p) {
-                        html += '<h4>' + escapeFicheHtml(p.label) +
-                            (p.moyenne !== null ? ' — ' + p.moyenne.toFixed(2) + ' / 20' : ' — sans note') + '</h4>';
+                        html += '<div class="periode"><h4>' + escapeFicheHtml(p.label) +
+                            '<b>' + (p.moyenne !== null ? p.moyenne.toFixed(2) + ' / 20' : 'sans note') +
+                            '</b></h4>';
                         if (p.matieres.length) {
                             html += '<ul>' + p.matieres.map(function (mat) {
-                                return '<li>' + escapeFicheHtml(mat.nom) + ' : ' + mat.moyenne.toFixed(2) + ' / 20</li>';
+                                const cls = mat.moyenne >= 10 ? 'ok' : 'warn';
+                                return '<li><span>' + escapeFicheHtml(mat.nom) +
+                                    '</span><span class="' + cls + '">' + mat.moyenne.toFixed(2) +
+                                    '</span></li>';
                             }).join('') + '</ul>';
+                        } else {
+                            html += '<p class="vide">Pas de note sur cette période.</p>';
                         }
+                        html += '</div>';
                     });
+                    html += '</div>';
                 }
+                html += '</section>';
             }
+
             html += '</article>';
             return html;
         }
@@ -4262,17 +4318,39 @@ if (typeof module !== 'undefined' && module.exports) {
             }
             w.document.write('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>' +
                 escapeFicheHtml(titre) + '</title><style>' +
-                'body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#0f172a;}' +
-                'h1{font-size:1.4rem;margin:0 0 4px;} .meta{color:#64748b;margin:0 0 18px;}' +
-                '.fiche-eleve{page-break-after:always;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin-bottom:18px;}' +
-                '.fiche-eleve:last-child{page-break-after:auto;}' +
-                'h2{margin:0 0 12px;font-size:1.2rem;} h3{margin:16px 0 6px;font-size:1rem;color:#1e3a8a;}' +
-                'h4{margin:10px 0 4px;font-size:0.95rem;} ul{margin:0 0 8px 1.2em;padding:0;}' +
-                '.vide{color:#64748b;font-style:italic;} @media print{body{margin:12mm;}}' +
-                '</style></head><body><h1>' + escapeFicheHtml(titre) + '</h1>' +
-                '<p class="meta">eProf · ' + escapeFicheHtml(classeActuelle || '') + ' · ' +
-                escapeFicheHtml(new Date().toLocaleDateString('fr-FR')) + '</p>' +
-                corps + '</body></html>');
+                'body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f1f5f9;color:#0f172a;}' +
+                '.page{max-width:900px;margin:0 auto;padding:24px;}' +
+                '.doc-top{background:#1a2236;color:#fff;padding:18px 24px;border-radius:12px;margin-bottom:18px;}' +
+                '.doc-top h1{margin:0;font-size:1.35rem;} .doc-top p{margin:6px 0 0;opacity:.8;font-size:.9rem;}' +
+                '.fiche{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:22px;page-break-after:always;box-shadow:0 2px 8px #0001;}' +
+                '.fiche:last-child{page-break-after:auto;}' +
+                '.fiche-head{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;padding:18px 20px;}' +
+                '.fiche-kicker{margin:0;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;opacity:.85;}' +
+                '.fiche-head h2{margin:4px 0 2px;font-size:1.45rem;}' +
+                '.fiche-meta{margin:0;opacity:.9;}' +
+                '.bloc{padding:16px 20px;border-top:1px solid #e2e8f0;}' +
+                '.bloc-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;margin-bottom:10px;color:#1e3a8a;}' +
+                '.bloc-head em{background:#e2e8f0;color:#334155;font-style:normal;border-radius:999px;padding:2px 8px;font-size:.8rem;}' +
+                'table{width:100%;border-collapse:collapse;font-size:.92rem;}' +
+                'th{text-align:left;background:#f8fafc;padding:8px;border-bottom:2px solid #e2e8f0;}' +
+                'td{padding:8px;border-bottom:1px solid #e2e8f0;vertical-align:top;}' +
+                '.pill{display:inline-block;border-radius:999px;padding:2px 8px;font-size:.78rem;font-weight:700;}' +
+                '.pill.ok,.ok{color:#166534;} .pill.ok{background:#dcfce7;} .pill.warn,.warn{color:#9a3412;} .pill.warn{background:#ffedd5;}' +
+                '.vide{color:#64748b;font-style:italic;margin:0;}' +
+                '.moy-hero{display:flex;align-items:baseline;gap:8px;background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:12px;}' +
+                '.moy-hero span{color:#64748b;font-weight:600;} .moy-hero strong{font-size:1.8rem;} .moy-hero small{color:#64748b;}' +
+                '.moy-hero.ok strong{color:#166534;} .moy-hero.warn strong{color:#9a3412;}' +
+                '.periodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}' +
+                '.periode{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;background:#fafbfc;}' +
+                '.periode h4{margin:0 0 8px;display:flex;justify-content:space-between;gap:8px;font-size:.95rem;}' +
+                '.periode ul{list-style:none;margin:0;padding:0;} .periode li{display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed #e2e8f0;}' +
+                '.periode li span:last-child{font-weight:700;}' +
+                '@media print{body{background:#fff;} .page{padding:0;max-width:none;} .doc-top{border-radius:0;} .fiche{box-shadow:none;}}' +
+                '</style></head><body><div class="page"><div class="doc-top"><h1>' + escapeFicheHtml(titre) +
+                '</h1><p>' + escapeFicheHtml(classeActuelle || '') + ' · ' +
+                escapeFicheHtml(new Date().toLocaleDateString('fr-FR')) +
+                (pourClasse ? ' · ' + eleves.length + ' élève(s)' : '') +
+                '</p></div>' + corps + '</div></body></html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 250);
@@ -4286,8 +4364,14 @@ if (typeof module !== 'undefined' && module.exports) {
             ficheScope = scope;
             if (titreModaleFiche) {
                 titreModaleFiche.textContent = scope === 'eleve'
-                    ? '📄 Fiche de ' + (eleveSelectionne || 'l’élève')
-                    : '📄 Fiche de la classe';
+                    ? '📄 Fiche élève'
+                    : '📄 Fiche de classe';
+            }
+            const cible = container.querySelector('#fiche-suivi-cible');
+            if (cible) {
+                cible.textContent = scope === 'eleve'
+                    ? (eleveSelectionne || 'Élève') + ' · ' + (classeActuelle || '')
+                    : (classeActuelle || 'Classe') + ' · ' + elevesActuels.length + ' élève(s)';
             }
             if (modaleFiche) modaleFiche.style.display = 'flex';
         }

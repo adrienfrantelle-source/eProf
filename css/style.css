@@ -160,7 +160,7 @@
 .sidebar {
     background: #1a2236;
     color: #fff;
-    width: 240px;
+    width: 280px;
     min-height: 100vh;
     padding-top: 1em;
     box-shadow: 2px 0 8px #0002;
@@ -193,7 +193,9 @@
     text-align: center;
 }
 .sidebar-label {
-    white-space: nowrap;
+    line-height: 1.25;
+    flex: 1;
+    min-width: 0;
 }
 body.sidebar-collapsed .sidebar {
     width: 64px;
@@ -248,8 +250,8 @@ body.sidebar-collapsed .sidebar-msg-badge {
 .sidebar nav a[data-tool="messagerie"] {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5em;
+    justify-content: flex-start;
+    gap: 0.45em;
 }
 .sidebar-msg-badge {
     background: #e53935;
@@ -262,6 +264,7 @@ body.sidebar-collapsed .sidebar-msg-badge {
     text-align: center;
     line-height: 1.3;
     flex-shrink: 0;
+    margin-left: auto;
 }
 .sidebar nav a[data-tool="messagerie"]:hover .sidebar-msg-badge,
 .sidebar nav a[data-tool="messagerie"].active-sidebar .sidebar-msg-badge {
@@ -1693,17 +1696,58 @@ footer {
     margin: 0 0 14px;
 }
 
+.fiche-suivi-cible {
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    background: #eff6ff;
+    border-radius: 8px;
+    color: #1e3a8a;
+    font-weight: 700;
+    font-size: 0.92rem;
+}
+
 .fiche-suivi-options {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
-.fiche-suivi-options label {
+.fiche-opt {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    cursor: pointer;
     font-weight: 600;
+}
+
+.fiche-opt:has(input:checked) {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.fiche-opt input {
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.fiche-opt-icon {
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+
+.fiche-opt-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fiche-opt-text small {
+    font-weight: 400;
+    color: #64748b;
+    font-size: 0.82rem;
 }
 
 @media (max-width: 1200px) {
