@@ -13,7 +13,7 @@
                 'Connectez-vous avec l’identifiant fourni par l’établissement (sans taper @jeannedelanoue.com : il est déjà ajouté).',
                 'À la première connexion, choisissez vos classes et, si besoin, les matières associées. Vous pourrez les modifier plus tard dans Paramètres.',
                 'Vérifiez le badge en haut à droite : <strong>🟢 En ligne</strong> signifie que vos données se synchronisent. <strong>⚪ Hors ligne</strong> : vous pouvez continuer, la synchro reprendra ensuite.',
-                'L’accueil et le menu de gauche donnent accès à tous les outils. Cliquez une carte ou un lien pour ouvrir un module. Le bouton ◀ en haut du menu réduit la barre latérale pour gagner de la place.',
+                'L’accueil et le menu de gauche donnent accès à tous les outils. En haut de l’accueil : prochains rendez-vous, vos classes et les outils récemment ouverts. Cliquez une carte ou un lien pour ouvrir un module. Le bouton ◀ en haut du menu réduit la barre latérale pour gagner de la place.',
                 'Revenez ici dès que vous avez un doute : chaque tutoriel décrit un outil, étape par étape.'
             ],
             tip: 'Une idée ou un blocage ? Le bouton « Suggestions & bugs » du footer transmet votre message à l’administrateur.'

@@ -571,5 +571,17 @@
     // fonctionnent tant que l'application est ouverte.
     if (loadSettings().notificationsActives) startNotificationWatcher();
 
-    window.EprofAgenda = { render, loadItems, COLORS, EMOJIS };
+    async function listUpcoming(limit) {
+        try { await loadItems(); } catch (e) { /* cache local */ }
+        const now = Date.now() - 15 * 60 * 1000;
+        return readLocalCache().filter(function (ev) {
+            if (!ev || !ev.start || ev.done || ev.display === 'background') return false;
+            const t = new Date(ev.start).getTime();
+            return !isNaN(t) && t >= now;
+        }).sort(function (a, b) {
+            return new Date(a.start) - new Date(b.start);
+        }).slice(0, limit || 3);
+    }
+
+    window.EprofAgenda = { render, loadItems, listUpcoming, COLORS, EMOJIS };
 })();

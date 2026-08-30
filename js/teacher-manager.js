@@ -35,13 +35,27 @@ class TeacherManager {
 
     // ===== Porte de connexion (Supabase Auth) =====
     showAuthGate() {
+        document.body.classList.add('eprof-locked');
         const gate = document.getElementById('eprof-auth-gate');
         if (gate) gate.style.display = 'flex';
+        const shell = document.getElementById('eprof-app-shell');
+        if (shell) {
+            shell.hidden = true;
+            shell.setAttribute('inert', '');
+        }
+        document.dispatchEvent(new CustomEvent('eprof-session-lost'));
     }
 
     hideAuthGate() {
+        document.body.classList.remove('eprof-locked');
         const gate = document.getElementById('eprof-auth-gate');
         if (gate) gate.style.display = 'none';
+        const shell = document.getElementById('eprof-app-shell');
+        if (shell) {
+            shell.hidden = false;
+            shell.removeAttribute('inert');
+        }
+        document.dispatchEvent(new CustomEvent('eprof-session-ready'));
     }
 
     wireAuthGateForm() {
@@ -70,9 +84,21 @@ class TeacherManager {
                 if (subtitle) subtitle.textContent = 'Accédez à votre espace eProf';
                 if (confirmWrap) confirmWrap.style.display = 'none';
                 if (submitBtn) submitBtn.textContent = 'Se connecter';
-                if (toggleLink) toggleLink.textContent = 'Pas encore de compte ? Créer mon compte';
+                if (toggleLink) toggleLink.textContent = 'Première connexion ? Choisir mon mot de passe';
             }
         };
+
+        const pwdInput = document.getElementById('eprof-auth-password');
+        const pwdToggle = document.getElementById('eprof-auth-toggle-pwd');
+        if (pwdToggle && pwdInput) {
+            pwdToggle.addEventListener('click', () => {
+                const show = pwdInput.type === 'password';
+                pwdInput.type = show ? 'text' : 'password';
+                pwdToggle.textContent = show ? '🙈' : '👁️';
+                pwdToggle.title = show ? 'Masquer le mot de passe' : 'Afficher le mot de passe';
+                pwdToggle.setAttribute('aria-label', pwdToggle.title);
+            });
+        }
 
         if (toggleLink) {
             toggleLink.addEventListener('click', (e) => {

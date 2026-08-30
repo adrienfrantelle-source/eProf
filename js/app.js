@@ -1,17 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
-    
-    console.log('DOM chargé, mainContent:', mainContent);
-
-    // Ancienne routine de nettoyage (migration ponctuelle, désormais désactivée :
-    // elle supprimait aussi des clés légitimes en cours d'utilisation comme
-    // eprof_teacherConfig_* et le cache local du carnet de notes).
-    function clearLegacyYearData() {}
-
-    clearLegacyYearData();
 
     function getAppVersionInfo() {
-        return { version: 'V2.3.9' };
+        return { version: 'V2.3.10' };
     }
 
     function readAppParametres() {
@@ -203,14 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
         badge.classList.toggle('online-status-offline', !online);
     }
 
-    // Applique le mode d'affichage mobile choisi dans les Paramètres, dès le chargement
-    (function applyStoredMobileModeOnBoot() {
+    (function applyStoredDisplayOnBoot() {
         try {
             const parametresBoot = JSON.parse(localStorage.getItem('parametres') || '{}');
-            const mode = parametresBoot.affichage && parametresBoot.affichage.modeMobile;
+            const affichage = parametresBoot.affichage || {};
+            document.body.classList.toggle('theme-sombre', affichage.theme === 'sombre');
             document.body.classList.remove('mode-mobile-force', 'mode-mobile-off');
-            if (mode === 'active') document.body.classList.add('mode-mobile-force');
-            else if (mode === 'inactive') document.body.classList.add('mode-mobile-off');
+            if (affichage.modeMobile === 'active') document.body.classList.add('mode-mobile-force');
+            else if (affichage.modeMobile === 'inactive') document.body.classList.add('mode-mobile-off');
         } catch (e) {}
     })();
     updateOnlineStatusBadge();
@@ -327,37 +318,97 @@ document.addEventListener('DOMContentLoaded', () => {
     // Les cartes d'outils sont recréées à chaque rendu : on réapplique la restriction.
     new MutationObserver(appliquerVisibiliteAdmin).observe(mainContent, { childList: true, subtree: true });
 
-    console.log('Appel de showDashboard...');
-    showDashboard();
-    highlightSidebar('dashboard-link');
-    console.log('Dashboard affiché');
+    const LAST_TOOLS_KEY = 'eprofLastTools';
+    let outilCourant = null;
+    const TOOL_SHORT_LABELS = {
+        calendar: '📅 Calendrier',
+        agenda: '🗓️ Agenda',
+        notes: '📒 Carnet',
+        eleves: '👨‍🎓 Suivi',
+        'plan-classe': '🪑 Plan de classe',
+        trombinoscopes: '📸 Trombinoscopes',
+        messagerie: '💬 Messagerie',
+        jeu: '🎮 Jeux',
+        'tableau-blanc': '📋 Tableau blanc',
+        ressources: '📚 Ressources',
+        converter: '🔄 Conversion',
+        parametres: '⚙️ Paramètres',
+        archives: '📦 Archives'
+    };
+
+    function readLastTools() {
+        try {
+            const list = JSON.parse(localStorage.getItem(LAST_TOOLS_KEY) || '[]');
+            return Array.isArray(list) ? list.filter(function (t) { return TOOL_SHORT_LABELS[t]; }).slice(0, 4) : [];
+        } catch (e) { return []; }
+    }
+
+    function rememberTool(tool) {
+        if (!tool || !TOOL_SHORT_LABELS[tool]) return;
+        const next = [tool].concat(readLastTools().filter(function (t) { return t !== tool; })).slice(0, 4);
+        try { localStorage.setItem(LAST_TOOLS_KEY, JSON.stringify(next)); } catch (e) { /* ignore */ }
+    }
+
+    let appShellReady = false;
+    function startAppShell() {
+        if (appShellReady) return;
+        appShellReady = true;
+        showDashboard();
+        highlightSidebar('dashboard-link');
+    }
+    function resetAppShell() {
+        appShellReady = false;
+        outilCourant = null;
+        if (mainContent) mainContent.innerHTML = '';
+    }
+    document.addEventListener('eprof-session-ready', startAppShell);
+    document.addEventListener('eprof-session-lost', resetAppShell);
+    window.addEventListener('teacherLoggedIn', function () {
+        if (appShellReady && document.getElementById('home-upcoming')) showDashboard();
+    });
+    if (!document.body.classList.contains('eprof-locked')) startAppShell();
 
     function showDashboard() {
-        // Message de bienvenue personnalisé selon l'heure
-        const heure = new Date().getHours();
-        let salutation = 'Bonjour';
-        let emoji = '☀️';
-        if (heure < 12) {
-            salutation = 'Bon matin';
-            emoji = '🌅';
-        } else if (heure < 18) {
-            salutation = 'Bon après-midi';
-            emoji = '☀️';
-        } else {
-            salutation = 'Bonsoir';
-            emoji = '🌙';
-        }
-        
-        const userName = localStorage.getItem('userName') || 'Enseignant';
-        
+        const classes = getVisibleTeacherClasses();
+        const lastTools = readLastTools();
+        const badge = document.getElementById('online-status-badge');
+        const syncText = badge ? badge.textContent : '⚪ Hors ligne';
+        const classChips = classes.length
+            ? '<div class="home-class-chips">' + classes.map(function (nom) {
+                return '<span class="home-class-chip">' + escapeDashboardHtml(nom) + '</span>';
+            }).join('') + '</div>'
+            : '<p class="home-brief-empty">Aucune classe. Ouvrez <button type="button" class="home-brief-link" data-tool="parametres">Paramètres</button> pour les choisir.</p>';
+        const recentHtml = lastTools.length
+            ? '<div class="home-recent">' + lastTools.map(function (tool) {
+                return '<button type="button" class="home-recent-btn" data-tool="' + tool + '">' + TOOL_SHORT_LABELS[tool] + '</button>';
+            }).join('') + '</div>'
+            : '<p class="home-brief-empty">Les outils récemment ouverts apparaîtront ici.</p>';
+
         mainContent.innerHTML = `
+            <div class="home-brief">
+                <section class="home-brief-card" id="home-upcoming">
+                    <h3 class="home-brief-title">🗓️ À venir</h3>
+                    <p class="home-brief-empty">Chargement…</p>
+                </section>
+                <section class="home-brief-card">
+                    <h3 class="home-brief-title">👥 Classes</h3>
+                    ${classChips}
+                </section>
+                <section class="home-brief-card">
+                    <h3 class="home-brief-title">📡 Session</h3>
+                    <p class="home-sync-line">${escapeDashboardHtml(syncText)}</p>
+                    <p class="home-brief-sub">Récents</p>
+                    ${recentHtml}
+                </section>
+            </div>
+
             <div class="quick-access-section">
                 <h3 class="section-title">⚡ Accès rapides</h3>
                 <div class="quick-access-grid">
                     <button class="quick-card" data-tool="calendar">
                         <div class="quick-icon">📅</div>
                         <div class="quick-title">Calendrier</div>
-                        <div class="quick-desc">Suivez les dates et rendez-vous</div>
+                        <div class="quick-desc">Dates et rendez-vous</div>
                     </button>
                     <button class="quick-card" data-tool="notes">
                         <div class="quick-icon">📒</div>
@@ -367,7 +418,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="quick-card" data-tool="eleves">
                         <div class="quick-icon">👨‍🎓</div>
                         <div class="quick-title">Suivi élèves</div>
-                        <div class="quick-desc">Oublis et mots</div>
+                        <div class="quick-desc">Oublis, mots et notes</div>
+                    </button>
+                    <button class="quick-card" data-tool="agenda">
+                        <div class="quick-icon">🗓️</div>
+                        <div class="quick-title">Agenda</div>
+                        <div class="quick-desc">Tâches et rappels</div>
                     </button>
                 </div>
             </div>
@@ -396,13 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="tool-description">Données historiques et anciennes listes</div>
                         </div>
                     </button>
-                    <button class="tool-card" data-tool="messagerie">
-                        <span class="tool-icon">💬</span>
-                        <div class="tool-content">
-                            <div class="tool-title">Messagerie</div>
-                            <div class="tool-description">Discussions internes avec vos collègues</div>
-                        </div>
-                    </button>
                 </div>
             </div>
             
@@ -420,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="tool-icon">📋</span>
                         <div class="tool-content">
                             <div class="tool-title">Tableau blanc</div>
-                            <div class="tool-description">Dessinez et prenez des notes enrichies</div>
+                            <div class="tool-description">Dessin, tirage, chrono et outils de séance</div>
                         </div>
                     </button>
                     <button class="tool-card" data-tool="ressources">
@@ -436,6 +485,13 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tools-section">
                 <h3 class="section-title">🔧 Utilitaires</h3>
                 <div class="tools-grid">
+                    <button class="tool-card" data-tool="messagerie">
+                        <span class="tool-icon">💬</span>
+                        <div class="tool-content">
+                            <div class="tool-title">Messagerie</div>
+                            <div class="tool-description">Discussions internes avec vos collègues</div>
+                        </div>
+                    </button>
                     <button class="tool-card" data-tool="converter">
                         <span class="tool-icon">🔄</span>
                         <div class="tool-content">
@@ -453,15 +509,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
-        
-        // Event listeners pour tous les boutons
-        mainContent.querySelectorAll('.quick-card, .tool-card').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
+        fillHomeUpcoming();
+        mainContent.querySelectorAll('.quick-card, .tool-card, .home-recent-btn, .home-brief-link').forEach(function(btn) {
+            btn.addEventListener('click', function() {
                 var tool = btn.getAttribute('data-tool');
                 handleDashboardTool(tool);
-                highlightSidebar(tool);
+                highlightSidebar(tool === 'calendar' ? 'calendar-link' : tool);
             });
         });
+    }
+
+    function escapeDashboardHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function upcomingFromLocalCache() {
+        const now = Date.now() - 15 * 60 * 1000;
+        return loadEventsFromStorage().filter(function (ev) {
+            if (!ev || !ev.start || ev.done || ev.display === 'background') return false;
+            const t = new Date(ev.start).getTime();
+            return !isNaN(t) && t >= now;
+        }).sort(function (a, b) { return new Date(a.start) - new Date(b.start); }).slice(0, 3);
+    }
+
+    function renderUpcomingList(items) {
+        const box = document.getElementById('home-upcoming');
+        if (!box) return;
+        if (!items.length) {
+            box.innerHTML = '<h3 class="home-brief-title">🗓️ À venir</h3><p class="home-brief-empty">Rien de prévu. <button type="button" class="home-brief-link" data-tool="agenda">Ouvrir l’agenda</button></p>';
+            box.querySelector('.home-brief-link')?.addEventListener('click', function () {
+                handleDashboardTool('agenda');
+                highlightSidebar('agenda');
+            });
+            return;
+        }
+        box.innerHTML = '<h3 class="home-brief-title">🗓️ À venir</h3><ul class="home-upcoming-list">' + items.map(function (ev) {
+            const when = new Date(ev.start);
+            const dateStr = when.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+            const timeStr = ev.allDay ? 'Journée' : when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const title = (ev.emoji ? ev.emoji + ' ' : '') + (ev.title || 'Sans titre');
+            return '<li><button type="button" class="home-upcoming-item" data-tool="agenda"><span class="home-upcoming-when">' + escapeDashboardHtml(dateStr) + ' · ' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
+        }).join('') + '</ul>';
+        box.querySelectorAll('[data-tool]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                handleDashboardTool('agenda');
+                highlightSidebar('agenda');
+            });
+        });
+    }
+
+    async function fillHomeUpcoming() {
+        renderUpcomingList(upcomingFromLocalCache());
+        if (window.EprofAgenda && typeof window.EprofAgenda.listUpcoming === 'function') {
+            try {
+                const items = await window.EprofAgenda.listUpcoming(3);
+                renderUpcomingList(items);
+            } catch (e) { /* cache déjà affiché */ }
+        }
     }
 
     // Surlignage de l'item sélectionné dans la sidebar
@@ -488,7 +593,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Gestion des outils du dashboard et sidebar
-    let outilCourant = null;
 
     // Les listes d'élèves arrivent de façon asynchrone : on re-rend l'outil affiché.
     document.addEventListener('eprof-referentiel-maj', function () {
@@ -499,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDashboardTool(tool) {
         outilCourant = tool;
+        rememberTool(tool);
         switch(tool) {
             case 'calendar':
                 renderCalendar(mainContent);
@@ -583,31 +688,6 @@ document.addEventListener('DOMContentLoaded', () => {
             default:
                 mainContent.innerHTML = '<h2>Fonctionnalité à venir</h2>';
         }
-    }
-
-    function showTools() {
-        mainContent.innerHTML = `
-            <h2>Outils</h2>
-            <div class="dashboard-grid">
-                <button class="dashboard-btn" data-tool="converter">🔄 Conversion de fichier</button>
-                <button class="dashboard-btn" data-tool="plan-classe">🪑 Plan de classe</button>
-                <button class="dashboard-btn" data-tool="tableau-blanc">📋 Tableau blanc</button>
-                <button class="dashboard-btn" data-tool="jeu">🎮 Jeux pédagogiques</button>
-                <button class="dashboard-btn" data-tool="trombinoscopes">📸 Trombinoscopes</button>
-                <button class="dashboard-btn" data-tool="archives">📦 Archives</button>
-                <button class="dashboard-btn" data-tool="messagerie">💬 Messagerie</button>
-                <button class="dashboard-btn" data-tool="eleves">👨‍🎓 Suivi des élèves</button>
-                <button class="dashboard-btn" data-tool="notes">📒 Carnet de notes</button>
-                <button class="dashboard-btn" data-tool="ressources">📚 Ressources pédagogiques</button>
-                <button class="dashboard-btn" data-tool="parametres">⚙️ Paramètres</button>
-            </div>
-        `;
-        mainContent.querySelectorAll('.dashboard-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                var tool = btn.getAttribute('data-tool');
-                handleDashboardTool(tool);
-            });
-        });
     }
 
     // Calendrier fusionné

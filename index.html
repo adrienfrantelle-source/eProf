@@ -6,7 +6,6 @@
     <title>eProf - Plateforme Enseignant</title>
     <link rel="icon" type="image/jpeg" href="images/logo eProf.jpg">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/electron-portable.css">
     <link rel="stylesheet" href="css/auth-gate.css">
     <link rel="stylesheet" href="css/agenda.css">
     <link rel="stylesheet" href="css/admin-panel.css">
@@ -16,7 +15,7 @@
     <link rel="stylesheet" href="css/messagerie.css">
     <link rel="stylesheet" href="css/config-classes.css">
 </head>
-<body>
+<body class="eprof-locked">
     <div id="eprof-auth-gate" class="eprof-auth-gate">
         <div class="eprof-auth-card">
             <img src="images/logo eProf.jpg" alt="eProf" class="eprof-auth-logo">
@@ -29,7 +28,10 @@
                     <span class="eprof-auth-domain">@jeannedelanoue.com</span>
                 </div>
                 <label for="eprof-auth-password">Mot de passe</label>
-                <input type="password" id="eprof-auth-password" autocomplete="current-password" placeholder="••••••••" required>
+                <div class="eprof-auth-password-wrap">
+                    <input type="password" id="eprof-auth-password" autocomplete="current-password" placeholder="••••••••" required>
+                    <button type="button" id="eprof-auth-toggle-pwd" class="eprof-auth-eye" title="Afficher le mot de passe" aria-label="Afficher le mot de passe">👁️</button>
+                </div>
                 <div id="eprof-auth-confirm-wrap" style="display:none;">
                     <label for="eprof-auth-password-confirm">Confirmer le mot de passe</label>
                     <input type="password" id="eprof-auth-password-confirm" autocomplete="new-password" placeholder="••••••••">
@@ -38,11 +40,12 @@
                 <button type="submit" id="eprof-auth-submit" class="eprof-auth-submit">Se connecter</button>
             </form>
             <p class="eprof-auth-toggle">
-                <a href="#" id="eprof-auth-toggle-mode">Pas encore de compte ? Créer mon compte</a>
+                <a href="#" id="eprof-auth-toggle-mode">Première connexion ? Choisir mon mot de passe</a>
             </p>
             <p class="eprof-auth-hint">Identifiant et mot de passe fournis par l'établissement. En cas d'oubli, contactez l'administration.</p>
         </div>
     </div>
+    <div id="eprof-app-shell" hidden inert>
     <header>
         <div class="header-logo-title">
             <a href="index.html" title="Retour à l'accueil">
@@ -52,16 +55,20 @@
         </div>
         <div class="header-quick-links">
             <a href="https://www.ecoledirecte.com/login?cameFrom=%2FEnseignant" target="_blank" class="quick-link" title="EcoleDirecte">
-                <img src="images/logo ecole directe.png" alt="EcoleDirecte" class="logo-large">
+                <img src="images/logo ecole directe.png" alt="" class="logo-large">
+                <span class="quick-link-label">EcoleDirecte</span>
             </a>
             <a href="https://jd3p-my.sharepoint.com/?source=waffle" target="_blank" class="quick-link" title="OneDrive">
-                <img src="images/logo onedrive.png" alt="OneDrive" class="logo-large">
+                <img src="images/logo onedrive.png" alt="" class="logo-large">
+                <span class="quick-link-label">OneDrive</span>
             </a>
             <a href="https://teams.microsoft.com/v2/" target="_blank" class="quick-link" title="Microsoft Teams">
-                <img src="images/logo teams.png" alt="Teams">
+                <img src="images/logo teams.png" alt="">
+                <span class="quick-link-label">Teams</span>
             </a>
             <a href="https://chlorofil.fr" target="_blank" class="quick-link" title="Chlorofil">
-                <img src="images/logo chlorofil" alt="Chlorofil">
+                <img src="images/logo-chlorofil.png" alt="">
+                <span class="quick-link-label">Chlorofil</span>
             </a>
         </div>
         <div class="header-user-info">
@@ -109,7 +116,7 @@
             <div class="footer-info">
                 <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
                 <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
-                <p class="footer-version" id="footer-version">Version V2.3.9</p>
+                <p class="footer-version" id="footer-version">Version V2.3.10</p>
                 <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
             </div>
             <button type="button" class="footer-docs-btn" id="docs-trigger" title="Tutoriels pour prendre eProf en main">📖 Documentation</button>
@@ -193,6 +200,7 @@
                 <p><em>Utilisation non commerciale.</em></p>
             </div>
         </div>
+    </div>
     </div>
     <!-- Supabase (mode en ligne) : doit être chargé avant supabase-client.js -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
