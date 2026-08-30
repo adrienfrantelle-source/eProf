@@ -1,5 +1,16 @@
 // ===== TABLEAU BLANC eProf =====
 const DRAW_TOOLS = new Set(['draw', 'eraser', 'highlighter', 'line', 'arrow', 'rect', 'circle', 'text', 'laser']);
+const DRAW_TOOL_META = {
+    draw: { icon: '✏️', label: 'Crayon' },
+    highlighter: { icon: '🟨', label: 'Surligneur' },
+    line: { icon: '／', label: 'Trait' },
+    arrow: { icon: '➡️', label: 'Flèche' },
+    rect: { icon: '▭', label: 'Rectangle' },
+    circle: { icon: '⭕', label: 'Cercle' },
+    text: { icon: 'T', label: 'Texte' },
+    laser: { icon: '🔦', label: 'Laser' },
+    eraser: { icon: '🧹', label: 'Gomme' }
+};
 const STORAGE_KEY = 'tableauBlancState';
 const PANEL_COLORS_KEY = 'panelColors';
 const MANUAL_STUDENTS_KEY = 'tableauBlancManualStudents';
@@ -17,7 +28,9 @@ let pointerId = null;
 let pages = [emptyPage()];
 let currentPage = 0;
 let redoStack = [];
-let boardStyle = 'white';
+let boardStyle = 'image';
+let availableBackgrounds = [];
+let lastBackgroundSrc = '';
 let bgImages = {};
 
 let timerInterval = null;
@@ -74,6 +87,10 @@ function currentPageData() {
 
 window.addEventListener('DOMContentLoaded', () => {
     loadBoardStyle();
+    discoverBackgrounds().then(() => {
+        if (boardStyle === 'image') loadRandomBackground();
+        markBoardStyleButtons();
+    });
     initCanvas();
     bindChrome();
     bindToolbar();
@@ -113,6 +130,16 @@ function bindChrome() {
         more.classList.toggle('is-open');
         more.hidden = false;
     });
+    document.getElementById('draw-folder-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDrawWheel();
+    });
+    document.getElementById('toolbar-peek')?.addEventListener('click', bumpChrome);
+    document.getElementById('toolbar-peek')?.addEventListener('mouseenter', bumpChrome);
+    document.addEventListener('click', (e) => {
+        const wrap = document.querySelector('.draw-folder-wrap');
+        if (wrap && !wrap.contains(e.target)) closeDrawWheel();
+    });
     document.addEventListener('mousemove', onPointerActivity);
     document.addEventListener('mousedown', onPointerActivity);
     document.addEventListener('touchstart', onPointerActivity, { passive: true });
@@ -128,7 +155,10 @@ function bumpChrome() {
     clearTimeout(chromeTimer);
     const panelOpen = [...document.querySelectorAll('.tool-panel')].some(p => p.style.display !== 'none');
     if (panelOpen) return;
-    chromeTimer = setTimeout(() => document.body.classList.add('chrome-hidden'), 3000);
+    chromeTimer = setTimeout(() => {
+        closeDrawWheel();
+        document.body.classList.add('chrome-hidden');
+    }, 3000);
 }
 
 function hasOpenPanel() {
@@ -152,6 +182,7 @@ function onGlobalKey(e) {
     }
     if (e.key === 'Escape') {
         hideTextInput();
+        closeDrawWheel();
         if (hasOpenPanel()) {
             const open = [...document.querySelectorAll('.tool-panel')].filter(p => p.style.display !== 'none');
             const top = open.sort((a, b) => (parseInt(b.style.zIndex) || 0) - (parseInt(a.style.zIndex) || 0))[0];
@@ -170,6 +201,8 @@ function bindToolbar() {
     document.querySelectorAll('#main-toolbar .tool-btn[id$="-tool"]').forEach(btn => {
         btn.addEventListener('click', () => handleToolClick(btn.id));
     });
+    layoutDrawWheel();
+    updateDrawFolderButton();
 }
 
 function bindDrawControls() {
@@ -191,8 +224,66 @@ function bindDrawControls() {
 function loadBoardStyle() {
     const saved = localStorage.getItem('tableauBlancBoardStyle');
     const legacy = localStorage.getItem(BG_TYPE_LEGACY);
-    boardStyle = saved || (legacy === 'white' ? 'white' : 'white');
+    if (saved === 'black' || saved === 'lined' || saved === 'grid' || saved === 'image') {
+        boardStyle = saved;
+    } else if (legacy === 'white') {
+        boardStyle = 'white';
+    } else {
+        boardStyle = 'image';
+    }
     applyBoardStyleClass();
+    markBoardStyleButtons();
+}
+
+async function discoverBackgrounds() {
+    const found = new Set();
+    try {
+        const res = await fetch('img/');
+        if (res.ok) {
+            const html = await res.text();
+            const re = /href="([^"?#]+\.(?:jpg|jpeg|png|webp|gif))"/gi;
+            let match;
+            while ((match = re.exec(html))) {
+                let name = match[1].split('/').pop();
+                try { name = decodeURIComponent(name); } catch (e) { /* keep */ }
+                if (name && !name.startsWith('.')) found.add('img/' + name);
+            }
+        }
+    } catch (e) { /* listing indisponible */ }
+    if (!found.size) {
+        const probes = [];
+        for (let i = 1; i <= 40; i++) {
+            probes.push('img/fond' + i + '.jpg', 'img/fond' + i + '.png');
+        }
+        await Promise.all(probes.map(src => new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => { found.add(src); resolve(); };
+            img.onerror = () => resolve();
+            img.src = src;
+        })));
+    }
+    availableBackgrounds = [...found];
+    return availableBackgrounds;
+}
+
+function loadRandomBackground() {
+    if (!availableBackgrounds.length) {
+        document.body.style.backgroundImage = 'none';
+        return;
+    }
+    let pool = availableBackgrounds;
+    if (pool.length > 1 && lastBackgroundSrc) {
+        pool = pool.filter(src => src !== lastBackgroundSrc);
+    }
+    const src = pool[Math.floor(Math.random() * pool.length)];
+    lastBackgroundSrc = src;
+    document.body.style.backgroundImage = 'url("' + src.replace(/"/g, '\\"') + '")';
+}
+
+function changeBackgroundImage() {
+    if (boardStyle !== 'image') setBoardStyle('image');
+    else if (!availableBackgrounds.length) toast('Aucune image trouvée dans le dossier img.');
+    else loadRandomBackground();
 }
 
 function setBoardStyle(style) {
@@ -200,12 +291,15 @@ function setBoardStyle(style) {
     localStorage.setItem('tableauBlancBoardStyle', style);
     applyBoardStyleClass();
     markBoardStyleButtons();
+    if (style === 'image') {
+        loadRandomBackground();
+    }
     if (style === 'black' && currentColor === '#000000') {
         currentColor = '#ffffff';
         const picker = document.getElementById('draw-color');
         if (picker) picker.value = '#ffffff';
     }
-    if (style === 'white' && currentColor === '#ffffff') {
+    if ((style === 'white' || style === 'lined' || style === 'grid' || style === 'image') && currentColor === '#ffffff') {
         currentColor = '#000000';
         const picker = document.getElementById('draw-color');
         if (picker) picker.value = '#000000';
@@ -213,14 +307,59 @@ function setBoardStyle(style) {
 }
 
 function applyBoardStyleClass() {
-    document.body.classList.remove('board-white', 'board-black', 'board-lined', 'board-grid');
+    document.body.classList.remove('board-white', 'board-black', 'board-lined', 'board-grid', 'board-image');
     document.body.classList.add('board-' + boardStyle);
+    const changeBtn = document.getElementById('change-bg-image-btn');
+    if (changeBtn) changeBtn.style.display = boardStyle === 'image' ? '' : 'none';
+    if (boardStyle !== 'image') {
+        document.body.style.backgroundImage = 'none';
+    }
 }
 
 function markBoardStyleButtons() {
     document.querySelectorAll('.board-style-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.style === boardStyle);
     });
+}
+
+function layoutDrawWheel() {
+    const wheel = document.getElementById('draw-wheel');
+    if (!wheel) return;
+    const buttons = [...wheel.querySelectorAll('.wheel-btn')];
+    const n = buttons.length;
+    const cx = 120;
+    const cy = 130;
+    const radius = 96;
+    buttons.forEach((btn, i) => {
+        const angle = Math.PI - (Math.PI * i / Math.max(1, n - 1));
+        btn.style.left = (cx + Math.cos(angle) * radius - 21) + 'px';
+        btn.style.top = (cy - Math.sin(angle) * radius - 21) + 'px';
+        btn.style.animationDelay = (i * 0.025) + 's';
+    });
+}
+
+function toggleDrawWheel() {
+    const wheel = document.getElementById('draw-wheel');
+    if (!wheel) return;
+    wheel.hidden = !wheel.hidden;
+    if (!wheel.hidden) {
+        layoutDrawWheel();
+        bumpChrome();
+    }
+}
+
+function closeDrawWheel() {
+    const wheel = document.getElementById('draw-wheel');
+    if (wheel) wheel.hidden = true;
+}
+
+function updateDrawFolderButton() {
+    const btn = document.getElementById('draw-folder-btn');
+    if (!btn) return;
+    const meta = DRAW_TOOL_META[currentTool] || DRAW_TOOL_META.draw;
+    btn.textContent = DRAW_TOOLS.has(currentTool) ? meta.icon : '✏️';
+    btn.title = 'Outils de dessin — ' + meta.label;
+    btn.classList.toggle('active', DRAW_TOOLS.has(currentTool));
 }
 
 // ===== CANVAS =====
@@ -269,6 +408,7 @@ function setCurrentTool(tool) {
         const name = btn.id.replace('-tool', '');
         btn.classList.toggle('active', name === tool);
     });
+    updateDrawFolderButton();
     const cursors = {
         draw: 'crosshair', eraser: 'cell', highlighter: 'crosshair',
         line: 'crosshair', arrow: 'crosshair', rect: 'crosshair',
@@ -284,10 +424,13 @@ function handleToolClick(toolId) {
 
     if (DRAW_TOOLS.has(tool)) {
         setCurrentTool(tool);
+        closeDrawWheel();
         if (tool !== 'laser' && tool !== 'text') openToolPanel('draw-panel');
-        else if (tool === 'text') closePanel('draw-panel');
+        else closePanel('draw-panel');
         return;
     }
+
+    closeDrawWheel();
 
     if (panel && panel.style.display !== 'none') {
         minimizePanel(panelId);
@@ -308,6 +451,7 @@ function handleToolClick(toolId) {
         if (!DRAW_TOOLS.has(btn.id.replace('-tool', ''))) btn.classList.remove('active');
     });
     document.getElementById(toolId)?.classList.add('active');
+    updateDrawFolderButton();
     if (panel) openToolPanel(panelId);
 }
 
@@ -717,8 +861,6 @@ function loadPagesFromStorage() {
     }
     try {
         const data = JSON.parse(raw);
-        boardStyle = data.boardStyle || boardStyle;
-        applyBoardStyleClass();
         if (Array.isArray(data.pages) && data.pages.length) {
             pages = data.pages.map(p => {
                 const page = { strokes: p.strokes || [], notes: p.notes || '', bgImage: p.bgImage || null };
@@ -1192,18 +1334,23 @@ function renderManualStudentEditor(className, kind) {
     });
 }
 
+function collapsePickerSetup(kind) {
+    const setup = document.getElementById(kind === 'groups' ? 'groups-setup' : 'random-setup');
+    if (setup) setup.open = false;
+}
+
 function switchStudentTab(tab) {
     const randomTab = document.getElementById('random-tab-content');
     const groupsTab = document.getElementById('groups-tab-content');
     const tabs = document.querySelectorAll('.student-tab');
     tabs.forEach(t => t.classList.remove('active'));
     if (tab === 'random') {
-        randomTab.style.display = 'block';
+        randomTab.style.display = 'flex';
         groupsTab.style.display = 'none';
         tabs[0].classList.add('active');
     } else {
         randomTab.style.display = 'none';
-        groupsTab.style.display = 'block';
+        groupsTab.style.display = 'flex';
         tabs[1].classList.add('active');
     }
 }
@@ -1227,6 +1374,7 @@ function pickStudents() {
     }
     picked.forEach(s => { if (!pickedHistory.includes(s.key)) pickedHistory.push(s.key); });
     renderPickedHistory();
+    collapsePickerSetup('random');
     const multi = getSelectedClassNames('random').length > 1;
     resultsDiv.innerHTML = '';
     picked.forEach((student, index) => {
@@ -1315,6 +1463,7 @@ function createRandomGroups() {
         groups[minI].members.push({ ...absent, absent: true });
     });
     currentGroups = groups;
+    collapsePickerSetup('groups');
     renderGroups();
 }
 

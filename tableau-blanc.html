@@ -36,23 +36,27 @@
 
     <div id="workspace-taskbar" class="workspace-taskbar chrome-ui"></div>
 
-    <div class="toolbar chrome-ui" id="main-toolbar">
-        <div class="toolbar-cluster" data-cluster="draw">
-            <button type="button" class="tool-btn active" id="draw-tool" title="Crayon">✏️</button>
-            <button type="button" class="tool-btn" id="highlighter-tool" title="Surligneur">🟨</button>
-            <button type="button" class="tool-btn" id="line-tool" title="Trait">／</button>
-            <button type="button" class="tool-btn" id="arrow-tool" title="Flèche">➡️</button>
-            <button type="button" class="tool-btn" id="rect-tool" title="Rectangle">▭</button>
-            <button type="button" class="tool-btn" id="circle-tool" title="Cercle">⭕</button>
-            <button type="button" class="tool-btn" id="text-tool" title="Texte">T</button>
-            <button type="button" class="tool-btn" id="laser-tool" title="Pointeur laser">🔦</button>
-            <button type="button" class="tool-btn" id="eraser-tool" title="Gomme">🧹</button>
+    <div class="toolbar-dock" id="toolbar-dock">
+    <div class="toolbar" id="main-toolbar">
+        <div class="draw-folder-wrap">
+            <button type="button" class="tool-btn active" id="draw-folder-btn" title="Outils de dessin">✏️</button>
+            <div id="draw-wheel" class="draw-wheel" hidden>
+                <button type="button" class="tool-btn wheel-btn active" id="draw-tool" title="Crayon">✏️</button>
+                <button type="button" class="tool-btn wheel-btn" id="highlighter-tool" title="Surligneur">🟨</button>
+                <button type="button" class="tool-btn wheel-btn" id="line-tool" title="Trait">／</button>
+                <button type="button" class="tool-btn wheel-btn" id="arrow-tool" title="Flèche">➡️</button>
+                <button type="button" class="tool-btn wheel-btn" id="rect-tool" title="Rectangle">▭</button>
+                <button type="button" class="tool-btn wheel-btn" id="circle-tool" title="Cercle">⭕</button>
+                <button type="button" class="tool-btn wheel-btn" id="text-tool" title="Texte">T</button>
+                <button type="button" class="tool-btn wheel-btn" id="laser-tool" title="Pointeur laser">🔦</button>
+                <button type="button" class="tool-btn wheel-btn" id="eraser-tool" title="Gomme">🧹</button>
+            </div>
         </div>
         <span class="toolbar-sep"></span>
         <div class="toolbar-cluster" data-cluster="class">
             <button type="button" class="tool-btn" id="student-picker-tool" title="Tirage au sort">🎲</button>
             <button type="button" class="tool-btn" id="timer-tool" title="Chronomètre">⏱️</button>
-            <button type="button" class="tool-btn" id="dice-tool" title="Dé">🎯</button>
+            <button type="button" class="tool-btn" id="dice-tool" title="Dé">⚄</button>
         </div>
         <span class="toolbar-sep"></span>
         <button type="button" class="tool-btn" id="toolbar-more-btn" title="Autres outils">➕</button>
@@ -65,6 +69,8 @@
             <button type="button" class="tool-btn" id="calculator-tool" title="Calculatrice">🧮</button>
             <button type="button" class="tool-btn" id="pdf-viewer-tool" title="Visionneuse PDF">📄</button>
         </div>
+    </div>
+    <button type="button" class="toolbar-peek" id="toolbar-peek" title="Afficher la barre d'outils" aria-label="Afficher la barre d'outils"></button>
     </div>
 
     <div id="draw-panel" class="tool-panel draw-palette" style="display:none;">
@@ -103,78 +109,85 @@
         </div>
 
         <div id="random-tab-content" class="student-tab-content">
-            <div class="class-picker">
-                <div class="class-picker-head">
-                    <span>Classes (plusieurs possibles) :</span>
-                    <span>
-                        <button type="button" class="linkish" onclick="selectAllClasses('random', true)">Tout cocher</button>
-                        ·
-                        <button type="button" class="linkish" onclick="selectAllClasses('random', false)">Tout décocher</button>
-                    </span>
+            <details class="picker-setup" id="random-setup" open>
+                <summary>⚙️ Options du tirage</summary>
+                <div class="class-picker">
+                    <div class="class-picker-head">
+                        <span>Classes (plusieurs possibles) :</span>
+                        <span>
+                            <button type="button" class="linkish" onclick="selectAllClasses('random', true)">Tout cocher</button>
+                            ·
+                            <button type="button" class="linkish" onclick="selectAllClasses('random', false)">Tout décocher</button>
+                        </span>
+                    </div>
+                    <div id="student-class-list" class="class-check-list"></div>
                 </div>
-                <div id="student-class-list" class="class-check-list"></div>
+                <details>
+                    <summary>❌ Marquer des absents</summary>
+                    <div id="absent-list-random"></div>
+                </details>
+                <details>
+                    <summary>➕ Ajouter manuellement des élèves</summary>
+                    <div id="manual-student-list-random"></div>
+                </details>
+                <div class="picker-inline-opts">
+                    <label>Nombre : <input type="number" id="student-count" min="1" max="30" value="1"></label>
+                    <label class="inline-check">
+                        <input type="checkbox" id="avoid-picked" checked>
+                        Éviter les déjà tirés
+                    </label>
+                </div>
+            </details>
+            <div class="picker-actions">
+                <button type="button" onclick="pickStudents()">🎲 Tirer au sort</button>
+                <button type="button" class="btn-ghost" onclick="resetPickedHistory()">🔄 Réinitialiser la file</button>
             </div>
-
-            <details>
-                <summary>❌ Marquer des absents</summary>
-                <div id="absent-list-random"></div>
-            </details>
-
-            <details>
-                <summary>➕ Ajouter manuellement des élèves</summary>
-                <div id="manual-student-list-random"></div>
-            </details>
-
-            <label>Nombre d'élèves : <input type="number" id="student-count" min="1" max="30" value="1"></label>
-            <label class="inline-check">
-                <input type="checkbox" id="avoid-picked" checked>
-                Éviter les déjà tirés
-            </label>
-            <button type="button" onclick="pickStudents()">🎲 Tirer au sort</button>
-            <button type="button" class="btn-ghost" onclick="resetPickedHistory()">🔄 Réinitialiser la file</button>
             <div id="picked-history" class="picked-history"></div>
             <div id="picked-students" class="picked-students-grid"></div>
         </div>
 
         <div id="groups-tab-content" class="student-tab-content" style="display:none;">
-            <div class="class-picker">
-                <div class="class-picker-head">
-                    <span>Classes (plusieurs possibles) :</span>
-                    <span>
-                        <button type="button" class="linkish" onclick="selectAllClasses('groups', true)">Tout cocher</button>
-                        ·
-                        <button type="button" class="linkish" onclick="selectAllClasses('groups', false)">Tout décocher</button>
-                    </span>
+            <details class="picker-setup" id="groups-setup" open>
+                <summary>⚙️ Options des groupes</summary>
+                <div class="class-picker">
+                    <div class="class-picker-head">
+                        <span>Classes (plusieurs possibles) :</span>
+                        <span>
+                            <button type="button" class="linkish" onclick="selectAllClasses('groups', true)">Tout cocher</button>
+                            ·
+                            <button type="button" class="linkish" onclick="selectAllClasses('groups', false)">Tout décocher</button>
+                        </span>
+                    </div>
+                    <div id="groups-class-list" class="class-check-list"></div>
                 </div>
-                <div id="groups-class-list" class="class-check-list"></div>
+                <details>
+                    <summary>❌ Marquer des absents (entre parenthèses)</summary>
+                    <div id="absent-list-groups"></div>
+                </details>
+                <details>
+                    <summary>➕ Ajouter manuellement des élèves</summary>
+                    <div id="manual-student-list-groups"></div>
+                </details>
+                <div class="picker-inline-opts">
+                    <label>Mode :
+                        <select id="groups-mode" onchange="updateGroupsMode()">
+                            <option value="count">Nombre de groupes</option>
+                            <option value="size">Taille des groupes</option>
+                        </select>
+                    </label>
+                    <label id="groups-count-label">Groupes :
+                        <input type="number" id="groups-count" min="2" max="10" value="3">
+                    </label>
+                    <label id="groups-size-label" style="display:none;">Par groupe :
+                        <input type="number" id="groups-size" min="2" max="10" value="4">
+                    </label>
+                </div>
+            </details>
+            <div class="picker-actions">
+                <button type="button" onclick="createRandomGroups()">👥 Créer les groupes</button>
+                <button type="button" class="btn-ghost" onclick="copyGroups()">📋 Copier</button>
+                <button type="button" class="btn-ghost" onclick="printGroups()">🖨️ Imprimer</button>
             </div>
-
-            <details>
-                <summary>❌ Marquer des absents (seront mis entre parenthèses)</summary>
-                <div id="absent-list-groups"></div>
-            </details>
-
-            <details>
-                <summary>➕ Ajouter manuellement des élèves</summary>
-                <div id="manual-student-list-groups"></div>
-            </details>
-
-            <label>Mode :
-                <select id="groups-mode" onchange="updateGroupsMode()">
-                    <option value="count">Nombre de groupes</option>
-                    <option value="size">Taille des groupes</option>
-                </select>
-            </label>
-            <label id="groups-count-label">Nombre de groupes :
-                <input type="number" id="groups-count" min="2" max="10" value="3">
-            </label>
-            <label id="groups-size-label" style="display:none;">Élèves par groupe :
-                <input type="number" id="groups-size" min="2" max="10" value="4">
-            </label>
-            <button type="button" onclick="createRandomGroups()">👥 Créer les groupes</button>
-            <button type="button" class="btn-ghost" onclick="copyGroups()">📋 Copier</button>
-            <button type="button" class="btn-ghost" onclick="printGroups()">🖨️ Imprimer</button>
-            <p class="hint">Glissez un élève d’un groupe à l’autre pour ajuster.</p>
             <div id="groups-result" class="groups-result-container"></div>
         </div>
 
@@ -262,7 +275,7 @@
     </div>
 
     <div id="dice-panel" class="tool-panel" style="display:none;">
-        <h3 class="panel-header">🎯 Dé
+        <h3 class="panel-header">🎲 Dé
             <div class="panel-header-controls">
                 <div class="color-picker-btn" title="Couleur du panneau">
                     <input type="color" value="#ffffff" onchange="changePanelColor('dice-panel', this.value)">
@@ -480,11 +493,13 @@
         </h3>
         <p class="hint">Fond du tableau</p>
         <div class="board-style-grid">
+            <button type="button" class="board-style-btn" data-style="image" onclick="setBoardStyle('image')">Images</button>
             <button type="button" class="board-style-btn" data-style="white" onclick="setBoardStyle('white')">Blanc</button>
             <button type="button" class="board-style-btn" data-style="black" onclick="setBoardStyle('black')">Noir</button>
             <button type="button" class="board-style-btn" data-style="lined" onclick="setBoardStyle('lined')">Ligné</button>
             <button type="button" class="board-style-btn" data-style="grid" onclick="setBoardStyle('grid')">Quadrillé</button>
         </div>
+        <button type="button" id="change-bg-image-btn" onclick="changeBackgroundImage()">🖼️ Changer l'image</button>
         <p class="hint shortcuts-hint">
             Raccourcis : Ctrl+Z / Ctrl+Y · Flèches ← → pages · Échap ferme le panneau · F11 plein écran
         </p>
