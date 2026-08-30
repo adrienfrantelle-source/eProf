@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLegacyYearData();
 
     function getAppVersionInfo() {
-        return { version: 'V2.3.8' };
+        return { version: 'V2.3.9' };
     }
 
     function readAppParametres() {

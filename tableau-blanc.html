@@ -38,25 +38,65 @@
 
     <div class="toolbar-dock" id="toolbar-dock">
     <div class="toolbar" id="main-toolbar">
+        <div id="draw-palette" class="draw-strip" hidden>
+            <div class="draw-swatches" role="list">
+                <button type="button" class="draw-swatch" data-color="#000000" title="Noir" style="background:#000000"></button>
+                <button type="button" class="draw-swatch" data-color="#ffffff" title="Blanc" style="background:#ffffff"></button>
+                <button type="button" class="draw-swatch" data-color="#ef4444" title="Rouge" style="background:#ef4444"></button>
+                <button type="button" class="draw-swatch" data-color="#f59e0b" title="Orange" style="background:#f59e0b"></button>
+                <button type="button" class="draw-swatch" data-color="#eab308" title="Jaune" style="background:#eab308"></button>
+                <button type="button" class="draw-swatch" data-color="#22c55e" title="Vert" style="background:#22c55e"></button>
+                <button type="button" class="draw-swatch" data-color="#3b82f6" title="Bleu" style="background:#3b82f6"></button>
+                <button type="button" class="draw-swatch" data-color="#a855f7" title="Violet" style="background:#a855f7"></button>
+            </div>
+            <label class="draw-color-pick" title="Couleur personnalisée">
+                <input type="color" id="draw-color" value="#000000">
+            </label>
+            <label class="draw-width-label">Épaisseur
+                <input type="range" id="draw-width" min="1" max="40" value="3">
+                <span id="width-value">3</span>px
+            </label>
+            <button type="button" class="draw-strip-btn" onclick="clearCanvas()" title="Effacer la page">🗑️</button>
+            <button type="button" class="draw-strip-btn" id="draw-palette-close" title="Masquer la palette">▾</button>
+        </div>
+        <div class="toolbar-row">
         <div class="draw-folder-wrap">
             <button type="button" class="tool-btn active" id="draw-folder-btn" title="Outils de dessin">✏️</button>
             <div id="draw-wheel" class="draw-wheel" hidden>
-                <button type="button" class="tool-btn wheel-btn active" id="draw-tool" title="Crayon">✏️</button>
-                <button type="button" class="tool-btn wheel-btn" id="highlighter-tool" title="Surligneur">🟨</button>
-                <button type="button" class="tool-btn wheel-btn" id="line-tool" title="Trait">／</button>
-                <button type="button" class="tool-btn wheel-btn" id="arrow-tool" title="Flèche">➡️</button>
-                <button type="button" class="tool-btn wheel-btn" id="rect-tool" title="Rectangle">▭</button>
-                <button type="button" class="tool-btn wheel-btn" id="circle-tool" title="Cercle">⭕</button>
-                <button type="button" class="tool-btn wheel-btn" id="text-tool" title="Texte">T</button>
-                <button type="button" class="tool-btn wheel-btn" id="laser-tool" title="Pointeur laser">🔦</button>
-                <button type="button" class="tool-btn wheel-btn" id="eraser-tool" title="Gomme">🧹</button>
+                <button type="button" class="tool-btn wheel-btn active" id="draw-tool" title="Crayon">
+                    <span class="wheel-icon">✏️</span><span class="wheel-label">Crayon</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="highlighter-tool" title="Surligneur">
+                    <span class="wheel-icon">🟨</span><span class="wheel-label">Surligne</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="line-tool" title="Trait">
+                    <span class="wheel-icon">／</span><span class="wheel-label">Trait</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="arrow-tool" title="Flèche">
+                    <span class="wheel-icon">➡️</span><span class="wheel-label">Flèche</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="rect-tool" title="Rectangle">
+                    <span class="wheel-icon">▭</span><span class="wheel-label">Rect</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="circle-tool" title="Cercle">
+                    <span class="wheel-icon">⭕</span><span class="wheel-label">Cercle</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="text-tool" title="Texte">
+                    <span class="wheel-icon">T</span><span class="wheel-label">Texte</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="laser-tool" title="Pointeur laser">
+                    <span class="wheel-icon">🔦</span><span class="wheel-label">Laser</span>
+                </button>
+                <button type="button" class="tool-btn wheel-btn" id="eraser-tool" title="Gomme">
+                    <span class="wheel-icon">🧹</span><span class="wheel-label">Gomme</span>
+                </button>
             </div>
         </div>
         <span class="toolbar-sep"></span>
         <div class="toolbar-cluster" data-cluster="class">
-            <button type="button" class="tool-btn" id="student-picker-tool" title="Tirage au sort">🎲</button>
+            <button type="button" class="tool-btn" id="student-picker-tool" title="Tirage au sort">🙋</button>
             <button type="button" class="tool-btn" id="timer-tool" title="Chronomètre">⏱️</button>
-            <button type="button" class="tool-btn" id="dice-tool" title="Dé">⚄</button>
+            <button type="button" class="tool-btn" id="dice-tool" title="Dé">🎲</button>
         </div>
         <span class="toolbar-sep"></span>
         <button type="button" class="tool-btn" id="toolbar-more-btn" title="Autres outils">➕</button>
@@ -69,32 +109,13 @@
             <button type="button" class="tool-btn" id="calculator-tool" title="Calculatrice">🧮</button>
             <button type="button" class="tool-btn" id="pdf-viewer-tool" title="Visionneuse PDF">📄</button>
         </div>
+        </div>
     </div>
     <button type="button" class="toolbar-peek" id="toolbar-peek" title="Afficher la barre d'outils" aria-label="Afficher la barre d'outils"></button>
     </div>
 
-    <div id="draw-panel" class="tool-panel draw-palette" style="display:none;">
-        <h3 class="panel-header">✏️ Dessin
-            <div class="panel-header-controls">
-                <div class="color-picker-btn" title="Couleur du panneau">
-                    <input type="color" value="#ffffff" onchange="changePanelColor('draw-panel', this.value)">
-                </div>
-                <span class="close-panel" onclick="closePanel('draw-panel')">✖</span>
-            </div>
-        </h3>
-        <label>Couleur : <input type="color" id="draw-color" value="#000000"></label>
-        <label>Épaisseur : <input type="range" id="draw-width" min="1" max="40" value="3"> <span id="width-value">3</span>px</label>
-        <div class="draw-actions">
-            <button type="button" onclick="undoStroke()">↩️ Annuler</button>
-            <button type="button" onclick="redoStroke()">↪️ Rétablir</button>
-            <button type="button" onclick="clearCanvas()">Effacer la page</button>
-            <button type="button" onclick="exportCurrentPage()">💾 Exporter</button>
-        </div>
-        <div class="resize-handle"></div>
-    </div>
-
     <div id="student-picker-panel" class="tool-panel" style="display:none;">
-        <h3 class="panel-header">🎲 Tirage au sort d'élèves
+        <h3 class="panel-header">🙋 Tirage au sort d'élèves
             <div class="panel-header-controls">
                 <div class="color-picker-btn" title="Couleur du panneau">
                     <input type="color" value="#ffffff" onchange="changePanelColor('student-picker-panel', this.value)">
@@ -104,7 +125,7 @@
         </h3>
 
         <div class="student-tabs">
-            <button type="button" class="student-tab active" onclick="switchStudentTab('random')">🎲 Tirage au sort</button>
+            <button type="button" class="student-tab active" onclick="switchStudentTab('random')">🙋 Tirage au sort</button>
             <button type="button" class="student-tab" onclick="switchStudentTab('groups')">👥 Groupes aléatoires</button>
         </div>
 
@@ -139,7 +160,7 @@
                 </div>
             </details>
             <div class="picker-actions">
-                <button type="button" onclick="pickStudents()">🎲 Tirer au sort</button>
+                <button type="button" onclick="pickStudents()">🙋 Tirer au sort</button>
                 <button type="button" class="btn-ghost" onclick="resetPickedHistory()">🔄 Réinitialiser la file</button>
             </div>
             <div id="picked-history" class="picked-history"></div>
@@ -501,7 +522,8 @@
         </div>
         <button type="button" id="change-bg-image-btn" onclick="changeBackgroundImage()">🖼️ Changer l'image</button>
         <p class="hint shortcuts-hint">
-            Raccourcis : Ctrl+Z / Ctrl+Y · Flèches ← → pages · Échap ferme le panneau · F11 plein écran
+            Dessin : bouton ✏️ (grille avec noms). Couleur et épaisseur restent dans la barre.
+            Raccourcis : Ctrl+Z / Ctrl+Y (par page) · Flèches ← → pages · Échap ferme le panneau · F11 plein écran
         </p>
         <button type="button" onclick="resetAll()">🔄 Réinitialiser tout</button>
         <div class="resize-handle"></div>

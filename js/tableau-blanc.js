@@ -27,10 +27,10 @@ let pointerId = null;
 
 let pages = [emptyPage()];
 let currentPage = 0;
-let redoStack = [];
 let boardStyle = 'image';
 let availableBackgrounds = [];
 let lastBackgroundSrc = '';
+let wallpaperImg = null;
 let bgImages = {};
 
 let timerInterval = null;
@@ -95,6 +95,7 @@ window.addEventListener('DOMContentLoaded', () => {
     bindChrome();
     bindToolbar();
     bindDrawControls();
+    showDrawPalette();
     bindTaskbarControls();
     initDraggablePanels();
     loadPanelColors();
@@ -201,8 +202,8 @@ function bindToolbar() {
     document.querySelectorAll('#main-toolbar .tool-btn[id$="-tool"]').forEach(btn => {
         btn.addEventListener('click', () => handleToolClick(btn.id));
     });
-    layoutDrawWheel();
     updateDrawFolderButton();
+    applyDefaultPenForBoard();
 }
 
 function bindDrawControls() {
@@ -210,7 +211,7 @@ function bindDrawControls() {
     const widthSlider = document.getElementById('draw-width');
     const widthValue = document.getElementById('width-value');
     if (colorPicker) {
-        colorPicker.addEventListener('input', (e) => { currentColor = e.target.value; });
+        colorPicker.addEventListener('input', (e) => setDrawColor(e.target.value));
     }
     if (widthSlider) {
         widthSlider.addEventListener('input', (e) => {
@@ -218,6 +219,48 @@ function bindDrawControls() {
             if (widthValue) widthValue.textContent = lineWidth;
         });
     }
+    document.querySelectorAll('.draw-swatch').forEach(btn => {
+        btn.addEventListener('click', () => setDrawColor(btn.dataset.color));
+    });
+    document.getElementById('draw-palette-close')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideDrawPalette();
+    });
+    markActiveSwatch();
+}
+
+function setDrawColor(hex) {
+    if (!hex) return;
+    currentColor = hex.length === 4
+        ? '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]
+        : hex.toLowerCase();
+    const picker = document.getElementById('draw-color');
+    if (picker) picker.value = currentColor;
+    markActiveSwatch();
+}
+
+function markActiveSwatch() {
+    const current = (currentColor || '').toLowerCase();
+    document.querySelectorAll('.draw-swatch').forEach(btn => {
+        btn.classList.toggle('active', (btn.dataset.color || '').toLowerCase() === current);
+    });
+}
+
+function showDrawPalette() {
+    const palette = document.getElementById('draw-palette');
+    if (palette) palette.hidden = false;
+    bumpChrome();
+}
+
+function hideDrawPalette() {
+    const palette = document.getElementById('draw-palette');
+    if (palette) palette.hidden = true;
+}
+
+function pageRedo(page) {
+    const p = page || currentPageData();
+    if (!p.redo) p.redo = [];
+    return p.redo;
 }
 
 // ===== FOND =====
@@ -278,6 +321,13 @@ function loadRandomBackground() {
     const src = pool[Math.floor(Math.random() * pool.length)];
     lastBackgroundSrc = src;
     document.body.style.backgroundImage = 'url("' + src.replace(/"/g, '\\"') + '")';
+    const img = new Image();
+    img.onload = () => {
+        wallpaperImg = img;
+        maybeAutoPenFromImage(img);
+    };
+    img.onerror = () => { wallpaperImg = null; };
+    img.src = src;
 }
 
 function changeBackgroundImage() {
@@ -293,16 +343,40 @@ function setBoardStyle(style) {
     markBoardStyleButtons();
     if (style === 'image') {
         loadRandomBackground();
+    } else {
+        wallpaperImg = null;
+        applyDefaultPenForBoard();
     }
-    if (style === 'black' && currentColor === '#000000') {
-        currentColor = '#ffffff';
-        const picker = document.getElementById('draw-color');
-        if (picker) picker.value = '#ffffff';
-    }
-    if ((style === 'white' || style === 'lined' || style === 'grid' || style === 'image') && currentColor === '#ffffff') {
-        currentColor = '#000000';
-        const picker = document.getElementById('draw-color');
-        if (picker) picker.value = '#000000';
+}
+
+function isDefaultPenColor() {
+    const c = (currentColor || '').toLowerCase();
+    return c === '#000000' || c === '#ffffff';
+}
+
+function applyDefaultPenForBoard() {
+    if (!isDefaultPenColor()) return;
+    if (boardStyle === 'black') setDrawColor('#ffffff');
+    else setDrawColor('#000000');
+}
+
+function maybeAutoPenFromImage(img) {
+    if (!isDefaultPenColor() || !img) return;
+    try {
+        const c = document.createElement('canvas');
+        c.width = 24;
+        c.height = 24;
+        const x = c.getContext('2d');
+        x.drawImage(img, 0, 0, 24, 24);
+        const data = x.getImageData(0, 0, 24, 24).data;
+        let lum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            lum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        lum /= data.length / 4;
+        setDrawColor(lum < 110 ? '#ffffff' : '#000000');
+    } catch (e) {
+        applyDefaultPenForBoard();
     }
 }
 
@@ -322,30 +396,11 @@ function markBoardStyleButtons() {
     });
 }
 
-function layoutDrawWheel() {
-    const wheel = document.getElementById('draw-wheel');
-    if (!wheel) return;
-    const buttons = [...wheel.querySelectorAll('.wheel-btn')];
-    const n = buttons.length;
-    const cx = 120;
-    const cy = 130;
-    const radius = 96;
-    buttons.forEach((btn, i) => {
-        const angle = Math.PI - (Math.PI * i / Math.max(1, n - 1));
-        btn.style.left = (cx + Math.cos(angle) * radius - 21) + 'px';
-        btn.style.top = (cy - Math.sin(angle) * radius - 21) + 'px';
-        btn.style.animationDelay = (i * 0.025) + 's';
-    });
-}
-
 function toggleDrawWheel() {
     const wheel = document.getElementById('draw-wheel');
     if (!wheel) return;
     wheel.hidden = !wheel.hidden;
-    if (!wheel.hidden) {
-        layoutDrawWheel();
-        bumpChrome();
-    }
+    if (!wheel.hidden) bumpChrome();
 }
 
 function closeDrawWheel() {
@@ -425,8 +480,8 @@ function handleToolClick(toolId) {
     if (DRAW_TOOLS.has(tool)) {
         setCurrentTool(tool);
         closeDrawWheel();
-        if (tool !== 'laser' && tool !== 'text') openToolPanel('draw-panel');
-        else closePanel('draw-panel');
+        if (tool === 'laser') hideDrawPalette();
+        else showDrawPalette();
         return;
     }
 
@@ -472,7 +527,7 @@ function onPointerDown(e) {
     isDrawing = true;
     pointerId = e.pointerId;
     canvas.setPointerCapture?.(e.pointerId);
-    redoStack = [];
+    pageRedo().length = 0;
     if (currentTool === 'draw' || currentTool === 'eraser' || currentTool === 'highlighter') {
         activeStroke = {
             type: currentTool,
@@ -573,6 +628,7 @@ function commitTextInput() {
             color: currentColor,
             width: Math.max(16, lineWidth * 6)
         });
+        pageRedo().length = 0;
         persistState();
         redraw();
     }
@@ -691,14 +747,16 @@ function redraw() {
 function undoStroke() {
     const page = currentPageData();
     if (!page.strokes.length) return;
-    redoStack.push(page.strokes.pop());
+    pageRedo(page).push(page.strokes.pop());
     redraw();
     persistState();
 }
 
 function redoStroke() {
-    if (!redoStack.length) return;
-    currentPageData().strokes.push(redoStack.pop());
+    const page = currentPageData();
+    const stack = pageRedo(page);
+    if (!stack.length) return;
+    page.strokes.push(stack.pop());
     redraw();
     persistState();
 }
@@ -707,7 +765,7 @@ function clearCanvas() {
     if (!confirm('Effacer le dessin de cette page ?')) return;
     currentPageData().strokes = [];
     currentPageData().bgImage = null;
-    redoStack = [];
+    pageRedo().length = 0;
     redraw();
     persistState();
 }
@@ -718,6 +776,25 @@ function boardFillColor() {
     return '#ffffff';
 }
 
+function drawImageCover(context, img, w, h) {
+    if (!img || !img.width) return;
+    const ir = img.width / img.height;
+    const cr = w / h;
+    let dw, dh, dx, dy;
+    if (ir > cr) {
+        dh = h;
+        dw = img.width * (h / img.height);
+        dx = (w - dw) / 2;
+        dy = 0;
+    } else {
+        dw = w;
+        dh = img.height * (w / img.width);
+        dx = 0;
+        dy = (h - dh) / 2;
+    }
+    context.drawImage(img, dx, dy, dw, dh);
+}
+
 function exportCurrentPage() {
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = canvas.width;
@@ -725,6 +802,9 @@ function exportCurrentPage() {
     const ex = exportCanvas.getContext('2d');
     ex.fillStyle = boardFillColor();
     ex.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    if (boardStyle === 'image' && wallpaperImg) {
+        drawImageCover(ex, wallpaperImg, exportCanvas.width, exportCanvas.height);
+    }
     if (boardStyle === 'lined' || boardStyle === 'grid') {
         ex.strokeStyle = boardStyle === 'lined' ? '#c7d2fe' : '#e2e8f0';
         ex.lineWidth = 1;
@@ -783,7 +863,6 @@ function changePage(direction) {
     const next = currentPage + direction;
     if (next < 0 || next >= pages.length) return;
     currentPage = next;
-    redoStack = [];
     redraw();
     updatePageIndicator();
     loadNotesIntoEditor();
@@ -794,7 +873,6 @@ function addPage() {
     saveNotesFromEditor();
     pages.push(emptyPage());
     currentPage = pages.length - 1;
-    redoStack = [];
     redraw();
     updatePageIndicator();
     loadNotesIntoEditor();
@@ -809,7 +887,6 @@ function removePage() {
     if (!confirm('Supprimer cette page ?')) return;
     pages.splice(currentPage, 1);
     if (currentPage >= pages.length) currentPage = pages.length - 1;
-    redoStack = [];
     redraw();
     updatePageIndicator();
     loadNotesIntoEditor();
@@ -909,7 +986,6 @@ function resetAll() {
     if (!confirm('Réinitialiser le tableau (dessins, notes, pages) ?')) return;
     pages = [emptyPage()];
     currentPage = 0;
-    redoStack = [];
     pickedHistory = [];
     currentGroups = [];
     localStorage.removeItem(STORAGE_KEY);
@@ -995,7 +1071,6 @@ function refreshTaskbar() {
         return;
     }
     const labels = {
-        'draw-panel': 'Dessin',
         'student-picker-panel': 'Tirage',
         'timer-panel': 'Chrono',
         'clock-panel': 'Horloge',

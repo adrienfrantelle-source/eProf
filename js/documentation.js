@@ -176,16 +176,17 @@
             id: 'tableau-blanc',
             icon: '📋',
             title: 'Tableau blanc',
-            lead: 'Un tableau de séance (dessin, tirage, chrono…) dans un onglet séparé. Les classes viennent du compte déjà connecté, sans nouvelle identification.',
+            lead: 'Un tableau de séance dans un onglet séparé : dessin, tirage d’élèves, chrono, dé… Les classes viennent du compte déjà connecté, sans nouvelle identification.',
             tool: 'tableau-blanc',
             steps: [
                 'Cliquez <strong>Tableau blanc</strong> : l’outil s’ouvre dans un nouvel onglet.',
-                'Dessinez au crayon, surligneur, formes, texte ou laser. <strong>Ctrl+Z</strong> annule, les flèches changent de page.',
-                'Dans <strong>Tirage</strong>, cochez une ou plusieurs classes pour mélanger les élèves, marquez les absents, et utilisez la file « déjà tirés ».',
-                'Les groupes se glissent d’une carte à l’autre ; un PDF peut être posé en fond de page pour annoter par-dessus.',
-                'Le bouton 🏠 Retour ramène à eProf. En projection, la barre se masque après 3 secondes d’inactivité.'
+                'Le bouton <strong>✏️</strong> ouvre une grille d’outils (crayon, surligneur, formes, texte, laser, gomme), chacun nommé. Couleur (pastilles) et épaisseur restent collées à la barre, sans masquer le tableau.',
+                '<strong>Ctrl+Z</strong> / <strong>Ctrl+Y</strong> annulent et rétablissent <em>sur la page en cours</em>. Les flèches changent de page. 💾 exporte la page avec le fond (image, ligné, PDF posé…).',
+                'Dans <strong>🙋 Tirage</strong>, cochez une ou plusieurs classes, marquez les absents, et utilisez la file « déjà tirés ». Le bouton <strong>🎲</strong> est réservé au dé.',
+                'Les groupes se glissent d’une carte à l’autre. Un PDF peut être posé en fond de page pour annoter par-dessus.',
+                'Le bouton 🏠 Retour ramène à eProf. En projection, la barre se masque après 3 secondes d’inactivité ; la pastille en bas la ramène.'
             ],
-            tip: 'Plein écran : F11 ou le bouton 🖥️. Fonds blanc / noir / ligné / quadrillé dans les paramètres ⚙️.'
+            tip: 'Plein écran : F11 ou 🖥️. Fonds dans ⚙️ : Images (dossier img), blanc, noir, ligné, quadrillé. Sur un fond sombre, le crayon passe automatiquement en blanc si vous n’avez pas choisi une autre couleur.'
         },
         {
             id: 'converter',
