@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLegacyYearData();
 
     function getAppVersionInfo() {
-        return { version: 'V2.0.0' };
+        return { version: 'V2.3.6' };
     }
 
     function getVisibleTeacherClasses() {
@@ -94,6 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target === aboutModal) {
                 aboutModal.style.display = 'none';
             }
+        });
+    }
+
+    const docsTrigger = document.getElementById('docs-trigger');
+    if (docsTrigger) {
+        docsTrigger.addEventListener('click', function () {
+            handleDashboardTool('documentation');
         });
     }
     
@@ -390,6 +397,19 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'parametres':
                 renderParametres(mainContent);
                 highlightSidebar('parametres');
+                break;
+            case 'documentation':
+                if (window.EprofDocumentation) {
+                    window.EprofDocumentation.render(mainContent, {
+                        openTool: function (tool) {
+                            handleDashboardTool(tool);
+                            if (tool === 'calendar') highlightSidebar('calendar-link');
+                            else highlightSidebar(tool);
+                        }
+                    });
+                } else {
+                    mainContent.innerHTML = '<h2>Documentation</h2><p>Le module n’a pas pu être chargé.</p>';
+                }
                 break;
             case 'sejour':
             case 'drive':

@@ -1,6 +1,6 @@
 {
   "name": "eprof",
-  "version": "2.0.0",
+  "version": "2.3.6",
   "private": true,
   "description": "eProf - plateforme enseignant (site statique + fonctions Vercel + Supabase)",
   "engines": {

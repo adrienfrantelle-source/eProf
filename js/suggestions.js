@@ -12,7 +12,7 @@
 
     const MODULES = ['Général', 'Calendrier', 'Agenda', 'Carnet de notes', 'Plan de classe',
         'Trombinoscopes', 'Suivi des élèves', 'Tableau blanc', 'Jeux pédagogiques',
-        'Ressources pédagogiques', 'Conversion de fichier', 'Messagerie', 'Paramètres', 'Connexion'];
+        'Ressources pédagogiques', 'Conversion de fichier', 'Messagerie', 'Paramètres', 'Documentation', 'Connexion'];
 
     const STATUTS = {
         nouveau: '🆕 Nouveau',
