@@ -3262,9 +3262,10 @@ if (typeof module !== 'undefined' && module.exports) {
                         </div>
                         
                         <div class="tabs-modale">
-                            <button class="tab-btn active" data-tab="oublis">📦 Oublis de matériel</button>
-                            <button class="tab-btn" data-tab="mots">📝 Mots à mettre</button>
-                            <button class="tab-btn" data-tab="notes">📊 Moyennes</button>
+                            <button class="tab-btn active" data-tab="oublis">📦 Oublis</button>
+                            <button class="tab-btn" data-tab="mots">📝 Mots</button>
+                            <button class="tab-btn" data-tab="remarques">🗒️ Notes</button>
+                            <button class="tab-btn" data-tab="moyennes">📊 Moyennes</button>
                         </div>
                         
                         <div id="tab-oublis" class="tab-content active">
@@ -3307,8 +3308,23 @@ if (typeof module !== 'undefined' && module.exports) {
                             <h4>Mots à mettre</h4>
                             <div id="liste-mots"></div>
                         </div>
+
+                        <div id="tab-remarques" class="tab-content" style="display: none;">
+                            <h4>Ajouter une note</h4>
+                            <p class="note-perso-hint">Ces notes sont personnelles : elles se synchronisent en ligne pour votre compte, pas pour les autres enseignants.</p>
+                            <div class="ajout-note-perso">
+                                <textarea id="texte-note-perso" rows="3" placeholder="Observation, comportement, suivi particulier…"></textarea>
+                                <div class="ajout-note-perso-actions">
+                                    <input type="date" id="date-note-perso">
+                                    <button type="button" id="ajouter-note-perso-btn" class="btn-primary">+ Ajouter la note</button>
+                                </div>
+                            </div>
+                            <hr style="margin: 20px 0; border: none; border-top: 2px solid #e2e8f0;">
+                            <h4>Notes enregistrées</h4>
+                            <div id="liste-notes-perso"></div>
+                        </div>
                         
-                        <div id="tab-notes" class="tab-content" style="display: none;">
+                        <div id="tab-moyennes" class="tab-content" style="display: none;">
                             <h4>Moyennes</h4>
                             <p style="color: #64748b; font-style: italic;">Chargement des notes…</p>
                         </div>
@@ -3345,6 +3361,14 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <span class="fiche-opt-text">
                                     <strong>Moyennes</strong>
                                     <small>Moyenne générale, périodes et matières du carnet</small>
+                                </span>
+                            </label>
+                            <label class="fiche-opt">
+                                <input type="checkbox" id="fiche-inclure-notes" checked>
+                                <span class="fiche-opt-icon">🗒️</span>
+                                <span class="fiche-opt-text">
+                                    <strong>Notes personnelles</strong>
+                                    <small>Observations de l’enseignant, visibles uniquement par vous</small>
                                 </span>
                             </label>
                         </div>
@@ -3431,6 +3455,7 @@ if (typeof module !== 'undefined' && module.exports) {
         // Variables
         let elevesActuels = [];
         let eleveSelectionne = null;
+        let notePersoEdition = null;
         let suiviData = lireSuiviLocal();
         chargerCarnetPourSuivi();
         
@@ -3524,6 +3549,12 @@ if (typeof module !== 'undefined' && module.exports) {
                         : (totalMotsNonMis >= seuils.seuilMots ? 'badge-mots-alerte' : 'badge-mots');
                     badgeMots = `<div class="${badgeClass}" style="top: 40px;">📝 ${totalMots}</div>`;
                 }
+
+                let badgeNotes = '';
+                const nbNotesPerso = (suiviData[eleve.nomComplet]?.notesPerso || []).length;
+                if (nbNotesPerso > 0) {
+                    badgeNotes = `<div class="badge-notes-perso">🗒️ ${nbNotesPerso}</div>`;
+                }
                 
                 return `
                     <div class="carte-eleve ${sexeClass}" data-nom="${eleve.nomComplet}">
@@ -3531,6 +3562,7 @@ if (typeof module !== 'undefined' && module.exports) {
                         <div class="sexe-badge">${eleve.sexe}</div>
                         ${badgeOublis}
                         ${badgeMots}
+                        ${badgeNotes}
                     </div>
                 `;
             }).join('');
@@ -3549,10 +3581,13 @@ if (typeof module !== 'undefined' && module.exports) {
             eleveSelectionne = nomComplet;
             
             if (!suiviData[nomComplet]) {
-                suiviData[nomComplet] = { oublis: [], notes: [], motsAMettre: [] };
+                suiviData[nomComplet] = { oublis: [], notes: [], motsAMettre: [], notesPerso: [] };
             }
             if (!suiviData[nomComplet].motsAMettre) {
                 suiviData[nomComplet].motsAMettre = [];
+            }
+            if (!Array.isArray(suiviData[nomComplet].notesPerso)) {
+                suiviData[nomComplet].notesPerso = [];
             }
             
             const nomEleveModale = container.querySelector('#nom-eleve-modale');
@@ -3566,9 +3601,14 @@ if (typeof module !== 'undefined' && module.exports) {
             // Initialiser la date du jour automatiquement pour les mots aussi
             const dateInputMot = container.querySelector('#date-mot');
             dateInputMot.value = aujourd_hui;
+
+            const dateInputNote = container.querySelector('#date-note-perso');
+            if (dateInputNote) dateInputNote.value = aujourd_hui;
+            notePersoEdition = null;
             
             afficherOublis();
             afficherMots();
+            afficherNotesPerso();
             afficherMoyennes();
             modale.style.display = 'flex';
         }
@@ -3576,7 +3616,7 @@ if (typeof module !== 'undefined' && module.exports) {
         function rendreMoyennes(periodeSelectionnee, matiereSelectionnee) {
             periodeSelectionnee = periodeSelectionnee || null;
             matiereSelectionnee = matiereSelectionnee || null;
-            const tabNotes = container.querySelector('#tab-notes');
+            const tabNotes = container.querySelector('#tab-moyennes');
             const carnetEvaluations = carnetCacheSuivi.evaluations || {};
             const carnetNotes = carnetCacheSuivi.notes || {};
             const evaluationsClasse = carnetEvaluations[classeActuelle] || [];
@@ -3915,6 +3955,90 @@ if (typeof module !== 'undefined' && module.exports) {
                 rendreMoyennes(periodeSelectionnee, matiereSelectionnee);
             });
         }
+
+        function notesPersoEleve(nom) {
+            if (!suiviData[nom]) {
+                suiviData[nom] = { oublis: [], notes: [], motsAMettre: [], notesPerso: [] };
+            }
+            if (!Array.isArray(suiviData[nom].notesPerso)) suiviData[nom].notesPerso = [];
+            return suiviData[nom].notesPerso;
+        }
+
+        function afficherNotesPerso() {
+            const liste = container.querySelector('#liste-notes-perso');
+            if (!liste || !eleveSelectionne) return;
+            const notes = notesPersoEleve(eleveSelectionne);
+            if (!notes.length) {
+                liste.innerHTML = '<p style="color:#64748b;font-style:italic;">Aucune note pour cet élève.</p>';
+                return;
+            }
+            const ordered = notes.map(function (note, index) {
+                return { note: note, index: index };
+            }).sort(function (a, b) {
+                return String(b.note.date || '').localeCompare(String(a.note.date || ''));
+            });
+            liste.innerHTML = ordered.map(function (item) {
+                const note = item.note;
+                const idx = item.index;
+                if (notePersoEdition === idx) {
+                    return '<div class="item-note-perso is-editing">' +
+                        '<textarea class="note-perso-edit" rows="3">' + escapeFicheHtml(note.texte || '') + '</textarea>' +
+                        '<div class="note-perso-actions">' +
+                        '<button type="button" class="btn-primary btn-sauver-note" data-index="' + idx + '">Enregistrer</button>' +
+                        '<button type="button" class="btn-secondary btn-annuler-note">Annuler</button>' +
+                        '</div></div>';
+                }
+                return '<div class="item-note-perso">' +
+                    '<div class="note-perso-body">' +
+                    '<div class="note-perso-date">' + escapeFicheHtml(formatDateFiche(note.date)) + '</div>' +
+                    '<div class="note-perso-texte">' + escapeFicheHtml(note.texte || '').replace(/\n/g, '<br>') + '</div>' +
+                    '</div>' +
+                    '<div class="note-perso-actions">' +
+                    '<button type="button" class="btn-editer-note" data-index="' + idx + '" title="Modifier">✏️</button>' +
+                    '<button type="button" class="btn-supprimer btn-supprimer-note" data-index="' + idx + '" title="Supprimer">🗑️</button>' +
+                    '</div></div>';
+            }).join('');
+
+            liste.querySelectorAll('.btn-editer-note').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    notePersoEdition = parseInt(this.getAttribute('data-index'), 10);
+                    afficherNotesPerso();
+                });
+            });
+            liste.querySelectorAll('.btn-supprimer-note').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const index = parseInt(this.getAttribute('data-index'), 10);
+                    if (!confirm('Supprimer cette note ?')) return;
+                    notesPersoEleve(eleveSelectionne).splice(index, 1);
+                    notePersoEdition = null;
+                    sauvegarderSuivi();
+                    afficherNotesPerso();
+                    afficherEleves(classeActuelle);
+                });
+            });
+            liste.querySelectorAll('.btn-sauver-note').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const index = parseInt(this.getAttribute('data-index'), 10);
+                    const area = liste.querySelector('.note-perso-edit');
+                    const texte = area ? area.value.trim() : '';
+                    if (!texte) {
+                        alert('⚠️ La note ne peut pas être vide.');
+                        return;
+                    }
+                    notesPersoEleve(eleveSelectionne)[index].texte = texte;
+                    notesPersoEleve(eleveSelectionne)[index].updatedAt = new Date().toISOString();
+                    notePersoEdition = null;
+                    sauvegarderSuivi();
+                    afficherNotesPerso();
+                });
+            });
+            liste.querySelectorAll('.btn-annuler-note').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    notePersoEdition = null;
+                    afficherNotesPerso();
+                });
+            });
+        }
         
         // Afficher les mots à mettre
         function afficherMots() {
@@ -4180,6 +4304,37 @@ if (typeof module !== 'undefined' && module.exports) {
             afficherEleves(classeActuelle);
             updateNotifications();
         });
+
+        const ajouterNotePersoBtn = container.querySelector('#ajouter-note-perso-btn');
+        if (ajouterNotePersoBtn) {
+            ajouterNotePersoBtn.addEventListener('click', function () {
+                if (!eleveSelectionne) return;
+                const texteInput = container.querySelector('#texte-note-perso');
+                const dateInput = container.querySelector('#date-note-perso');
+                const texte = texteInput ? texteInput.value.trim() : '';
+                const date = dateInput ? dateInput.value : '';
+                if (!texte) {
+                    alert('⚠️ Saisissez une note.');
+                    return;
+                }
+                if (!date) {
+                    alert('⚠️ Sélectionnez une date.');
+                    return;
+                }
+                notesPersoEleve(eleveSelectionne).unshift({
+                    id: Date.now().toString(36),
+                    texte: texte,
+                    date: date,
+                    createdAt: new Date().toISOString()
+                });
+                sauvegarderSuivi();
+                texteInput.value = '';
+                dateInput.value = new Date().toISOString().split('T')[0];
+                notePersoEdition = null;
+                afficherNotesPerso();
+                afficherEleves(classeActuelle);
+            });
+        }
         
         function sauvegarderSuivi() {
             ecrireSuiviLocal(suiviData);
@@ -4214,8 +4369,11 @@ if (typeof module !== 'undefined' && module.exports) {
                 container.querySelector(`#tab-${tab}`).style.display = 'block';
                 
                 // Rafraîchir les moyennes quand on ouvre l'onglet
-                if (tab === 'notes') {
+                if (tab === 'moyennes') {
                     afficherMoyennes();
+                }
+                if (tab === 'remarques') {
+                    afficherNotesPerso();
                 }
             });
         });
@@ -4358,6 +4516,25 @@ if (typeof module !== 'undefined' && module.exports) {
                                 (ok ? 'ok' : 'warn') + '">' +
                                 (ok ? 'Mis' + (m.dateMis ? ' le ' + formatDateFiche(m.dateMis) : '') : 'À mettre') +
                                 '</span></td></tr>';
+                        }).join('') + '</tbody></table>';
+                }
+                html += '</section>';
+            }
+
+            if (options.notes) {
+                const notesPerso = data.notesPerso || [];
+                html += '<section class="bloc"><div class="bloc-head"><span>🗒️ Notes personnelles</span><em>' +
+                    notesPerso.length + '</em></div>';
+                if (!notesPerso.length) {
+                    html += '<p class="vide">Aucune note personnelle.</p>';
+                } else {
+                    html += '<table><thead><tr><th>Date</th><th>Note</th></tr></thead><tbody>' +
+                        notesPerso.slice().sort(function (a, b) {
+                            return String(b.date || '').localeCompare(String(a.date || ''));
+                        }).map(function (n) {
+                            return '<tr><td>' + escapeFicheHtml(formatDateFiche(n.date)) +
+                                '</td><td>' + escapeFicheHtml(n.texte || '').replace(/\n/g, '<br>') +
+                                '</td></tr>';
                         }).join('') + '</tbody></table>';
                 }
                 html += '</section>';
@@ -4511,9 +4688,10 @@ if (typeof module !== 'undefined' && module.exports) {
                 const options = {
                     oublis: !!(container.querySelector('#fiche-inclure-oublis') || {}).checked,
                     mots: !!(container.querySelector('#fiche-inclure-mots') || {}).checked,
-                    moyennes: !!(container.querySelector('#fiche-inclure-moyennes') || {}).checked
+                    moyennes: !!(container.querySelector('#fiche-inclure-moyennes') || {}).checked,
+                    notes: !!(container.querySelector('#fiche-inclure-notes') || {}).checked
                 };
-                if (!options.oublis && !options.mots && !options.moyennes) {
+                if (!options.oublis && !options.mots && !options.moyennes && !options.notes) {
                     alert('Cochez au moins une information à inclure.');
                     return;
                 }

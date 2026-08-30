@@ -15,6 +15,46 @@ body {
     background-repeat: no-repeat;
 }
 
+body.board-white { background: #ffffff; }
+body.board-black { background: #1a1a1a; }
+body.board-lined {
+    background-color: #fffef5;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 31px,
+        #c7d2fe 31px,
+        #c7d2fe 32px
+    );
+}
+body.board-grid {
+    background-color: #ffffff;
+    background-image:
+        repeating-linear-gradient(to right, #e2e8f0 0, #e2e8f0 1px, transparent 1px, transparent 32px),
+        repeating-linear-gradient(to bottom, #e2e8f0 0, #e2e8f0 1px, transparent 1px, transparent 32px);
+}
+
+body.chrome-hidden .chrome-ui {
+    opacity: 0;
+}
+body.chrome-hidden .chrome-ui:hover,
+body.chrome-hidden .toolbar:hover,
+body.chrome-hidden .page-navigation:hover,
+body.chrome-hidden .top-controls:hover,
+body.chrome-hidden .top-left-controls:hover {
+    opacity: 1;
+}
+
+.chrome-ui {
+    transition: opacity 0.35s ease;
+}
+
+.top-left-controls .control-btn,
+a.control-btn {
+    text-decoration: none;
+    display: inline-block;
+}
+
 /* Canvas pour le dessin */
 #whiteboard-canvas {
     position: absolute;
@@ -172,8 +212,7 @@ body {
 }
 
 .taskbar-empty {
-    color: rgba(255,255,255,0.7);
-    font-size: 0.78rem;
+    display: none;
 }
 
 .toolbar {
@@ -182,12 +221,40 @@ body {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 11px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background: rgba(26, 34, 54, 0.95);
-    padding: 11px 22px;
+    padding: 10px 16px;
     border-radius: 15px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
     z-index: 100;
+    max-width: calc(100vw - 180px);
+}
+
+.toolbar-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.toolbar-sep {
+    width: 1px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+#toolbar-more-btn { display: none; }
+@media (max-width: 1400px) {
+    .toolbar { gap: 6px; padding: 8px 10px; }
+    .tool-btn { padding: 8px 10px; font-size: 1.15rem; }
+}
+@media (max-width: 1100px) {
+    .toolbar-cluster-more { display: none; }
+    .toolbar-cluster-more.is-open { display: flex; }
+    #toolbar-more-btn { display: inline-flex; }
 }
 
 .tool-btn {
@@ -1299,4 +1366,161 @@ body {
 .wc-actions .wc-btn {
     flex: 1;
     text-align: center;
+}
+
+/* ===== Ajouts tableau blanc V2 ===== */
+.page-nav-add, .page-nav-remove { font-size: 1.1rem; }
+.page-nav-remove { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+
+.draw-palette { min-width: 280px; }
+.draw-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.hint { font-size: 0.8rem; color: #64748b; margin: 8px 0; font-weight: 500; }
+.shortcuts-hint { line-height: 1.45; }
+.btn-ghost {
+    background: #e2e8f0 !important;
+    color: #334155 !important;
+}
+.linkish {
+    background: none !important;
+    color: #2563eb !important;
+    box-shadow: none !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+    font-size: 0.8rem !important;
+    transform: none !important;
+}
+.inline-check {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.student-tab-content details {
+    margin: 10px 0;
+}
+.student-tab-content summary {
+    cursor: pointer;
+    padding: 8px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    font-weight: 500;
+}
+.class-picker-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+}
+.class-check-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+.class-check-list label {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    font-weight: 500 !important;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.picked-history {
+    font-size: 0.8rem;
+    color: #475569;
+    margin: 8px 0;
+    min-height: 1.2em;
+}
+
+.group-student-item { cursor: grab; }
+.group-student-item.dragging { opacity: 0.5; }
+.group-card.drop-target { outline: 2px dashed #3b82f6; }
+
+.timer-mode-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.timer-presets { display: flex; gap: 6px; margin-bottom: 8px; }
+
+.cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    font-size: 0.8rem;
+}
+.cal-dow { text-align: center; font-weight: 700; color: #64748b; padding: 4px 0; }
+.cal-day {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 6px;
+    background: #f8fafc;
+    min-height: 42px;
+}
+.cal-day.empty { background: transparent; }
+.cal-day.today { outline: 2px solid #3b82f6; font-weight: 700; }
+.cal-day.holiday { background: #fef3c7; }
+.cal-day.vacation { background: #dbeafe; }
+.cal-day .cal-mark { display: block; font-size: 0.65rem; color: #64748b; }
+
+.board-style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.board-style-btn { width: 100%; }
+.board-style-btn.active { outline: 3px solid #3b82f6; }
+
+.qr-presets, .qr-history { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.qr-history button { font-size: 0.75rem !important; padding: 6px 10px !important; }
+
+#laser-dot {
+    position: fixed;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fecaca 0%, #ef4444 55%, transparent 70%);
+    box-shadow: 0 0 18px 6px rgba(239, 68, 68, 0.55);
+    pointer-events: none;
+    z-index: 500;
+}
+
+#text-input-wrap {
+    position: absolute;
+    z-index: 250;
+}
+#canvas-text-input {
+    font-size: 1.4rem;
+    padding: 4px 8px;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    min-width: 160px;
+}
+
+body.board-black .page-indicator,
+body.board-black .panel-header { color: inherit; }
+
+.storage-toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    z-index: 400;
+    font-size: 0.85rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }

@@ -85,15 +85,16 @@
             id: 'eleves',
             icon: '👨‍🎓',
             title: 'Suivi des élèves',
-            lead: 'Oublis de matériel, mots à mettre et aperçu des moyennes, classe par classe.',
+            lead: 'Oublis de matériel, mots à mettre, notes personnelles et aperçu des moyennes, classe par classe.',
             tool: 'eleves',
             steps: [
                 'Ouvrez <strong>Suivi des élèves</strong> et cliquez la classe concernée.',
                 'Cliquez un élève pour ouvrir sa fiche.',
                 'Onglet <strong>Oublis</strong> : cochez le matériel manquant (manuel, cours, travail non fait…), choisissez la date, puis Ajouter.',
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
+                'Onglet <strong>Notes</strong> : ajoutez des observations personnelles. Elles se synchronisent en ligne pour votre compte uniquement.',
                 'Onglet <strong>Moyennes</strong> : consultez les résultats issus du carnet de notes.',
-                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots et moyennes).'
+                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes et moyennes).'
             ],
             tip: 'Les badges rouges apparaissent quand le nombre d’oublis ou de mots dépasse le seuil fixé dans Paramètres.'
         },
@@ -175,15 +176,16 @@
             id: 'tableau-blanc',
             icon: '📋',
             title: 'Tableau blanc',
-            lead: 'Un espace de dessin et de notes, dans un onglet séparé.',
+            lead: 'Un tableau de séance (dessin, tirage, chrono…) dans un onglet séparé. Les classes viennent du compte déjà connecté, sans nouvelle identification.',
             tool: 'tableau-blanc',
             steps: [
                 'Cliquez <strong>Tableau blanc</strong> : l’outil s’ouvre dans un nouvel onglet.',
-                'Utilisez les outils de dessin pour écrire, souligner ou schématiser pendant le cours.',
-                'Ajoutez du texte ou des formes selon les commandes affichées en haut de l’outil.',
-                'Fermez l’onglet pour revenir à eProf : le menu reste à sa place.'
+                'Dessinez au crayon, surligneur, formes, texte ou laser. <strong>Ctrl+Z</strong> annule, les flèches changent de page.',
+                'Dans <strong>Tirage</strong>, cochez une ou plusieurs classes pour mélanger les élèves, marquez les absents, et utilisez la file « déjà tirés ».',
+                'Les groupes se glissent d’une carte à l’autre ; un PDF peut être posé en fond de page pour annoter par-dessus.',
+                'Le bouton 🏠 Retour ramène à eProf. En projection, la barre se masque après 3 secondes d’inactivité.'
             ],
-            tip: 'Pratique en projection : agrandissez l’onglet du tableau blanc en plein écran (F11 dans la plupart des navigateurs).'
+            tip: 'Plein écran : F11 ou le bouton 🖥️. Fonds blanc / noir / ligné / quadrillé dans les paramètres ⚙️.'
         },
         {
             id: 'converter',
