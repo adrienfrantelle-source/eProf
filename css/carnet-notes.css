@@ -1030,3 +1030,203 @@ header h1 {
     background: #eef2ff;
     color: var(--secondary-color);
 }
+
+/* ===== THÈME SOMBRE ===== */
+html.theme-sombre,
+html.theme-sombre body,
+body.theme-sombre {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #e2e8f0;
+}
+
+html.theme-sombre header,
+html.theme-sombre .class-selector,
+html.theme-sombre #evaluations-section,
+html.theme-sombre .modal-content,
+html.theme-sombre .chart-container,
+html.theme-sombre .matiere-detail {
+    background: #1e293b;
+    color: #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-sombre header h1,
+html.theme-sombre .evaluations-header h2,
+html.theme-sombre .notes-table-container h2,
+html.theme-sombre .class-selector label,
+html.theme-sombre .period-selector label,
+html.theme-sombre .form-group label,
+html.theme-sombre .matiere-detail h4,
+html.theme-sombre .stats-period-filter label,
+html.theme-sombre .mini-stat-value,
+html.theme-sombre .chart-subtitle {
+    color: #f1f5f9;
+}
+
+html.theme-sombre .class-selector select,
+html.theme-sombre .period-selector select,
+html.theme-sombre .form-group input,
+html.theme-sombre .form-group select,
+html.theme-sombre .notes-table input[type="number"],
+html.theme-sombre .notes-table input[type="text"] {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+html.theme-sombre .period-btn {
+    background: #0f172a;
+    color: #c4b5fd;
+    border-color: #7c3aed;
+}
+
+html.theme-sombre .period-btn:hover {
+    background: #1e1b4b;
+}
+
+html.theme-sombre .period-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+}
+
+html.theme-sombre .eval-toggle-group {
+    background: #0f172a;
+    border-color: #475569;
+}
+
+html.theme-sombre .eval-toggle-group small {
+    color: #94a3b8;
+}
+
+html.theme-sombre .eval-header.eval-non-significative {
+    background: repeating-linear-gradient(45deg, #1e293b, #1e293b 8px, #334155 8px, #334155 16px);
+    color: #cbd5e1;
+}
+
+html.theme-sombre .notes-table {
+    background: #1e293b;
+}
+
+html.theme-sombre .notes-table thead {
+    background: #0f172a;
+}
+
+html.theme-sombre .notes-table th {
+    border-bottom-color: #475569;
+}
+
+html.theme-sombre .notes-table th.col-moy-gen {
+    background: #1e1b4b;
+}
+
+html.theme-sombre .notes-table td {
+    border-bottom-color: #334155;
+    color: #e2e8f0;
+}
+
+html.theme-sombre .notes-table tbody tr:hover {
+    background: #334155;
+}
+
+html.theme-sombre .student-average,
+html.theme-sombre .student-average-gen {
+    color: #93c5fd;
+}
+
+html.theme-sombre .student-average-gen {
+    background: #1e1b4b;
+}
+
+html.theme-sombre .class-average-row {
+    background: #0f172a;
+}
+
+html.theme-sombre .notes-table tbody tr td.student-name-cell {
+    color: #93c5fd;
+}
+
+html.theme-sombre .notes-table tbody tr td.student-name-cell:hover {
+    background: #1e3a5f;
+    color: #bfdbfe;
+}
+
+html.theme-sombre .notes-table input[value="abs"] {
+    background-color: #7f1d1d;
+    color: #fecaca;
+}
+
+html.theme-sombre .unsaved-cloud-banner {
+    background: #7f1d1d;
+    color: #fecaca;
+    border-color: #991b1b;
+}
+
+html.theme-sombre .empty-state {
+    color: #94a3b8;
+}
+
+html.theme-sombre .stats-period-filter {
+    background: #0f172a;
+}
+
+html.theme-sombre .period-filter-btn {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+html.theme-sombre .period-filter-btn:hover {
+    border-color: #60a5fa;
+    color: #93c5fd;
+}
+
+html.theme-sombre .period-filter-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border-color: transparent;
+}
+
+html.theme-sombre .stats-tabs {
+    border-bottom-color: #475569;
+}
+
+html.theme-sombre .stats-tab {
+    color: #94a3b8;
+}
+
+html.theme-sombre .stats-tab:hover,
+html.theme-sombre .stats-tab.active {
+    color: #93c5fd;
+}
+
+html.theme-sombre .stats-tab.active {
+    border-bottom-color: #60a5fa;
+}
+
+html.theme-sombre .mini-stat,
+html.theme-sombre .note-item {
+    background: #0f172a;
+}
+
+html.theme-sombre .mini-stat-label,
+html.theme-sombre .notes-list h5,
+html.theme-sombre .note-item-date {
+    color: #94a3b8;
+}
+
+html.theme-sombre .note-item-title {
+    color: #e2e8f0;
+}
+
+html.theme-sombre .note-item-score {
+    color: #93c5fd;
+}
+
+html.theme-sombre .class-stats-content::-webkit-scrollbar-track,
+html.theme-sombre .student-stats-content::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+html.theme-sombre #class-empty-message {
+    color: #94a3b8;
+}

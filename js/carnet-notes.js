@@ -16,8 +16,27 @@ function getAnneeScolaireFromPrefs() {
     }
 }
 
+function applyCarnetDisplayTheme() {
+    var sombre = false;
+    try {
+        var p = JSON.parse(localStorage.getItem('parametres') || '{}');
+        sombre = (p.affichage || {}).theme === 'sombre';
+    } catch (e) {}
+    document.documentElement.classList.toggle('theme-sombre', sombre);
+    if (document.body) document.body.classList.toggle('theme-sombre', sombre);
+    if (sombre && window.Chart && window.Chart.defaults) {
+        Chart.defaults.color = '#cbd5e1';
+        Chart.defaults.borderColor = '#475569';
+        if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
+            Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
+            Chart.defaults.plugins.legend.labels.color = '#e2e8f0';
+        }
+    }
+}
+
 // ===== CHARGEMENT =====
 document.addEventListener('DOMContentLoaded', () => {
+    applyCarnetDisplayTheme();
     console.log('Carnet de notes chargé');
     
     // Attendre que le TeacherManager soit initialisé

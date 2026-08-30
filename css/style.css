@@ -318,7 +318,7 @@ main#main-content {
 /* Accueil : bandeau compact (sans salutation) */
 .home-brief {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 1em;
     margin-bottom: 2em;
 }
@@ -352,6 +352,19 @@ main#main-content {
     font-weight: 600;
     color: #475569;
 }
+.home-brief-recent {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.9em;
+    min-height: 0;
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
+}
+.home-brief-recent .home-brief-title {
+    margin: 0;
+    flex-shrink: 0;
+}
 .home-brief-link,
 .home-recent-btn,
 .home-upcoming-item {
@@ -374,13 +387,42 @@ main#main-content {
     flex-wrap: wrap;
     gap: 0.4em;
 }
-.home-class-chip {
-    background: #eef2ff;
-    color: #3730a3;
-    border-radius: 999px;
-    padding: 0.2em 0.7em;
-    font-size: 0.8em;
+.home-class-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 0.55em;
+}
+.home-class-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.45em;
+    min-height: 72px;
+    padding: 0.65em 0.75em;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.home-class-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.22);
+    text-decoration: none;
+}
+.home-class-card-name {
+    font-size: 0.82em;
+    font-weight: 700;
+    line-height: 1.25;
+}
+.home-class-card-count {
+    font-size: 0.72em;
     font-weight: 600;
+    opacity: 0.88;
 }
 .home-recent-btn {
     background: #f1f5f9;
@@ -393,6 +435,47 @@ main#main-content {
 .home-recent-btn:hover {
     background: #e2e8f0;
     text-decoration: none;
+}
+.home-upcoming-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55em;
+    margin-bottom: 0.75em;
+}
+.home-upcoming-head .home-brief-title {
+    margin: 0;
+}
+.home-upcoming-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+}
+.home-upcoming-arrow {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.75em;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.home-upcoming-arrow:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+.home-upcoming-arrow:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.home-upcoming-day {
+    flex: 1;
+    text-align: center;
+    font-size: 0.86em;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: capitalize;
 }
 .home-upcoming-list {
     list-style: none;
@@ -703,6 +786,10 @@ body {
     color: #1a2236;
 }
 
+:root {
+    --eprof-header-h: 88px;
+}
+
 header {
     background: #1a2236; /* bleu foncé du logo */
     color: #fff;
@@ -710,7 +797,7 @@ header {
     box-shadow: 0 2px 8px #0002;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 40;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -729,28 +816,18 @@ body.eprof-locked {
     overflow: hidden;
 }
 
-/* Header raccourcis avec libellés */
 .quick-link {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: auto;
-    min-width: 72px;
-    height: auto;
+    width: 48px;
+    height: 48px;
     background: #fff;
-    border-radius: 10px;
-    padding: 6px 8px 5px;
+    border-radius: 8px;
+    padding: 6px;
     transition: transform 0.2s, box-shadow 0.2s;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     text-decoration: none;
-    gap: 2px;
-}
-.quick-link-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: #1a2236;
-    line-height: 1.1;
 }
 .quick-link:hover {
     transform: translateY(-2px);
@@ -761,7 +838,6 @@ body.eprof-locked {
     height: 32px;
     object-fit: contain;
 }
-/* Logos spécifiques agrandis */
 .quick-link img.logo-large {
     width: 36px;
     height: 36px;
@@ -2606,6 +2682,35 @@ footer {
     align-items: center;
 }
 
+.ajout-jeu-form input,
+.ajout-jeu-form select {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+    color: #1e293b;
+}
+
+.ajout-jeu-form input[type="url"] {
+    flex: 2;
+}
+
+.ajout-jeu-form select {
+    min-width: 160px;
+}
+
+#jeu-nouvelle-famille {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #1e293b;
+}
+
 .jeux-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -3049,8 +3154,8 @@ body.theme-sombre .jeux-famille-vide {
 
 .param-toc {
     position: sticky;
-    top: 0;
-    z-index: 30;
+    top: var(--eprof-header-h, 88px);
+    z-index: 8;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -3080,7 +3185,7 @@ body.theme-sombre .jeux-famille-vide {
     margin-bottom: 25px;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    scroll-margin-top: 56px;
+    scroll-margin-top: calc(var(--eprof-header-h, 88px) + 56px);
 }
 
 .param-section > summary {
@@ -3308,9 +3413,6 @@ body.theme-sombre .quick-link {
     background: #1e293b;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
-body.theme-sombre .quick-link-label {
-    color: #e2e8f0;
-}
 
 body.theme-sombre .home-brief-card,
 body.theme-sombre .quick-card,
@@ -3337,9 +3439,16 @@ body.theme-sombre .tool-description {
 body.theme-sombre .home-brief-sub {
     color: #cbd5e1;
 }
-body.theme-sombre .home-class-chip {
-    background: #1e3a8a;
-    color: #dbeafe;
+body.theme-sombre .home-upcoming-arrow {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+body.theme-sombre .home-upcoming-arrow:hover:not(:disabled) {
+    background: #0f172a;
+}
+body.theme-sombre .home-upcoming-day {
+    color: #e2e8f0;
 }
 body.theme-sombre .home-recent-btn {
     background: #1e293b;
@@ -3407,6 +3516,33 @@ body.theme-sombre textarea {
     background: #1e293b;
     color: #e2e8f0;
     border-color: #475569;
+}
+
+body.theme-sombre .plan-config-accordion {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre .plan-config-accordion summary {
+    background: #334155;
+    color: #93c5fd;
+}
+
+body.theme-sombre .ajout-jeu-form input,
+body.theme-sombre .ajout-jeu-form select,
+body.theme-sombre #ressources-module .ajout-jeu-form input,
+body.theme-sombre #ressources-module .ajout-jeu-form select,
+body.theme-sombre .ressources-dossier-row input,
+body.theme-sombre .ressources-dossier-row select,
+body.theme-sombre #jeu-nouvelle-famille,
+body.theme-sombre #ressource-nouvelle-famille {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .ressources-hint {
+    color: #94a3b8;
 }
 
 /* Tailles de police */
@@ -3958,9 +4094,7 @@ body.theme-sombre .param-info small {
 
 /* 1. Préserver les couleurs des boutons de classe */
 body.theme-sombre .classe-btn {
-    /* Les gradients de couleur sont préservés, on ne les override pas */
-    background: inherit !important;
-    color: white !important;
+    color: #fff !important;
 }
 
 /* 2. Adapter le calendrier au thème sombre */
@@ -4171,9 +4305,7 @@ body.theme-sombre .fc-event {
 
 /* 1. Préserver les couleurs des boutons de classe */
 body.theme-sombre .classe-btn {
-    /* Les gradients de couleur sont préservés, on ne les override pas */
-    background: inherit !important;
-    color: white !important;
+    color: #fff !important;
 }
 
 /* 2. Adapter le calendrier au thème sombre */
@@ -4554,13 +4686,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):hover {
     background: #5f6f85;
 }
 
@@ -4776,13 +4908,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):hover {
     background: #5f6f85;
 }
 
@@ -5137,4 +5269,149 @@ body {
 
 .tabbed-iframes-status.is-warn {
     color: #b45309;
+}
+
+/* Thème sombre — modales et surfaces encore claires */
+body.theme-sombre .modal-content,
+body.theme-sombre .about-modal-content,
+body.theme-sombre .calendar-image-dialog {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .about-modal-body,
+body.theme-sombre .about-card {
+    color: #cbd5e1;
+    background: #0f172a;
+    border-color: #334155;
+}
+
+body.theme-sombre .about-section h3,
+body.theme-sombre .calendar-image-header h3,
+body.theme-sombre .modal-content h3,
+body.theme-sombre .modal-header h3 {
+    color: #f1f5f9;
+}
+
+body.theme-sombre #event-form input,
+body.theme-sombre #event-form textarea,
+body.theme-sombre #event-form select {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre #event-cancel-btn {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre #event-cancel-btn:hover {
+    background: #475569;
+}
+
+body.theme-sombre .calendar-image-close {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .tab-btn:hover {
+    color: #e2e8f0;
+}
+
+body.theme-sombre .tabs-modale {
+    border-bottom-color: #475569;
+}
+
+body.theme-sombre .fiche-suivi-cible,
+body.theme-sombre .fiche-opt:has(input:checked) {
+    background: #1e3a5f;
+    color: #bfdbfe;
+    border-color: #3b82f6;
+}
+
+body.theme-sombre .fiche-opt {
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .fiche-suivi-hint,
+body.theme-sombre .empty-state-box {
+    color: #94a3b8;
+}
+
+body.theme-sombre .empty-state-box {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre .ajout-oubli input,
+body.theme-sombre .ajout-oubli select,
+body.theme-sombre .ajout-oubli textarea,
+body.theme-sombre .ajout-oubli-actions input[type="date"] {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .item-mot-mis,
+body.theme-sombre .item-mot-a-mettre {
+    background: #0f172a;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .tabbed-iframes-config,
+body.theme-sombre .tabbed-iframes-empty {
+    background: #0f172a;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .tabbed-iframes-tuto-card,
+body.theme-sombre .tabbed-iframes-tuto-list,
+body.theme-sombre .tabbed-iframes-hint,
+body.theme-sombre .tabbed-iframes-status {
+    color: #cbd5e1;
+}
+
+body.theme-sombre .trombi-carte,
+body.theme-sombre .archive-year-btn,
+body.theme-sombre .archive-panel,
+body.theme-sombre .archive-item-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .trombi-nom,
+body.theme-sombre .archive-year-title,
+body.theme-sombre .archive-item-card strong {
+    color: #f1f5f9;
+}
+
+body.theme-sombre .trombi-nom-famille,
+body.theme-sombre .archive-item-card span {
+    color: #94a3b8;
+}
+
+body.theme-sombre .archive-year-btn.active {
+    background: #1e3a5f;
+    border-color: #60a5fa;
+    color: #bfdbfe;
+}
+
+body.theme-sombre .close-modale-fiche,
+body.theme-sombre .close-modale-emargement {
+    color: #94a3b8;
+}
+
+body.theme-sombre .alerte-oublis {
+    background: linear-gradient(135deg, #78350f 0%, #92400e 100%);
+    border-color: #f59e0b;
+}
+
+body.theme-sombre .alerte-oublis strong,
+body.theme-sombre .alerte-oublis p {
+    color: #fef3c7;
 }

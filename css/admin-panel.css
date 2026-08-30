@@ -532,3 +532,108 @@
 .admin-section-title {
     margin: 12px 0 8px;
 }
+
+body.theme-sombre .admin-dialog {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .admin-dialog h3,
+body.theme-sombre .admin-card h4,
+body.theme-sombre .admin-section-title {
+    color: #f1f5f9;
+}
+
+body.theme-sombre .admin-close {
+    color: #cbd5e1;
+    background: transparent;
+}
+
+body.theme-sombre .admin-hint,
+body.theme-sombre .admin-counter {
+    color: #94a3b8;
+}
+
+body.theme-sombre .admin-tabs,
+body.theme-sombre .admin-subtabs {
+    border-bottom-color: #334155;
+}
+
+body.theme-sombre .admin-tab,
+body.theme-sombre .admin-subtab {
+    color: #94a3b8;
+    background: transparent;
+}
+
+body.theme-sombre .admin-tab:hover,
+body.theme-sombre .admin-subtab:hover {
+    color: #e2e8f0;
+    background: transparent;
+}
+
+body.theme-sombre .admin-tab-active,
+body.theme-sombre .admin-subtab-active {
+    color: #93c5fd;
+    border-bottom-color: #60a5fa;
+}
+
+body.theme-sombre .admin-card,
+body.theme-sombre .admin-add-form {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+body.theme-sombre .admin-card-danger {
+    background: #450a0a;
+    border-color: #7f1d1d;
+}
+
+body.theme-sombre .admin-inline-form input,
+body.theme-sombre .admin-field textarea,
+body.theme-sombre .admin-field select,
+body.theme-sombre .admin-field input,
+body.theme-sombre .admin-login-form input,
+body.theme-sombre .admin-add-form input,
+body.theme-sombre .admin-search,
+body.theme-sombre .admin-cell:focus {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .admin-field span,
+body.theme-sombre .admin-login-form label {
+    color: #cbd5e1;
+}
+
+body.theme-sombre .admin-table th,
+body.theme-sombre .admin-table td {
+    border-bottom-color: #334155;
+}
+
+body.theme-sombre .admin-table th {
+    background: #0f172a;
+    color: #cbd5e1;
+}
+
+body.theme-sombre .admin-badge {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .admin-badge-on {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+body.theme-sombre .admin-badge-off,
+body.theme-sombre .admin-error,
+body.theme-sombre .admin-feedback-error {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+body.theme-sombre .admin-feedback {
+    background: #14532d;
+    color: #bbf7d0;
+}

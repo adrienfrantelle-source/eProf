@@ -545,6 +545,11 @@ body.theme-sombre .eprof-config-close {
     color: #e2e8f0;
 }
 
+body.theme-sombre .eprof-config-summary,
+body.theme-sombre .eprof-config-placeholder {
+    color: #94a3b8;
+}
+
 @media (max-width: 760px) {
     .eprof-config-overlay {
         padding: 0;

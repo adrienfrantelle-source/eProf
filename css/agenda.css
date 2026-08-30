@@ -241,3 +241,65 @@
         flex: 1 1 100%;
     }
 }
+
+body.theme-sombre .agenda-form {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+body.theme-sombre .agenda-form-row > label,
+body.theme-sombre .agenda-picker-label,
+body.theme-sombre .agenda-card-title,
+body.theme-sombre .agenda-group h3 {
+    color: #e2e8f0;
+}
+
+body.theme-sombre .agenda-hint,
+body.theme-sombre .agenda-card-meta,
+body.theme-sombre .agenda-card-desc,
+body.theme-sombre .agenda-empty,
+body.theme-sombre .agenda-loading {
+    color: #94a3b8;
+}
+
+body.theme-sombre .agenda-form-row input[type="text"],
+body.theme-sombre .agenda-form-row input[type="date"],
+body.theme-sombre .agenda-form-row input[type="datetime-local"],
+body.theme-sombre .agenda-form-row select,
+body.theme-sombre .agenda-form-row textarea {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .agenda-emoji {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre .agenda-emoji.selected {
+    background: #1e3a5f;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre .agenda-color.selected {
+    border-color: #f8fafc;
+}
+
+body.theme-sombre .agenda-group h3 {
+    border-bottom-color: #334155;
+}
+
+body.theme-sombre .agenda-count {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+body.theme-sombre .agenda-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.theme-sombre .agenda-card-actions button:hover {
+    background: #334155;
+}

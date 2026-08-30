@@ -8,6 +8,14 @@
     <link rel="stylesheet" href="css/carnet-notes.css">
     <link rel="stylesheet" href="css/auth-gate.css">
     <link rel="stylesheet" href="css/config-classes.css">
+    <script>
+    (function () {
+        try {
+            var p = JSON.parse(localStorage.getItem('parametres') || '{}');
+            if ((p.affichage || {}).theme === 'sombre') document.documentElement.classList.add('theme-sombre');
+        } catch (e) {}
+    })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>

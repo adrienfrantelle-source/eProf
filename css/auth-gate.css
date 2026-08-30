@@ -190,3 +190,61 @@
     padding: 4px;
     line-height: 1;
 }
+
+html.theme-sombre .eprof-auth-gate,
+body.theme-sombre .eprof-auth-gate {
+    background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+}
+
+html.theme-sombre .eprof-auth-card,
+body.theme-sombre .eprof-auth-card {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+html.theme-sombre .eprof-auth-card h1,
+body.theme-sombre .eprof-auth-card h1 {
+    color: #f8fafc;
+}
+
+html.theme-sombre .eprof-auth-subtitle,
+html.theme-sombre .eprof-auth-hint,
+body.theme-sombre .eprof-auth-subtitle,
+body.theme-sombre .eprof-auth-hint {
+    color: #94a3b8;
+}
+
+html.theme-sombre .eprof-auth-form label,
+body.theme-sombre .eprof-auth-form label {
+    color: #cbd5e1;
+}
+
+html.theme-sombre .eprof-auth-form input,
+body.theme-sombre .eprof-auth-form input {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+html.theme-sombre .eprof-auth-id-wrap,
+body.theme-sombre .eprof-auth-id-wrap {
+    border-color: #475569;
+}
+
+html.theme-sombre .eprof-auth-domain,
+body.theme-sombre .eprof-auth-domain {
+    background: #0f172a;
+    color: #94a3b8;
+}
+
+html.theme-sombre .eprof-auth-toggle a,
+body.theme-sombre .eprof-auth-toggle a {
+    color: #a5b4fc;
+}
+
+html.theme-sombre .eprof-auth-error,
+body.theme-sombre .eprof-auth-error {
+    background: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+}

@@ -204,6 +204,15 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (affichage.modeMobile === 'inactive') document.body.classList.add('mode-mobile-off');
         } catch (e) {}
     })();
+    (function syncStickyHeaderOffset() {
+        function apply() {
+            const header = document.querySelector('header');
+            if (!header) return;
+            document.documentElement.style.setProperty('--eprof-header-h', header.offsetHeight + 'px');
+        }
+        apply();
+        window.addEventListener('resize', apply);
+    })();
     updateOnlineStatusBadge();
     if (window.eprofAuth) {
         window.eprofAuth.onAuthStateChange(() => updateOnlineStatusBadge());
@@ -371,11 +380,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDashboard() {
         const classes = getVisibleTeacherClasses();
         const lastTools = readLastTools();
-        const badge = document.getElementById('online-status-badge');
-        const syncText = badge ? badge.textContent : '⚪ Hors ligne';
-        const classChips = classes.length
-            ? '<div class="home-class-chips">' + classes.map(function (nom) {
-                return '<span class="home-class-chip">' + escapeDashboardHtml(nom) + '</span>';
+        const listes = getListsForTeacher();
+        const classCards = classes.length
+            ? '<div class="home-class-cards">' + classes.map(function (nom) {
+                const color = window.getClassColor ? window.getClassColor(nom) : '#2563eb';
+                const n = (listes[nom] || []).length;
+                return '<button type="button" class="home-class-card" data-classe="' + escapeDashboardHtml(nom) + '" style="background:' + color + '"><span class="home-class-card-name">' + escapeDashboardHtml(nom) + '</span><span class="home-class-card-count">' + n + ' élève' + (n > 1 ? 's' : '') + '</span></button>';
             }).join('') + '</div>'
             : '<p class="home-brief-empty">Aucune classe. Ouvrez <button type="button" class="home-brief-link" data-tool="parametres">Paramètres</button> pour les choisir.</p>';
         const recentHtml = lastTools.length
@@ -392,12 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </section>
                 <section class="home-brief-card">
                     <h3 class="home-brief-title">👥 Classes</h3>
-                    ${classChips}
+                    ${classCards}
                 </section>
-                <section class="home-brief-card">
-                    <h3 class="home-brief-title">📡 Session</h3>
-                    <p class="home-sync-line">${escapeDashboardHtml(syncText)}</p>
-                    <p class="home-brief-sub">Récents</p>
+                <section class="home-brief-card home-brief-recent">
+                    <h3 class="home-brief-title">🕒 Récents</h3>
                     ${recentHtml}
                 </section>
             </div>
@@ -517,11 +525,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar(tool === 'calendar' ? 'calendar-link' : tool);
             });
         });
+        mainContent.querySelectorAll('.home-class-card').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                handleDashboardTool('eleves', { classe: btn.getAttribute('data-classe') });
+                highlightSidebar('eleves');
+            });
+        });
     }
 
     function escapeDashboardHtml(str) {
         return String(str == null ? '' : str)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    let homeUpcomingItems = [];
+    let homeUpcomingDayOffset = 0;
+    const HOME_UPCOMING_MAX_DAYS = 60;
+
+    function localDayKey(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function eventDayKey(ev) {
+        const raw = String(ev && ev.start || '');
+        if (ev && ev.allDay && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+        const when = new Date(ev && ev.start);
+        if (isNaN(when.getTime())) return '';
+        return localDayKey(when);
     }
 
     function upcomingFromLocalCache() {
@@ -530,27 +560,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!ev || !ev.start || ev.done || ev.display === 'background') return false;
             const t = new Date(ev.start).getTime();
             return !isNaN(t) && t >= now;
-        }).sort(function (a, b) { return new Date(a.start) - new Date(b.start); }).slice(0, 3);
+        }).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
     }
 
     function renderUpcomingList(items) {
+        homeUpcomingItems = Array.isArray(items) ? items : [];
         const box = document.getElementById('home-upcoming');
         if (!box) return;
-        if (!items.length) {
-            box.innerHTML = '<h3 class="home-brief-title">🗓️ À venir</h3><p class="home-brief-empty">Rien de prévu. <button type="button" class="home-brief-link" data-tool="agenda">Ouvrir l’agenda</button></p>';
-            box.querySelector('.home-brief-link')?.addEventListener('click', function () {
-                handleDashboardTool('agenda');
-                highlightSidebar('agenda');
-            });
-            return;
+        const day = new Date();
+        day.setHours(0, 0, 0, 0);
+        day.setDate(day.getDate() + homeUpcomingDayOffset);
+        const key = localDayKey(day);
+        const dayItems = homeUpcomingItems.filter(function (ev) { return eventDayKey(ev) === key; });
+        const label = day.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        const prevDisabled = homeUpcomingDayOffset <= 0 ? ' disabled' : '';
+        const nextDisabled = homeUpcomingDayOffset >= HOME_UPCOMING_MAX_DAYS ? ' disabled' : '';
+        let listHtml;
+        if (dayItems.length) {
+            listHtml = '<ul class="home-upcoming-list">' + dayItems.map(function (ev) {
+                const when = new Date(ev.start);
+                const timeStr = ev.allDay ? 'Journée' : when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const title = (ev.emoji ? ev.emoji + ' ' : '') + (ev.title || 'Sans titre');
+                return '<li><button type="button" class="home-upcoming-item" data-tool="agenda"><span class="home-upcoming-when">' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
+            }).join('') + '</ul>';
+        } else {
+            listHtml = '<p class="home-brief-empty">Rien de prévu ce jour. <button type="button" class="home-brief-link" data-tool="agenda">Ouvrir l’agenda</button></p>';
         }
-        box.innerHTML = '<h3 class="home-brief-title">🗓️ À venir</h3><ul class="home-upcoming-list">' + items.map(function (ev) {
-            const when = new Date(ev.start);
-            const dateStr = when.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-            const timeStr = ev.allDay ? 'Journée' : when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            const title = (ev.emoji ? ev.emoji + ' ' : '') + (ev.title || 'Sans titre');
-            return '<li><button type="button" class="home-upcoming-item" data-tool="agenda"><span class="home-upcoming-when">' + escapeDashboardHtml(dateStr) + ' · ' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
-        }).join('') + '</ul>';
+        box.innerHTML = '<div class="home-upcoming-head"><h3 class="home-brief-title">🗓️ À venir</h3><div class="home-upcoming-nav"><button type="button" class="home-upcoming-arrow" data-dir="-1"' + prevDisabled + ' aria-label="Jour précédent">◀</button><span class="home-upcoming-day">' + escapeDashboardHtml(label) + '</span><button type="button" class="home-upcoming-arrow" data-dir="1"' + nextDisabled + ' aria-label="Jour suivant">▶</button></div></div>' + listHtml;
+        box.querySelectorAll('.home-upcoming-arrow').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const dir = Number(btn.getAttribute('data-dir'));
+                homeUpcomingDayOffset = Math.max(0, Math.min(HOME_UPCOMING_MAX_DAYS, homeUpcomingDayOffset + dir));
+                renderUpcomingList(homeUpcomingItems);
+            });
+        });
         box.querySelectorAll('[data-tool]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 handleDashboardTool('agenda');
@@ -560,10 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fillHomeUpcoming() {
+        homeUpcomingDayOffset = 0;
         renderUpcomingList(upcomingFromLocalCache());
         if (window.EprofAgenda && typeof window.EprofAgenda.listUpcoming === 'function') {
             try {
-                const items = await window.EprofAgenda.listUpcoming(3);
+                const items = await window.EprofAgenda.listUpcoming(80);
                 renderUpcomingList(items);
             } catch (e) { /* cache déjà affiché */ }
         }
@@ -601,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function handleDashboardTool(tool) {
+    function handleDashboardTool(tool, extra) {
         outilCourant = tool;
         rememberTool(tool);
         switch(tool) {
@@ -638,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar('archives');
                 break;
             case 'eleves':
-                renderSuiviEleves(mainContent);
+                renderSuiviEleves(mainContent, extra && extra.classe);
                 highlightSidebar('eleves');
                 break;
             case 'notes':
@@ -3294,7 +3338,7 @@ if (typeof module !== 'undefined' && module.exports) {
     }
 
     // ========================================
-    function renderSuiviEleves(container) {
+    function renderSuiviEleves(container, classeInitiale) {
         const listesEleves = getListsForTeacher();
         const classes = getVisibleTeacherClasses();
 
@@ -3587,6 +3631,8 @@ if (typeof module !== 'undefined' && module.exports) {
                 emargementContainer.style.display = 'block';
             }
         }
+
+        if (classeInitiale) chargerClasse(classeInitiale);
         
         // Afficher la grille des élèves
         function afficherEleves(classe) {
@@ -5701,15 +5747,15 @@ if (typeof QUIZ_DATA !== 'undefined' && QUIZ_DATA.quiz && QUIZ_DATA.quiz.length 
                         <summary>➕ Ajouter un jeu</summary>
                         <div class="config-accordion-body">
                             <div class="ajout-jeu-form">
-                                <input type="text" id="jeu-titre" placeholder="Titre du jeu" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
-                                <input type="url" id="jeu-url" placeholder="URL du jeu (https://...)" style="flex: 2; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem;">
-                                <select id="jeu-famille" style="min-width:160px;padding:12px;border:2px solid #e2e8f0;border-radius:8px;">
+                                <input type="text" id="jeu-titre" placeholder="Titre du jeu">
+                                <input type="url" id="jeu-url" placeholder="URL du jeu (https://...)">
+                                <select id="jeu-famille">
                                     <option value="Général">📁 Général</option>
                                 </select>
                                 <button id="ajouter-jeu-btn" class="btn-primary">➕ Ajouter</button>
                             </div>
                             <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" id="jeu-nouvelle-famille" placeholder="Nouveau dossier (ex. Quiz, Géographie)" style="flex:1;min-width:220px;padding:10px;border:2px solid #e2e8f0;border-radius:8px;">
+                                <input type="text" id="jeu-nouvelle-famille" placeholder="Nouveau dossier (ex. Quiz, Géographie)">
                                 <button type="button" id="creer-famille-jeu-btn" class="btn-secondary">📁 Créer un dossier</button>
                             </div>
                             <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">

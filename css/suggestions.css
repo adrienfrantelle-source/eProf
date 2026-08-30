@@ -198,3 +198,56 @@
 .suggest-statut-planifie { border-left-color: #6366f1; }
 .suggest-statut-termine { border-left-color: #16a34a; }
 .suggest-statut-refuse { border-left-color: #94a3b8; opacity: 0.7; }
+
+body.theme-sombre .suggest-dialog {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .suggest-header h3,
+body.theme-sombre .suggest-subtitle {
+    color: #f1f5f9;
+}
+
+body.theme-sombre .suggest-close {
+    color: #cbd5e1;
+    background: transparent;
+}
+
+body.theme-sombre .suggest-hint,
+body.theme-sombre .suggest-badge,
+body.theme-sombre .suggest-item-meta,
+body.theme-sombre .suggest-locked {
+    color: #94a3b8;
+}
+
+body.theme-sombre .suggest-form,
+body.theme-sombre .suggest-item {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+body.theme-sombre .suggest-row label,
+body.theme-sombre .suggest-full,
+body.theme-sombre .suggest-item-desc {
+    color: #cbd5e1;
+}
+
+body.theme-sombre .suggest-form input,
+body.theme-sombre .suggest-form select,
+body.theme-sombre .suggest-form textarea {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .suggest-item-actions button {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .suggest-reponse {
+    background: #1e3a5f;
+    color: #bfdbfe;
+}

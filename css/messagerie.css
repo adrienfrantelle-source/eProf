@@ -454,3 +454,129 @@
         max-width: 90%;
     }
 }
+
+body.theme-sombre .messagerie-module {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre .msg-sidebar {
+    background: #0f172a;
+    border-right-color: #475569;
+}
+
+body.theme-sombre .msg-sidebar-header h2,
+body.theme-sombre .messagerie-module h2,
+body.theme-sombre .messagerie-module h3,
+body.theme-sombre .msg-channel-name,
+body.theme-sombre .msg-author {
+    color: #f1f5f9;
+}
+
+body.theme-sombre .msg-sidebar-hint,
+body.theme-sombre .msg-empty-list,
+body.theme-sombre .msg-empty-thread,
+body.theme-sombre .msg-hint,
+body.theme-sombre .msg-channel-preview,
+body.theme-sombre .msg-channel-date,
+body.theme-sombre .msg-thread-members,
+body.theme-sombre .msg-composer-hint,
+body.theme-sombre .msg-meta,
+body.theme-sombre .msg-chip-you {
+    color: #94a3b8;
+}
+
+body.theme-sombre .msg-sidebar #msg-search,
+body.theme-sombre .msg-composer textarea,
+body.theme-sombre .msg-dialog-form input[type="text"],
+body.theme-sombre .msg-dialog-form input[type="search"],
+body.theme-sombre .msg-dialog-form select,
+body.theme-sombre .msg-teacher-select {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .msg-channel-item {
+    color: #e2e8f0;
+    background: transparent;
+}
+
+body.theme-sombre .msg-channel-item:hover {
+    background: #1e293b;
+}
+
+body.theme-sombre .msg-channel-item.is-active {
+    background: #1e3a5f;
+}
+
+body.theme-sombre .msg-thread {
+    background: #1e293b;
+}
+
+body.theme-sombre .msg-thread-scroll {
+    background: #1e293b;
+}
+
+body.theme-sombre .msg-thread-header,
+body.theme-sombre .msg-composer {
+    background: #0f172a;
+    border-color: #475569;
+}
+
+body.theme-sombre .msg-day span {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+body.theme-sombre .msg-bubble.is-mine {
+    background: #1d4ed8;
+    color: #eff6ff;
+}
+
+body.theme-sombre .msg-bubble.is-theirs {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .msg-bubble.is-mine .msg-body a {
+    color: #bfdbfe;
+}
+
+body.theme-sombre .msg-bubble.is-theirs .msg-body a {
+    color: #93c5fd;
+}
+
+body.theme-sombre .msg-btn-ghost {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .msg-btn-danger {
+    background: #1e293b;
+    color: #fca5a5;
+    border-color: #7f1d1d;
+}
+
+body.theme-sombre .msg-dialog {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .msg-dialog-close {
+    color: #e2e8f0;
+    background: transparent;
+}
+
+body.theme-sombre .msg-chip {
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+body.theme-sombre .msg-settings-danger {
+    border-top-color: #475569;
+}
+
+body.theme-sombre .messagerie-offline {
+    color: #e2e8f0;
+}

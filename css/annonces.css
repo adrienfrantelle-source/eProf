@@ -150,3 +150,46 @@
         width: auto;
     }
 }
+
+body.theme-sombre .annonce-toast {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .annonce-important {
+    background: linear-gradient(180deg, #422006 0%, #1e293b 70%);
+}
+
+body.theme-sombre .annonce-urgent {
+    background: linear-gradient(180deg, #450a0a 0%, #1e293b 70%);
+}
+
+body.theme-sombre .annonce-icon {
+    background: #1e3a5f;
+}
+
+body.theme-sombre .annonce-important .annonce-icon { background: #78350f; }
+body.theme-sombre .annonce-urgent .annonce-icon { background: #7f1d1d; }
+
+body.theme-sombre .annonce-body h4 {
+    color: #f8fafc;
+}
+
+body.theme-sombre .annonce-body p {
+    color: #cbd5e1;
+}
+
+body.theme-sombre .annonce-lien {
+    color: #93c5fd;
+}
+
+body.theme-sombre .annonce-close {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .annonce-close:hover {
+    background: #475569;
+    color: #fff;
+}
