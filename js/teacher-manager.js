@@ -348,266 +348,525 @@ class TeacherManager {
         this.saveTeacherConfig();
         return true;
     }
+    escapeConfigHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    getClassNiveau(className) {
+        const ref = window.EprofReferentiel && typeof window.EprofReferentiel.findClass === 'function'
+            ? window.EprofReferentiel.findClass(className)
+            : null;
+        if (ref && ref.niveau) return ref.niveau;
+        const n = String(className || '').toLowerCase();
+        if (n.includes('4e') || n.includes('4ème') || n.includes('4eme')) return '4e';
+        if (n.includes('3e') || n.includes('3ème') || n.includes('3eme')) return '3e';
+        if (n.includes('2nde') || n.includes('seconde')) return '2nde';
+        if (n.includes('1ère') || n.includes('1ere') || n.includes('premiere')) return '1ère';
+        if (n.includes('tle') || n.includes('terminale')) return 'Terminale';
+        if (n.includes('6e') || n.includes('6ème')) return '6e';
+        if (n.includes('5e') || n.includes('5ème')) return '5e';
+        return 'Autres';
+    }
+
+    groupClassesByNiveau(names) {
+        const order = ['6e', '5e', '4e', '3e', '2nde', '1ère', 'Terminale', 'Autres'];
+        const groups = {};
+        names.forEach((name) => {
+            const niveau = this.getClassNiveau(name);
+            if (!groups[niveau]) groups[niveau] = [];
+            groups[niveau].push(name);
+        });
+        return order.filter((niveau) => groups[niveau] && groups[niveau].length).map((niveau) => ({
+            niveau,
+            classes: groups[niveau]
+        }));
+    }
+
     showInitialConfig() {
         const modal = document.getElementById('initial-config-modal');
         if (!modal) {
             this.createConfigModal();
         } else {
-            modal.style.display = 'block';
-            this.populateConfigModal();
+            this.openConfigModal();
         }
     }
 
     createConfigModal() {
-        const modalHTML = `
-            <div id="initial-config-modal" class="modal" style="display: block; backdrop-filter: blur(8px); background: rgba(0,0,0,0.5);">
-                <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto; animation: slideDown 0.3s ease;">
-                    <div class="modal-header" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                        <div style="font-size: 3.5em; margin-bottom: 10px;">⚙️</div>
-                        <h2 style="margin: 0; font-size: 1.7em; font-weight: 600;">Configuration de vos classes</h2>
-                        <p style="margin: 10px 0 0 0; opacity: 0.95; font-size: 1em;">Sélectionnez vos classes et matières enseignées</p>
+        const html = `
+            <div id="initial-config-modal" class="eprof-config-overlay" role="dialog" aria-modal="true" aria-labelledby="eprof-config-title">
+                <div class="eprof-config-dialog">
+                    <header class="eprof-config-header">
+                        <div>
+                            <h2 id="eprof-config-title">Vos classes et matières</h2>
+                            <p class="eprof-config-summary" id="eprof-config-summary"></p>
+                        </div>
+                        <button type="button" class="eprof-config-close" id="eprof-config-close" aria-label="Fermer">×</button>
+                    </header>
+                    <div class="eprof-config-body">
+                        <aside class="eprof-config-classes">
+                            <div class="eprof-config-pane-head">
+                                <h3>Classes</h3>
+                                <button type="button" class="eprof-config-text-btn" id="eprof-config-toggle-all-classes">Tout cocher</button>
+                            </div>
+                            <input type="search" id="eprof-config-class-search" placeholder="Rechercher une classe…" autocomplete="off">
+                            <div id="eprof-config-class-list" class="eprof-config-class-list"></div>
+                        </aside>
+                        <section class="eprof-config-subjects">
+                            <div id="eprof-config-subjects-panel"></div>
+                        </section>
                     </div>
-                    <div class="modal-body" style="padding: 35px 30px;">
-                        <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px;">
-                            <p style="margin: 0; color: #065f46; font-weight: 500;">
-                                📚 <strong>Instructions :</strong> Choisissez d'abord vos classes, puis configurez les matières pour chacune d'elles.
-                            </p>
-                        </div>
-                        
-                        <div class="form-group" style=\"margin-bottom: 25px;\">
-                            <label style=\"display: block; font-weight: 600; color: #333; font-size: 1.1em; margin-bottom: 15px;\">
-                                📚 Sélectionnez vos classes :
-                            </label>
-                            <div id="classes-checkboxes" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 250px; overflow-y: auto; padding: 20px; border: 2px solid #10b981; border-radius: 12px; background: white; box-shadow: 0 2px 8px rgba(16,185,129,0.1);">
-                            </div>
-                        </div>
-
-                        <div class="form-group" style="margin-top: 30px;">
-                            <label style=\"display: block; font-weight: 600; color: #333; font-size: 1.1em; margin-bottom: 10px;\">
-                                🎓 Configuration des matières par classe :
-                            </label>
-                            <p style="font-size: 0.95em; color: #666; margin-bottom: 15px; padding-left: 5px;">
-                                Pour chaque classe sélectionnée, choisissez les matières que vous enseignez.
-                                Cliquez sur ✏️ pour renommer une matière (partout où elle est utilisée).
-                            </p>
-                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                <input type="text" id="new-subject-input" placeholder="Ajouter une matière (ex : SVT)"
-                                       style="flex: 1; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95em;">
-                                <button id="add-subject-btn" type="button"
-                                        style="padding: 10px 18px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
-                                    ➕ Ajouter
-                                </button>
-                            </div>
-                            <div id="subjects-by-class-container" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
-                            </div>
-                        </div>
-
-                        <div class="form-actions" style=\"margin-top: 35px;\">
-                            <button id="save-config-btn" class="btn-primary" 
-                                    style="width: 100%; padding: 18px; font-size: 1.15em; font-weight: 600; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; border-radius: 10px; color: white; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(16,185,129,0.4);"
-                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(16,185,129,0.6)'"
-                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(16,185,129,0.4)'">
-                                ✓ Enregistrer la configuration
-                            </button>
-                        </div>
-                    </div>
+                    <footer class="eprof-config-footer">
+                        <p class="eprof-config-error" id="eprof-config-error" hidden></p>
+                        <button type="button" class="eprof-config-btn eprof-config-btn-ghost" id="eprof-config-cancel">Annuler</button>
+                        <button type="button" class="eprof-config-btn eprof-config-btn-primary" id="save-config-btn">Enregistrer</button>
+                    </footer>
                 </div>
             </div>
         `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        this.populateConfigModal();
-        
-        document.getElementById('save-config-btn').onclick = () => this.saveConfiguration();
-
-        const addSubjectBtn = document.getElementById('add-subject-btn');
-        const newSubjectInput = document.getElementById('new-subject-input');
-        if (addSubjectBtn && newSubjectInput) {
-            const handleAddSubject = () => {
-                if (this.addSubjectToCatalog(newSubjectInput.value)) {
-                    newSubjectInput.value = '';
-                    this.updateSubjectsForSelectedClasses();
-                } else if (newSubjectInput.value.trim()) {
-                    alert('Cette matière existe déjà dans la liste.');
-                }
-            };
-            addSubjectBtn.addEventListener('click', handleAddSubject);
-            newSubjectInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddSubject();
-                }
-            });
-        }
+        document.body.insertAdjacentHTML('beforeend', html);
+        this.bindConfigModalEvents();
+        this.openConfigModal();
     }
 
-    populateConfigModal() {
-        const classesContainer = document.getElementById('classes-checkboxes');
-        if (!classesContainer) return;
-        
-        classesContainer.innerHTML = '';
-        
-        const currentClasses = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
-        currentClasses.forEach(className => {
-                const label = document.createElement('label');
-                label.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 12px 15px; cursor: pointer; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; transition: all 0.3s; font-weight: 500;';
-                label.onmouseover = () => {
-                    label.style.background = '#f0fdf4';
-                    label.style.borderColor = '#10b981';
-                };
-                label.onmouseout = () => {
-                    const checkbox = label.querySelector('input[type="checkbox"]');
-                    if (!checkbox.checked) {
-                        label.style.background = '#f9fafb';
-                        label.style.borderColor = '#e5e7eb';
-                    }
-                };
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = className;
-                checkbox.style.cssText = 'width: 18px; height: 18px; cursor: pointer;';
-                checkbox.onchange = () => {
-                    if (checkbox.checked) {
-                        label.style.background = '#f0fdf4';
-                        label.style.borderColor = '#10b981';
-                    } else {
-                        label.style.background = '#f9fafb';
-                        label.style.borderColor = '#e5e7eb';
-                    }
-                    this.updateSubjectsForSelectedClasses();
-                };
-                checkbox.checked = this.teacherConfig.classes.includes(className);
-                checkbox.onchange = () => this.updateSubjectsForSelectedClasses();
-                
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(className));
-                classesContainer.appendChild(label);
+    openConfigModal() {
+        const overlay = document.getElementById('initial-config-modal');
+        if (!overlay) return;
+        const alreadySelected = (this.teacherConfig && this.teacherConfig.classes) || [];
+        const subjectsByClass = {};
+        Object.keys((this.teacherConfig && this.teacherConfig.subjectsByClass) || {}).forEach((name) => {
+            subjectsByClass[name] = (this.teacherConfig.subjectsByClass[name] || []).slice();
         });
-        
-        this.updateSubjectsForSelectedClasses();
+        this._configDraft = {
+            selected: new Set(alreadySelected),
+            subjectsByClass,
+            activeClass: alreadySelected[0] || null,
+            query: '',
+            renaming: null,
+            feedback: ''
+        };
+        const cancelBtn = document.getElementById('eprof-config-cancel');
+        if (cancelBtn) {
+            cancelBtn.textContent = alreadySelected.length ? 'Annuler' : 'Plus tard';
+        }
+        this.setConfigError('');
+        overlay.classList.add('is-open');
+        overlay.style.display = 'flex';
+        document.body.classList.add('eprof-config-open');
+        this.renderConfigModal();
+        const search = document.getElementById('eprof-config-class-search');
+        if (search) {
+            search.value = '';
+            setTimeout(() => search.focus(), 40);
+        }
     }
 
-    updateSubjectsForSelectedClasses() {
-        const container = document.getElementById('subjects-by-class-container');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        const selectedClasses = Array.from(document.querySelectorAll('#classes-checkboxes input:checked')).map(cb => cb.value);
-        
-        if (selectedClasses.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Sélectionnez au moins une classe ci-dessus</p>';
-            return;
+    closeConfigModal() {
+        const overlay = document.getElementById('initial-config-modal');
+        if (overlay) {
+            overlay.classList.remove('is-open');
+            overlay.style.display = 'none';
         }
+        document.body.classList.remove('eprof-config-open');
+        this._configDraft = null;
+    }
 
-        const subjectCatalog = this.getSubjectCatalog();
-        
-        selectedClasses.forEach((className, index) => {
-            const classDiv = document.createElement('div');
-            classDiv.style.cssText = 'margin-bottom: 20px; padding: 20px; border: 2px solid #10b981; border-radius: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); box-shadow: 0 2px 8px rgba(16,185,129,0.15);';
-            
-            const title = document.createElement('h4');
-            title.textContent = `📚 ${className}`;
-            title.style.cssText = 'margin: 0 0 15px 0; color: #10b981; font-size: 1.15em; font-weight: 600; padding-bottom: 10px; border-bottom: 2px solid #d1fae5;';
-            classDiv.appendChild(title);
-            
-            const subjectsGrid = document.createElement('div');
-            subjectsGrid.id = `subjects-for-${className.replace(/\s+/g, '-')}`;
-            subjectsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px;';
-            
-            const currentSubjects = this.teacherConfig.subjectsByClass[className] || this.getDefaultSubjectsForClass(className);
-            
-            subjectCatalog.forEach(subject => {
-                const label = document.createElement('label');
-                label.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: white; border: 1.5px solid #e5e7eb; border-radius: 6px; transition: all 0.2s; font-weight: 500;';
-                label.onmouseover = () => {
-                    label.style.background = '#f9fafb';
-                    label.style.borderColor = '#10b981';
-                };
-                label.onmouseout = () => {
-                    const checkbox = label.querySelector('input[type="checkbox"]');
-                    if (!checkbox.checked) {
-                        label.style.background = 'white';
-                        label.style.borderColor = '#e5e7eb';
-                    }
-                };
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = subject;
-                checkbox.checked = currentSubjects.includes(subject);
-                checkbox.style.cssText = 'width: 16px; height: 16px; cursor: pointer;';
-                checkbox.onchange = () => {
-                    if (checkbox.checked) {
-                        label.style.background = '#f0fdf4';
-                        label.style.borderColor = '#10b981';
-                    } else {
-                        label.style.background = 'white';
-                        label.style.borderColor = '#e5e7eb';
-                    }
-                };
-                
-                // Appliquer le style si déjà coché
-                if (checkbox.checked) {
-                    label.style.background = '#f0fdf4';
-                    label.style.borderColor = '#10b981';
+    setConfigError(message) {
+        const el = document.getElementById('eprof-config-error');
+        if (!el) return;
+        if (message) {
+            el.hidden = false;
+            el.textContent = message;
+        } else {
+            el.hidden = true;
+            el.textContent = '';
+        }
+    }
+
+    bindConfigModalEvents() {
+        const overlay = document.getElementById('initial-config-modal');
+        if (!overlay || overlay.dataset.bound === '1') return;
+        overlay.dataset.bound = '1';
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) this.closeConfigModal();
+        });
+
+        overlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this._configDraft && this._configDraft.renaming) {
+                    this._configDraft.renaming = null;
+                    this.renderSubjectsPanel();
+                    e.stopPropagation();
+                    return;
                 }
-                
-                const renameBtn = document.createElement('button');
-                renameBtn.type = 'button';
-                renameBtn.textContent = '✏️';
-                renameBtn.title = `Renommer "${subject}" (pour toutes les classes)`;
-                renameBtn.style.cssText = 'border:none;background:transparent;cursor:pointer;font-size:0.9em;margin-left:auto;padding:0 2px;line-height:1;';
-                renameBtn.onclick = (e) => {
+                this.closeConfigModal();
+            }
+        });
+
+        overlay.querySelector('#eprof-config-close').addEventListener('click', () => this.closeConfigModal());
+        overlay.querySelector('#eprof-config-cancel').addEventListener('click', () => this.closeConfigModal());
+        overlay.querySelector('#save-config-btn').addEventListener('click', () => this.saveConfiguration());
+
+        overlay.querySelector('#eprof-config-class-search').addEventListener('input', (e) => {
+            if (!this._configDraft) return;
+            this._configDraft.query = e.target.value;
+            this.renderClassList();
+        });
+
+        overlay.querySelector('#eprof-config-toggle-all-classes').addEventListener('click', () => {
+            this.toggleVisibleClasses();
+        });
+
+        overlay.querySelector('#eprof-config-class-list').addEventListener('click', (e) => {
+            const niveauBtn = e.target.closest('[data-action="toggle-niveau"]');
+            if (niveauBtn) {
+                this.toggleNiveau(niveauBtn.getAttribute('data-niveau'));
+                return;
+            }
+            const row = e.target.closest('[data-class-focus]');
+            if (!row) return;
+            const name = row.getAttribute('data-class-focus');
+            if (e.target.closest('[data-class-check]')) return;
+            this.focusClass(name, true);
+        });
+
+        overlay.querySelector('#eprof-config-class-list').addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const row = e.target.closest('[data-class-focus]');
+            if (!row || e.target.closest('[data-class-check]')) return;
+            e.preventDefault();
+            this.focusClass(row.getAttribute('data-class-focus'), true);
+        });
+
+        overlay.querySelector('#eprof-config-class-list').addEventListener('change', (e) => {
+            const checkbox = e.target.closest('[data-class-check]');
+            if (!checkbox || !this._configDraft) return;
+            this.setClassSelected(checkbox.getAttribute('data-class-check'), checkbox.checked);
+        });
+
+        overlay.querySelector('#eprof-config-subjects-panel').addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('[data-action]');
+            if (actionBtn) {
+                const action = actionBtn.getAttribute('data-action');
+                if (action === 'subjects-all') this.setAllSubjectsForActive(true);
+                if (action === 'subjects-none') this.setAllSubjectsForActive(false);
+                if (action === 'subjects-apply') this.applySubjectsToOtherClasses();
+                if (action === 'add-subject') this.addSubjectFromInput();
+                if (action === 'rename-subject') {
                     e.preventDefault();
                     e.stopPropagation();
-                    const nouveauNom = prompt(`Renommer la matière "${subject}" en :`, subject);
-                    if (nouveauNom && this.renameSubjectInCatalog(subject, nouveauNom.trim())) {
-                        this.updateSubjectsForSelectedClasses();
-                    }
-                };
-
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(subject));
-                label.appendChild(renameBtn);
-                subjectsGrid.appendChild(label);
-            });
-            
-            classDiv.appendChild(subjectsGrid);
-            container.appendChild(classDiv);
+                    this.startRenameSubject(actionBtn.getAttribute('data-subject'));
+                }
+            }
         });
+
+        overlay.querySelector('#eprof-config-subjects-panel').addEventListener('change', (e) => {
+            const checkbox = e.target.closest('[data-subject-check]');
+            if (!checkbox || !this._configDraft) return;
+            this.setSubjectSelected(checkbox.getAttribute('data-subject-check'), checkbox.checked);
+        });
+
+        overlay.querySelector('#eprof-config-subjects-panel').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.id === 'eprof-config-new-subject') {
+                e.preventDefault();
+                this.addSubjectFromInput();
+            }
+            if (e.target.classList.contains('eprof-config-rename-input')) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.commitRenameSubject(e.target.value);
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this._configDraft.renaming = null;
+                    this.renderSubjectsPanel();
+                }
+            }
+        });
+
+        overlay.querySelector('#eprof-config-subjects-panel').addEventListener('blur', (e) => {
+            if (e.target.classList.contains('eprof-config-rename-input') && this._configDraft && this._configDraft.renaming) {
+                this.commitRenameSubject(e.target.value);
+            }
+        }, true);
+    }
+
+    visibleClassNames() {
+        const all = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
+        const query = ((this._configDraft && this._configDraft.query) || '').trim().toLowerCase();
+        if (!query) return all;
+        return all.filter((name) => name.toLowerCase().indexOf(query) !== -1);
+    }
+
+    toggleVisibleClasses() {
+        if (!this._configDraft) return;
+        const visible = this.visibleClassNames();
+        const allOn = visible.length > 0 && visible.every((name) => this._configDraft.selected.has(name));
+        visible.forEach((name) => this.setClassSelected(name, !allOn, true));
+        this.renderConfigModal();
+    }
+
+    toggleNiveau(niveau) {
+        if (!this._configDraft) return;
+        const visible = this.visibleClassNames().filter((name) => this.getClassNiveau(name) === niveau);
+        const allOn = visible.length > 0 && visible.every((name) => this._configDraft.selected.has(name));
+        visible.forEach((name) => this.setClassSelected(name, !allOn, true));
+        this.renderConfigModal();
+    }
+
+    setClassSelected(name, selected, silent) {
+        if (!this._configDraft) return;
+        if (selected) {
+            this._configDraft.selected.add(name);
+            if (!this._configDraft.subjectsByClass[name] || this._configDraft.subjectsByClass[name].length === 0) {
+                this._configDraft.subjectsByClass[name] = this.getDefaultSubjectsForClass(name);
+            }
+            this._configDraft.activeClass = name;
+        } else {
+            this._configDraft.selected.delete(name);
+            if (this._configDraft.activeClass === name) {
+                this._configDraft.activeClass = Array.from(this._configDraft.selected)[0] || null;
+            }
+        }
+        if (!silent) this.renderConfigModal();
+    }
+
+    focusClass(name, alsoSelect) {
+        if (!this._configDraft) return;
+        if (alsoSelect) this.setClassSelected(name, true, true);
+        this._configDraft.activeClass = name;
+        this._configDraft.renaming = null;
+        this._configDraft.feedback = '';
+        this.renderConfigModal();
+    }
+
+    setSubjectSelected(subject, selected) {
+        const draft = this._configDraft;
+        if (!draft || !draft.activeClass) return;
+        const list = draft.subjectsByClass[draft.activeClass] || [];
+        const next = selected
+            ? (list.indexOf(subject) === -1 ? list.concat([subject]) : list)
+            : list.filter((item) => item !== subject);
+        draft.subjectsByClass[draft.activeClass] = next;
+        this.renderClassList();
+        this.updateConfigSummary();
+        const panel = document.getElementById('eprof-config-subjects-panel');
+        if (!panel) return;
+        const label = Array.from(panel.querySelectorAll('[data-subject]')).find(function (el) {
+            return el.getAttribute('data-subject') === subject;
+        });
+        if (label) label.classList.toggle('is-on', selected);
+    }
+
+    setAllSubjectsForActive(on) {
+        const draft = this._configDraft;
+        if (!draft || !draft.activeClass) return;
+        draft.subjectsByClass[draft.activeClass] = on ? this.getSubjectCatalog().slice() : [];
+        this.renderConfigModal();
+    }
+
+    applySubjectsToOtherClasses() {
+        const draft = this._configDraft;
+        if (!draft || !draft.activeClass) return;
+        const source = (draft.subjectsByClass[draft.activeClass] || []).slice();
+        let count = 0;
+        draft.selected.forEach((name) => {
+            if (name === draft.activeClass) return;
+            draft.subjectsByClass[name] = source.slice();
+            count += 1;
+        });
+        draft.feedback = count
+            ? 'Matières copiées vers ' + count + ' autre' + (count > 1 ? 's' : '') + ' classe' + (count > 1 ? 's' : '') + '.'
+            : 'Cochez d’abord une autre classe.';
+        this.renderConfigModal();
+    }
+
+    addSubjectFromInput() {
+        const input = document.getElementById('eprof-config-new-subject');
+        if (!input || !this._configDraft) return;
+        const name = input.value.trim();
+        if (!name) return;
+        if (this.addSubjectToCatalog(name)) {
+            if (this._configDraft.activeClass) {
+                const list = this._configDraft.subjectsByClass[this._configDraft.activeClass] || [];
+                if (list.indexOf(name) === -1) list.push(name);
+                this._configDraft.subjectsByClass[this._configDraft.activeClass] = list;
+            }
+            input.value = '';
+            this._configDraft.feedback = '';
+            this.setConfigError('');
+            this.renderConfigModal();
+        } else {
+            this.setConfigError('Cette matière existe déjà.');
+        }
+    }
+
+    startRenameSubject(subject) {
+        if (!this._configDraft) return;
+        this._configDraft.renaming = subject;
+        this.renderSubjectsPanel();
+        const input = document.querySelector('.eprof-config-rename-input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }
+
+    commitRenameSubject(newName) {
+        const draft = this._configDraft;
+        if (!draft || !draft.renaming) return;
+        const oldName = draft.renaming;
+        draft.renaming = null;
+        const trimmed = (newName || '').trim();
+        if (trimmed && trimmed !== oldName) {
+            this.renameSubjectInCatalog(oldName, trimmed);
+            Object.keys(draft.subjectsByClass).forEach((className) => {
+                draft.subjectsByClass[className] = (draft.subjectsByClass[className] || []).map((item) => (
+                    item === oldName ? trimmed : item
+                ));
+            });
+        }
+        this.renderConfigModal();
+    }
+
+    renderConfigModal() {
+        this.renderClassList();
+        this.renderSubjectsPanel();
+        this.updateConfigSummary();
+        const toggle = document.getElementById('eprof-config-toggle-all-classes');
+        if (toggle && this._configDraft) {
+            const visible = this.visibleClassNames();
+            const allOn = visible.length > 0 && visible.every((name) => this._configDraft.selected.has(name));
+            toggle.textContent = allOn ? 'Tout décocher' : 'Tout cocher';
+        }
+    }
+
+    updateConfigSummary() {
+        const el = document.getElementById('eprof-config-summary');
+        if (!el || !this._configDraft) return;
+        const nClasses = this._configDraft.selected.size;
+        const matieres = new Set();
+        this._configDraft.selected.forEach((name) => {
+            (this._configDraft.subjectsByClass[name] || []).forEach((m) => matieres.add(m));
+        });
+        if (!nClasses) {
+            el.textContent = 'Cochez les classes que vous avez, puis leurs matières.';
+            return;
+        }
+        el.textContent = nClasses + ' classe' + (nClasses > 1 ? 's' : '') + ' · ' +
+            matieres.size + ' matière' + (matieres.size > 1 ? 's' : '');
+    }
+
+    renderClassList() {
+        const container = document.getElementById('eprof-config-class-list');
+        if (!container || !this._configDraft) return;
+        const visible = this.visibleClassNames();
+        if (!visible.length) {
+            container.innerHTML = '<p class="eprof-config-empty">Aucune classe ne correspond à la recherche.</p>';
+            return;
+        }
+        const groups = this.groupClassesByNiveau(visible);
+        container.innerHTML = groups.map((group) => {
+            const rows = group.classes.map((name) => {
+                const selected = this._configDraft.selected.has(name);
+                const active = this._configDraft.activeClass === name;
+                const count = (this._configDraft.subjectsByClass[name] || []).length;
+                const color = window.getClassColor ? window.getClassColor(name) : '#059669';
+                const classes = ['eprof-config-class'];
+                if (selected) classes.push('is-selected');
+                if (active) classes.push('is-active');
+                return `
+                    <div class="${classes.join(' ')}" data-class-focus="${this.escapeConfigHtml(name)}" style="border-left-color:${color}" role="button" tabindex="0">
+                        <input type="checkbox" data-class-check="${this.escapeConfigHtml(name)}" ${selected ? 'checked' : ''} aria-label="Enseigner ${this.escapeConfigHtml(name)}">
+                        <span class="eprof-config-class-name">${this.escapeConfigHtml(name)}</span>
+                        <span class="eprof-config-class-count">${count}</span>
+                    </div>`;
+            }).join('');
+            return `
+                <div class="eprof-config-niveau">
+                    <span>${this.escapeConfigHtml(group.niveau)}</span>
+                    <button type="button" class="eprof-config-text-btn" data-action="toggle-niveau" data-niveau="${this.escapeConfigHtml(group.niveau)}">toutes</button>
+                </div>
+                ${rows}`;
+        }).join('');
+    }
+
+    renderSubjectsPanel() {
+        const panel = document.getElementById('eprof-config-subjects-panel');
+        if (!panel || !this._configDraft) return;
+        const active = this._configDraft.activeClass;
+        if (!active || !this._configDraft.selected.has(active)) {
+            panel.innerHTML = `
+                <div class="eprof-config-placeholder">
+                    <strong>Choisissez une classe</strong>
+                    Cochez une classe à gauche, puis sélectionnez les matières que vous y enseignez.
+                </div>`;
+            return;
+        }
+        const catalog = this.getSubjectCatalog();
+        const selected = this._configDraft.subjectsByClass[active] || [];
+        const color = window.getClassColor ? window.getClassColor(active) : '#059669';
+        const feedback = this._configDraft.feedback
+            ? `<p class="eprof-config-feedback">${this.escapeConfigHtml(this._configDraft.feedback)}</p>`
+            : '';
+        panel.innerHTML = `
+            <div class="eprof-config-subjects-head">
+                <h3 style="border-left:4px solid ${color};padding-left:10px;">${this.escapeConfigHtml(active)}</h3>
+                <div class="eprof-config-subjects-tools">
+                    <button type="button" class="eprof-config-chip-btn" data-action="subjects-all">Tout cocher</button>
+                    <button type="button" class="eprof-config-chip-btn" data-action="subjects-none">Aucune</button>
+                    <button type="button" class="eprof-config-chip-btn" data-action="subjects-apply">Appliquer aux autres classes</button>
+                </div>
+            </div>
+            <div class="eprof-config-add">
+                <input type="text" id="eprof-config-new-subject" placeholder="Ajouter une matière (ex. SVT)" autocomplete="off">
+                <button type="button" data-action="add-subject">Ajouter</button>
+            </div>
+            <div class="eprof-config-subject-grid">
+                ${catalog.map((subject) => {
+                    const on = selected.indexOf(subject) !== -1;
+                    const renaming = this._configDraft.renaming === subject;
+                    const nameHtml = renaming
+                        ? `<input class="eprof-config-rename-input" value="${this.escapeConfigHtml(subject)}" aria-label="Nouveau nom">`
+                        : `<span class="eprof-config-subject-name">${this.escapeConfigHtml(subject)}</span>`;
+                    return `
+                        <label class="eprof-config-subject ${on ? 'is-on' : ''}" data-subject="${this.escapeConfigHtml(subject)}">
+                            <input type="checkbox" data-subject-check="${this.escapeConfigHtml(subject)}" ${on ? 'checked' : ''}>
+                            ${nameHtml}
+                            <button type="button" class="eprof-config-rename-btn" data-action="rename-subject" data-subject="${this.escapeConfigHtml(subject)}" title="Renommer pour toutes les classes">✏️</button>
+                        </label>`;
+                }).join('')}
+            </div>
+            ${feedback}`;
     }
 
     saveConfiguration() {
-        const selectedClasses = Array.from(document.querySelectorAll('#classes-checkboxes input:checked')).map(cb => cb.value);
-        
+        const draft = this._configDraft;
+        const selectedClasses = draft ? Array.from(draft.selected) : [];
+
         if (selectedClasses.length === 0) {
-            alert('Veuillez sélectionner au moins une classe');
+            this.setConfigError('Sélectionnez au moins une classe.');
             return;
         }
-        
+
         this.teacherConfig.classes = selectedClasses;
         this.teacherConfig.subjectsByClass = {};
-        
-        // Sauvegarder les matières sélectionnées pour chaque classe
-        selectedClasses.forEach(className => {
-            const checkboxes = document.querySelectorAll(`#subjects-for-${className.replace(/\s+/g, '-')} input:checked`);
-            this.teacherConfig.subjectsByClass[className] = Array.from(checkboxes).map(cb => cb.value);
+        selectedClasses.forEach((className) => {
+            this.teacherConfig.subjectsByClass[className] = (draft.subjectsByClass[className] || []).slice();
         });
-        
+
         this.saveTeacherConfig();
-        
-        const modal = document.getElementById('initial-config-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-        
-        alert('✓ Configuration enregistrée avec succès !');
-        
-        // Recharger si on est sur le carnet de notes
-        if (window.location.href.includes('carnet-notes.html')) {
+        this.closeConfigModal();
+
+        if (window.location.href.indexOf('carnet-notes.html') !== -1) {
             window.location.reload();
+        } else {
+            this.reloadTeacherData();
+            this.updateUI();
         }
     }
 

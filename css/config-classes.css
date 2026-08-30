@@ -1,0 +1,548 @@
+/* ===== Modale configuration classes / matières ===== */
+
+.eprof-config-overlay,
+.eprof-config-overlay * {
+    box-sizing: border-box;
+}
+
+.eprof-config-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 13000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.eprof-config-overlay.is-open {
+    display: flex;
+}
+
+.eprof-config-dialog {
+    width: min(1040px, 100%);
+    max-height: min(88vh, 860px);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+    overflow: hidden;
+    animation: eprofConfigIn 0.22s ease;
+}
+
+@keyframes eprofConfigIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+.eprof-config-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    flex-shrink: 0;
+}
+
+.eprof-config-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.eprof-config-summary {
+    margin: 4px 0 0;
+    font-size: 0.92rem;
+    color: #64748b;
+}
+
+.eprof-config-close {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.eprof-config-close:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.eprof-config-body {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) 1fr;
+    min-height: 0;
+    flex: 1;
+}
+
+.eprof-config-classes {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.eprof-config-pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px 8px;
+}
+
+.eprof-config-pane-head h3 {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.eprof-config-text-btn {
+    border: none;
+    background: none;
+    color: #047857;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+.eprof-config-text-btn:hover {
+    text-decoration: underline;
+}
+
+#eprof-config-class-search {
+    margin: 0 14px 10px;
+    width: calc(100% - 28px);
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    background: #fff;
+}
+
+#eprof-config-class-search:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.eprof-config-class-list {
+    overflow-y: auto;
+    padding: 0 10px 14px;
+    min-height: 0;
+    flex: 1;
+}
+
+.eprof-config-niveau {
+    margin: 10px 4px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.eprof-config-niveau span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.eprof-config-class {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 9px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-left-width: 4px;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: #1e293b;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.eprof-config-class:hover {
+    border-color: #a7f3d0;
+}
+
+.eprof-config-class.is-selected {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+}
+
+.eprof-config-class:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #93c5fd;
+}
+
+.eprof-config-class.is-active,
+.eprof-config-class.is-active:focus {
+    box-shadow: 0 0 0 2px #10b981;
+    border-color: #10b981;
+}
+
+.eprof-config-class input {
+    width: 16px;
+    height: 16px;
+    accent-color: #059669;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.eprof-config-class-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.92rem;
+    min-width: 0;
+}
+
+.eprof-config-class-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #047857;
+    background: #d1fae5;
+    border-radius: 999px;
+    padding: 1px 7px;
+    min-width: 1.4em;
+    text-align: center;
+}
+
+.eprof-config-class:not(.is-selected) .eprof-config-class-count {
+    display: none;
+}
+
+.eprof-config-empty {
+    margin: 20px 12px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.eprof-config-subjects {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    background: #fff;
+}
+
+#eprof-config-subjects-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    padding: 14px 18px 16px;
+}
+
+.eprof-config-subjects-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.eprof-config-subjects-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #0f172a;
+}
+
+.eprof-config-subjects-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.eprof-config-chip-btn {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #334155;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.eprof-config-chip-btn:hover {
+    border-color: #10b981;
+    color: #047857;
+    background: #ecfdf5;
+}
+
+.eprof-config-add {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.eprof-config-add input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.92rem;
+}
+
+.eprof-config-add input:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.eprof-config-add button {
+    border: none;
+    border-radius: 10px;
+    background: #059669;
+    color: #fff;
+    font-weight: 600;
+    padding: 8px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.eprof-config-add button:hover {
+    background: #047857;
+}
+
+.eprof-config-subject-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1;
+    align-content: start;
+    padding-bottom: 4px;
+}
+
+.eprof-config-subject {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #334155;
+}
+
+.eprof-config-subject.is-on {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #065f46;
+}
+
+.eprof-config-subject input {
+    accent-color: #059669;
+    cursor: pointer;
+}
+
+.eprof-config-subject-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.eprof-config-subject-name input {
+    width: 100%;
+    padding: 2px 4px;
+    border: 1px solid #10b981;
+    border-radius: 6px;
+    font: inherit;
+}
+
+.eprof-config-rename-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.45;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.eprof-config-subject:hover .eprof-config-rename-btn {
+    opacity: 1;
+}
+
+.eprof-config-placeholder {
+    margin: auto;
+    max-width: 320px;
+    text-align: center;
+    color: #64748b;
+    padding: 40px 16px;
+}
+
+.eprof-config-placeholder strong {
+    display: block;
+    color: #0f172a;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+}
+
+.eprof-config-feedback {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    color: #047857;
+    font-weight: 600;
+}
+
+.eprof-config-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 18px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    flex-shrink: 0;
+}
+
+.eprof-config-error {
+    margin: 0 auto 0 0;
+    color: #b91c1c;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.eprof-config-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.eprof-config-btn-ghost {
+    background: #fff;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+.eprof-config-btn-ghost:hover {
+    background: #f1f5f9;
+}
+
+.eprof-config-btn-primary {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+    min-width: 150px;
+}
+
+.eprof-config-btn-primary:hover {
+    filter: brightness(1.05);
+}
+
+body.eprof-config-open {
+    overflow: hidden;
+}
+
+body.theme-sombre .eprof-config-dialog,
+body.theme-sombre .eprof-config-subjects,
+body.theme-sombre .eprof-config-header,
+body.theme-sombre .eprof-config-footer {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .eprof-config-header {
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+
+body.theme-sombre .eprof-config-header h2,
+body.theme-sombre .eprof-config-subjects-head h3,
+body.theme-sombre .eprof-config-placeholder strong {
+    color: #f8fafc;
+}
+
+body.theme-sombre .eprof-config-classes,
+body.theme-sombre .eprof-config-footer {
+    background: #0f172a;
+}
+
+body.theme-sombre .eprof-config-class,
+body.theme-sombre .eprof-config-subject,
+body.theme-sombre .eprof-config-chip-btn,
+body.theme-sombre .eprof-config-btn-ghost,
+body.theme-sombre #eprof-config-class-search,
+body.theme-sombre .eprof-config-add input {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .eprof-config-class.is-selected,
+body.theme-sombre .eprof-config-subject.is-on {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #d1fae5;
+}
+
+body.theme-sombre .eprof-config-close {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+@media (max-width: 760px) {
+    .eprof-config-overlay {
+        padding: 0;
+        align-items: stretch;
+    }
+
+    .eprof-config-dialog {
+        width: 100%;
+        max-height: 100%;
+        height: 100%;
+        border-radius: 0;
+    }
+
+    .eprof-config-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(180px, 38%) 1fr;
+    }
+
+    .eprof-config-classes {
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .eprof-config-footer {
+        position: sticky;
+        bottom: 0;
+    }
+}

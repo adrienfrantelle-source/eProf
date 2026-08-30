@@ -27,7 +27,7 @@
             steps: [
                 'Ouvrez <strong>Paramètres</strong> dans le menu ou depuis l’accueil. Le sommaire en haut permet d’aller directement à une section ; chaque bloc se replie.',
                 'Renseignez nom, prénom, matière et e-mail. En ligne, le profil de l’établissement est utilisé en priorité.',
-                'Cliquez <strong>Gérer mes classes et matières</strong> pour cocher uniquement les classes que vous avez. Elles apparaissent ensuite dans le suivi, le plan de classe et les trombinoscopes.',
+                'Cliquez <strong>Gérer mes classes et matières</strong> : cochez vos classes à gauche (groupées par niveau), puis leurs matières à droite.',
                 'Choisissez l’année scolaire (trombinoscopes, vacances du calendrier) puis le thème, la taille de police et le mode mobile — l’aperçu est immédiat.',
                 'Dans Calendrier, réglez les heures affichées et l’éventuel samedi. Dans Notation, choisissez le barème (sur 20 ou sur 10) et les seuils d’alertes (oublis, mots) utilisés dans le suivi.',
                 'La section « Mon compte » permet de changer l’identifiant ou le mot de passe. Le bouton Enregistrer, toujours visible en bas, sauvegarde le reste.'
