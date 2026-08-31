@@ -891,10 +891,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (prefs.pauses || []).forEach(function (p) {
                 var a = U.parseHm(p.start);
                 var b = U.parseHm(p.end);
-                if (mins < b && slotEnd > a) {
-                    if (isLane) info.el.classList.add('cal-slot-pause');
-                    if (mins > a && mins < b) info.el.classList.add('cal-slot-pause-line');
-                }
+                if (mins > a && mins < b) info.el.classList.add('cal-slot-pause-line');
             });
             if (!isLane) return;
             [prefs.ligneDebut, prefs.ligneFin].forEach(function (hm) {
@@ -921,6 +918,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 return U.toYmdLocal(date);
             }
 
+            function pauseBackgroundEvents() {
+                var prefs = U.getCalendarDisplayPrefs();
+                var out = [];
+                (prefs.pauses || []).forEach(function (p, i) {
+                    var start = String(p.start || '');
+                    var end = String(p.end || '');
+                    if (start.length === 5) start += ':00';
+                    if (end.length === 5) end += ':00';
+                    if (!start || !end || U.parseHm(p.start) >= U.parseHm(p.end)) return;
+                    out.push({
+                        id: 'cal-pause-' + i,
+                        startTime: start,
+                        endTime: end,
+                        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+                        display: 'background',
+                        classNames: ['cal-pause-bg'],
+                        editable: false,
+                        overlap: true
+                    });
+                });
+                return out;
+            }
+
             function eventsForRange(info) {
                 if (!U) return [];
                 var from = fcRangeYmd(info.start, info.startStr);
@@ -934,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.warn(err);
                     }
                 });
-                return out.concat(U.getSchoolCalendarEvents(anneeCal));
+                return out.concat(U.getSchoolCalendarEvents(anneeCal), pauseBackgroundEvents());
             }
 
             function updateWeekBadge(info) {
