@@ -866,47 +866,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         var calendar = null;
-        var skipSync = false;
 
         function userItems() {
             return U ? U.readLocalCache() : [];
         }
 
         function applyFilters() {
-            if (!calendar) return;
-            var cls = container.querySelector('#cal-filter-class').value;
-            var type = container.querySelector('#cal-filter-type').value;
-            calendar.getEvents().forEach(function (ev) {
-                if (!U.isUserEvent(ev)) return;
-                var xp = ev.extendedProps || {};
-                var okClass = !cls || xp.className === cls;
-                var okType = !type || xp.type === type;
-                ev.setProp('display', okClass && okType ? 'auto' : 'none');
-            });
+            if (calendar) calendar.refetchEvents();
         }
 
-        function removeBySeries(id) {
-            if (!calendar || !id) return;
-            calendar.getEvents().slice().forEach(function (ev) {
-                var parsed = U.parseInstanceId(ev.id);
-                if (ev.id === id || parsed.seriesId === id) ev.remove();
-            });
+        function addOrReplace() {
+            if (calendar) calendar.refetchEvents();
         }
 
-        function addOrReplace(item) {
-            if (!calendar || !item) return;
-            skipSync = true;
-            removeBySeries(item.id);
-            (U.toFcEvents ? U.toFcEvents(item) : [U.toFcEvent(item)]).forEach(function (ev) {
-                calendar.addEvent(ev);
-            });
-            skipSync = false;
-            applyFilters();
+        async function persistMovedEvent(info) {
+            if (!U || !U.isUserEvent(info.event)) {
+                if (info.revert) info.revert();
+                return;
+            }
+            try {
+                var parsed = U.parseInstanceId(info.event.id);
+                if (parsed.occurrenceDate) {
+                    await U.detachOccurrence(parsed.seriesId, parsed.occurrenceDate, U.oneOffFromFcEvent(info.event));
+                } else {
+                    await U.persistEvent(U.fcEventToItem(info.event));
+                }
+                calendar.refetchEvents();
+            } catch (err) {
+                console.error(err);
+                if (info.revert) info.revert();
+            }
         }
 
         function decorateSlot(info) {
             var viewType = calendar && calendar.view ? calendar.view.type : '';
             if (viewType !== 'timeGridDay' && viewType !== 'timeGridWeek') return;
+            if (info.el.dataset.calDecorated) return;
+            info.el.dataset.calDecorated = '1';
             var prefs = U.getCalendarDisplayPrefs();
             var mins = info.date.getHours() * 60 + info.date.getMinutes();
             var slotEnd = mins + 30;
@@ -932,14 +928,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
-            var items = U ? await U.loadAllEvents() : [];
+            if (U) await U.loadAllEvents();
             var anneeCal = U ? U.getAnneeScolaire() : getAnneeScolaire();
             var calPrefs = U ? U.getCalendarDisplayPrefs() : getCalendarDisplayPrefs();
-            var allEvents = [];
-            items.forEach(function (it) {
-                allEvents = allEvents.concat(U.toFcEvents ? U.toFcEvents(it) : [U.toFcEvent(it)]);
-            });
-            allEvents = allEvents.concat(U.getSchoolCalendarEvents(anneeCal));
+
+            function eventsForRange(start, end) {
+                if (!U) return [];
+                var from = U.toYmdLocal(start);
+                var to = U.toYmdLocal(end);
+                var out = [];
+                (U.readLocalCache() || []).forEach(function (it) {
+                    var slice = U.toFcEvents(it, from, to);
+                    for (var i = 0; i < slice.length; i++) out.push(slice[i]);
+                });
+                return out.concat(U.getSchoolCalendarEvents(anneeCal));
+            }
 
             calendar = new window.FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
@@ -1006,59 +1009,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     info.jsEvent.preventDefault();
                     U.openDetailModal(U.fcEventToItem(info.event), {
                         onSaved: addOrReplace,
-                        onDeleted: function (id) {
-                            skipSync = true;
-                            removeBySeries(id);
-                            skipSync = false;
-                        }
+                        onDeleted: addOrReplace
                     });
                 },
                 eventAllow: function (dropInfo, dragged) {
                     return !dragged || U.isUserEvent(dragged);
                 },
-                events: allEvents,
+                events: function (info, successCallback) {
+                    try {
+                        successCallback(eventsForRange(info.start, info.end));
+                    } catch (err) {
+                        console.error(err);
+                        successCallback([]);
+                    }
+                },
+                eventClassNames: function (arg) {
+                    if (!U || !U.isUserEvent(arg.event)) return [];
+                    var clsEl = container.querySelector('#cal-filter-class');
+                    var typeEl = container.querySelector('#cal-filter-type');
+                    var cls = clsEl ? clsEl.value : '';
+                    var type = typeEl ? typeEl.value : '';
+                    var xp = arg.event.extendedProps || {};
+                    if ((cls && xp.className !== cls) || (type && xp.type !== type)) return ['fc-event-filtered'];
+                    return [];
+                },
+                eventDrop: persistMovedEvent,
+                eventResize: persistMovedEvent,
                 height: 'auto',
                 expandRows: true,
                 slotLaneDidMount: decorateSlot
             });
 
-            calendar.on('eventAdd', function () { /* persistance via persistEvent */ });
-            calendar.on('eventRemove', async function (info) {
-                if (skipSync || !U || !U.isUserEvent(info.event)) return;
-                var parsed = U.parseInstanceId(info.event.id);
-                if (parsed.occurrenceDate) {
-                    await U.skipOccurrence(parsed.seriesId, parsed.occurrenceDate);
-                    return;
-                }
-                await U.deleteEvent(info.event.id);
-            });
-            calendar.on('eventChange', async function (info) {
-                if (skipSync || !U || !U.isUserEvent(info.event)) return;
-                var parsed = U.parseInstanceId(info.event.id);
-                if (parsed.occurrenceDate) {
-                    var patch = U.oneOffFromFcEvent(info.event);
-                    skipSync = true;
-                    info.event.remove();
-                    skipSync = false;
-                    var saved = await U.detachOccurrence(parsed.seriesId, parsed.occurrenceDate, patch);
-                    var series = U.readLocalCache().find(function (it) { return it.id === parsed.seriesId; });
-                    if (series) addOrReplace(series);
-                    if (saved) addOrReplace(saved);
-                    return;
-                }
-                var oldId = info.event.id;
-                var saved = await U.persistEvent(U.fcEventToItem(info.event));
-                skipSync = true;
-                var current = calendar.getEventById(oldId);
-                if (current) current.remove();
-                if (saved.id && saved.id !== oldId) removeBySeries(saved.id);
-                skipSync = false;
-                addOrReplace(saved);
-            });
-
             calendar.render();
             if (extra.gotoDate) calendar.gotoDate(extra.gotoDate);
-            applyFilters();
         }
 
         container.querySelector('#cal-add-btn').addEventListener('click', function () {
@@ -1078,9 +1061,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 var csv = await file.text();
                 var parsed = U.parseEmploiCsv(csv);
                 for (var i = 0; i < parsed.length; i++) {
-                    var saved = await U.persistEvent(parsed[i]);
-                    addOrReplace(saved);
+                    await U.persistEvent(parsed[i]);
                 }
+                addOrReplace();
                 alert(parsed.length ? ('✅ ' + parsed.length + ' cours importés (répétition jusqu’aux vacances d’été).') : 'Aucun cours lisible dans ce fichier.');
             } catch (err) {
                 alert('❌ Erreur lors de l’import : ' + err.message);

@@ -1262,6 +1262,10 @@ footer {
     min-height: 60vh;
 }
 
+#calendar-module .fc-event-filtered {
+    display: none !important;
+}
+
 .calendar-hero {
     display: flex;
     align-items: center;

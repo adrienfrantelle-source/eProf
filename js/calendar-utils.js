@@ -357,7 +357,8 @@
             getSchoolCalendarEvents(key).forEach(function (ev) {
                 if (ev.display === 'background' && ev.start && ev.end) {
                     var cursor = ev.start;
-                    while (cursor < ev.end) {
+                    var guard = 0;
+                    while (cursor < ev.end && guard++ < 500) {
                         set[cursor] = true;
                         cursor = addDaysYmd(cursor, 1);
                     }
@@ -370,16 +371,49 @@
         return !!closedDayCache[key][ymd];
     }
 
-    function listOccurrenceYmds(item) {
+    function itemStartYmd(item) {
+        var raw = item && (item.startRecur || item.start);
+        if (!raw) return '';
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+        return parseAllDayYmd(raw) || '';
+    }
+
+    function itemEndYmd(item) {
+        var raw = item && (item.endRecur || item.end);
+        if (!raw) return itemStartYmd(item);
+        if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+        return parseAllDayYmd(raw) || itemStartYmd(item);
+    }
+
+    function eventOutsideRange(item, fromYmd, toYmd) {
+        if (!fromYmd || !toYmd || !item) return false;
+        var start = itemStartYmd(item);
+        var end = itemEndYmd(item) || start;
+        if (!start) return false;
+        if (end < fromYmd) return true;
+        if (start >= toYmd) return true;
+        return false;
+    }
+
+    function listOccurrenceYmds(item, fromYmd, toYmd) {
         if (!item.daysOfWeek || !item.daysOfWeek.length) return [];
         var start = parseAllDayYmd(item.startRecur || item.start) || schoolYearStart();
         var end = parseAllDayYmd(item.endRecur) || schoolYearEnd();
+        if (fromYmd && fromYmd > start) start = fromYmd;
+        if (toYmd && toYmd < end) end = toYmd;
+        if (!start || !end || start >= end) return [];
         var days = item.daysOfWeek.map(Number);
         var excluded = normalizeExcludeDates(item.excludeDates);
         var out = [];
         var cursor = new Date(start + 'T00:00:00');
+        if (isNaN(cursor.getTime())) return [];
         var guard = 0;
-        while (toYmdLocal(cursor) < end && guard++ < 450) {
+        var maxDays = 450;
+        if (fromYmd && toYmd) {
+            var span = Math.round((new Date(toYmd + 'T00:00:00') - cursor) / 86400000) + 2;
+            if (span > 0 && span < 450) maxDays = span;
+        }
+        while (toYmdLocal(cursor) < end && guard++ < maxDays) {
             var ymd = toYmdLocal(cursor);
             if (days.indexOf(cursor.getDay()) !== -1 && excluded.indexOf(ymd) === -1 && !isClosedDay(ymd)) {
                 out.push(ymd);
@@ -633,11 +667,14 @@
         });
     }
 
-    function toFcEvents(item) {
-        if (!item.daysOfWeek || !item.daysOfWeek.length) return [toFcEvent(item)];
+    function toFcEvents(item, fromYmd, toYmd) {
+        if (!item.daysOfWeek || !item.daysOfWeek.length) {
+            if (eventOutsideRange(item, fromYmd, toYmd)) return [];
+            return [toFcEvent(item)];
+        }
         var st = item.startTime || timeFrom(item.start) || '08:00:00';
         var et = item.endTime || (item.end ? timeFrom(item.end) : null);
-        return listOccurrenceYmds(item).map(function (ymd) {
+        return listOccurrenceYmds(item, fromYmd, toYmd).map(function (ymd) {
             var clone = Object.assign({}, item, {
                 daysOfWeek: null,
                 startRecur: null,
