@@ -161,6 +161,41 @@
         return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
     }
 
+    function isoWeekNumberFromYmd(ymd) {
+        var parts = String(ymd || '').slice(0, 10).split('-').map(Number);
+        if (parts.length < 3 || !parts[0]) return 0;
+        var utc = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        var dayNum = utc.getUTCDay() || 7;
+        utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+        var yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+        return Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function weekAbFromYmd(ymd) {
+        var n = isoWeekNumberFromYmd(ymd);
+        return n % 2 === 0 ? 'A' : 'B';
+    }
+
+    function normalizeWeekAb(value) {
+        var v = String(value || '').trim().toUpperCase();
+        if (v === 'A' || v === 'PAIR' || v === 'PAIRE' || v === 'EVEN') return 'A';
+        if (v === 'B' || v === 'IMPAIR' || v === 'IMPAIRE' || v === 'ODD') return 'B';
+        return null;
+    }
+
+    function matchesWeekAb(ymd, weekAb) {
+        var ab = normalizeWeekAb(weekAb);
+        if (!ab) return true;
+        return weekAbFromYmd(ymd) === ab;
+    }
+
+    function weekAbLabel(weekAb) {
+        var ab = normalizeWeekAb(weekAb);
+        if (ab === 'A') return 'semaine A (paires)';
+        if (ab === 'B') return 'semaine B (impaires)';
+        return '';
+    }
+
     function toLocalDateTimeInput(input) {
         if (input == null || input === '') return '';
         if (typeof input === 'string') {
@@ -270,8 +305,10 @@
             var h2 = item.endTime ? formatHm(item.endTime) : (item.end ? formatHm(item.end) : '');
             var until = item.endRecur ? toYmdLocal(item.endRecur) : '';
             var untilStr = until ? ' jusqu\'au ' + new Date(until + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '';
-            if (item.allDay) return 'Tous les ' + jours + untilStr;
-            return 'Tous les ' + jours + (h1 ? ' à ' + h1 : '') + (h2 ? ' → ' + h2 : '') + untilStr;
+            var abStr = weekAbLabel(item.weekAb);
+            var cadence = abStr ? ' (' + abStr + ')' : '';
+            if (item.allDay) return 'Tous les ' + jours + cadence + untilStr;
+            return 'Tous les ' + jours + cadence + (h1 ? ' à ' + h1 : '') + (h2 ? ' → ' + h2 : '') + untilStr;
         }
         if (item.allDay) {
             var startYmd = parseAllDayYmd(item.start);
@@ -318,7 +355,7 @@
         for (var i = 0; i < 450; i++) {
             var ymd = toYmdLocal(cursor);
             if (endRecur && ymd >= endRecur) return null;
-            if (days.indexOf(cursor.getDay()) !== -1 && excluded.indexOf(ymd) === -1 && !isClosedDay(ymd)) {
+            if (days.indexOf(cursor.getDay()) !== -1 && excluded.indexOf(ymd) === -1 && !isClosedDay(ymd) && matchesWeekAb(ymd, item.weekAb)) {
                 var occ = new Date(cursor);
                 occ.setHours(parseInt(hhmm[0], 10) || 0, parseInt(hhmm[1], 10) || 0, 0, 0);
                 if (occ.getTime() >= from.getTime() - 60000) return occ;
@@ -415,7 +452,7 @@
         }
         while (toYmdLocal(cursor) < end && guard++ < maxDays) {
             var ymd = toYmdLocal(cursor);
-            if (days.indexOf(cursor.getDay()) !== -1 && excluded.indexOf(ymd) === -1 && !isClosedDay(ymd)) {
+            if (days.indexOf(cursor.getDay()) !== -1 && excluded.indexOf(ymd) === -1 && !isClosedDay(ymd) && matchesWeekAb(ymd, item.weekAb)) {
                 out.push(ymd);
             }
             cursor.setDate(cursor.getDate() + 1);
@@ -481,7 +518,8 @@
             endRecur: row.end_recur || null,
             startTime: row.start_time || null,
             endTime: row.end_time || null,
-            excludeDates: normalizeExcludeDates(row.exclude_dates)
+            excludeDates: normalizeExcludeDates(row.exclude_dates),
+            weekAb: normalizeWeekAb(row.week_ab)
         };
     }
 
@@ -509,7 +547,8 @@
             end_recur: item.endRecur || (days ? schoolYearEnd() : null),
             start_time: startTime,
             end_time: endTime,
-            exclude_dates: normalizeExcludeDates(item.excludeDates)
+            exclude_dates: normalizeExcludeDates(item.excludeDates),
+            week_ab: days ? (normalizeWeekAb(item.weekAb) || null) : null
         };
     }
 
@@ -549,6 +588,7 @@
                     ? item.excludeDates
                     : ((item.id && getItemById(item.id) || {}).excludeDates)
             );
+            item.weekAb = normalizeWeekAb(item.weekAb);
         } else {
             item.daysOfWeek = null;
             item.startRecur = null;
@@ -556,6 +596,7 @@
             item.startTime = null;
             item.endTime = null;
             item.excludeDates = [];
+            item.weekAb = null;
         }
         if (await isOnline()) {
             var teacherId = await window.EprofStore.getTeacherId();
@@ -564,7 +605,7 @@
                 var result = isUuid(item.id)
                     ? await window.EprofStore.update('calendar_events', item.id, row)
                     : await window.EprofStore.insert('calendar_events', row);
-                if (result.error && /class_name|days_of_week|start_recur|start_time|exclude_dates/.test(String(result.error.message || ''))) {
+                if (result.error && /class_name|days_of_week|start_recur|start_time|exclude_dates|week_ab/.test(String(result.error.message || ''))) {
                     delete row.class_name;
                     delete row.days_of_week;
                     delete row.start_recur;
@@ -572,6 +613,7 @@
                     delete row.start_time;
                     delete row.end_time;
                     delete row.exclude_dates;
+                    delete row.week_ab;
                     result = isUuid(item.id)
                         ? await window.EprofStore.update('calendar_events', item.id, row)
                         : await window.EprofStore.insert('calendar_events', row);
@@ -613,6 +655,7 @@
             startTime: null,
             endTime: null,
             excludeDates: [],
+            weekAb: null,
             source: series.source || 'calendar'
         });
         return persistEvent(oneOff);
@@ -649,6 +692,7 @@
                 startTime: item.startTime || null,
                 endTime: item.endTime || null,
                 excludeDates: normalizeExcludeDates(item.excludeDates),
+                weekAb: normalizeWeekAb(item.weekAb),
                 seriesId: item.id,
                 occurrenceDate: null
             }
@@ -690,6 +734,7 @@
             ev.extendedProps.startTime = st;
             ev.extendedProps.endTime = et;
             ev.extendedProps.excludeDates = normalizeExcludeDates(item.excludeDates);
+            ev.extendedProps.weekAb = normalizeWeekAb(item.weekAb);
             ev.extendedProps.seriesId = item.id;
             ev.extendedProps.occurrenceDate = ymd;
             return ev;
@@ -723,6 +768,7 @@
             startTime: xp.startTime || null,
             endTime: xp.endTime || null,
             excludeDates: normalizeExcludeDates(xp.excludeDates),
+            weekAb: normalizeWeekAb(xp.weekAb),
             _occurrenceDate: parsed.occurrenceDate || xp.occurrenceDate || null
         };
         if (ev.allDay) {
@@ -813,6 +859,20 @@
         });
     }
 
+    function collectWeekAb(form) {
+        var selected = form.querySelector('.event-week-chip.selected');
+        return selected ? normalizeWeekAb(selected.getAttribute('data-ab')) : null;
+    }
+
+    function setWeekAbChips(form, weekAb) {
+        var ab = normalizeWeekAb(weekAb) || '';
+        form.querySelectorAll('.event-week-chip').forEach(function (btn) {
+            var on = (btn.getAttribute('data-ab') || '') === ab;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
     function bindEventForm() {
         if (formBound) return;
         var modal = document.getElementById('event-modal');
@@ -841,7 +901,7 @@
         var dow = form.querySelector('#event-dow-chips');
         if (dow && !dow.children.length) {
             dow.innerHTML = JOURS.map(function (j) {
-                return '<button type="button" class="event-dow-chip" data-day="' + j.value + '">' + j.short + '</button>';
+                return '<button type="button" class="event-dow-chip" data-day="' + j.value + '" aria-pressed="false">' + j.short + '</button>';
             }).join('');
         }
 
@@ -866,6 +926,12 @@
         form.querySelectorAll('.event-dow-chip').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 btn.classList.toggle('selected');
+                btn.setAttribute('aria-pressed', btn.classList.contains('selected') ? 'true' : 'false');
+            });
+        });
+        form.querySelectorAll('.event-week-chip').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                setWeekAbChips(form, btn.getAttribute('data-ab'));
             });
         });
 
@@ -917,6 +983,7 @@
                 reminderMinutes: reminderRaw === '' ? null : Number(reminderRaw),
                 className: form.querySelector('#event-class').value,
                 daysOfWeek: days.length ? days : null,
+                weekAb: days.length ? collectWeekAb(form) : null,
                 startRecur: recurring ? (allDay ? String(startRaw).slice(0, 10) : String(startRaw).slice(0, 10)) : null,
                 endRecur: recurring ? (form.querySelector('#event-until').value || schoolYearEnd()) : null,
                 done: form.querySelector('#event-item-done').value === '1',
@@ -934,6 +1001,7 @@
                 item.daysOfWeek = null;
                 item.startRecur = null;
                 item.endRecur = null;
+                item.weekAb = null;
                 await skipOccurrence(occEdit.seriesId, occEdit.date);
             }
             var saved = await persistEvent(item);
@@ -974,6 +1042,7 @@
                     daysOfWeek: null,
                     startRecur: null,
                     endRecur: null,
+                    weekAb: null,
                     start: src.allDay ? allDayToStored(ymd) : (ymd + 'T' + stOcc),
                     end: src.allDay ? allDayToStored(addDaysYmd(ymd, 1)) : (etOcc ? ymd + 'T' + etOcc : null)
                 });
@@ -1033,8 +1102,11 @@
         applyRecurringMode(form);
         form.querySelectorAll('.event-dow-chip').forEach(function (btn) {
             var day = Number(btn.getAttribute('data-day'));
-            btn.classList.toggle('selected', recurring && item.daysOfWeek && item.daysOfWeek.map(Number).indexOf(day) !== -1);
+            var on = recurring && item.daysOfWeek && item.daysOfWeek.map(Number).indexOf(day) !== -1;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
+        setWeekAbChips(form, recurring ? (item && item.weekAb) : null);
         form.querySelector('#event-until').value = recurring
             ? toYmdLocal(item.endRecur || schoolYearEnd())
             : schoolYearEnd();
@@ -1246,6 +1318,7 @@
             var heureFin = parts[3].trim();
             var recurrent = parts[4] ? parts[4].trim().toLowerCase() === 'oui' : false;
             var classe = parts[5] ? parts[5].trim() : '';
+            var semaine = parts[6] ? parts[6].trim() : '';
             if (!titre || !jour || !heureDebut || !heureFin) continue;
             var item = {
                 title: titre,
@@ -1274,6 +1347,7 @@
                     item.endTime = heureFin.length === 5 ? heureFin + ':00' : heureFin;
                     item.start = yearStart + 'T' + item.startTime;
                     item.end = yearStart + 'T' + item.endTime;
+                    item.weekAb = normalizeWeekAb(semaine);
                 } else {
                     var today = new Date();
                     var daysUntilTarget = (jourNum - today.getDay() + 7) % 7;
@@ -1292,7 +1366,7 @@
 
     function eventsToCsv(items) {
         var joursNoms = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-        var csv = 'Titre;Jour;Heure début;Heure fin;Récurrent;Classe\n';
+        var csv = 'Titre;Jour;Heure début;Heure fin;Récurrent;Classe;Semaine\n';
         items.forEach(function (item) {
             if (!item || item.display === 'background') return;
             var titre = String(item.title || '').replace(/;/g, ',');
@@ -1300,11 +1374,13 @@
             var h1 = '';
             var h2 = '';
             var rec = 'Non';
+            var semaine = '';
             if (item.daysOfWeek && item.daysOfWeek.length) {
                 jour = joursNoms[item.daysOfWeek[0]] || '';
                 h1 = formatHm(item.startTime || item.start);
                 h2 = formatHm(item.endTime || item.end);
                 rec = 'Oui';
+                semaine = normalizeWeekAb(item.weekAb) || 'Toutes';
             } else if (item.start) {
                 if (item.allDay) {
                     jour = parseAllDayYmd(item.start);
@@ -1318,7 +1394,7 @@
                     h2 = pad(end.getHours()) + ':' + pad(end.getMinutes());
                 }
             }
-            csv += titre + ';' + jour + ';' + h1 + ';' + h2 + ';' + rec + ';' + (item.className || '') + '\n';
+            csv += titre + ';' + jour + ';' + h1 + ';' + h2 + ';' + rec + ';' + (item.className || '') + ';' + semaine + '\n';
         });
         return csv;
     }
@@ -1465,6 +1541,8 @@
         schoolYearEnd: schoolYearEnd,
         toYmdLocal: toYmdLocal,
         addDaysYmd: addDaysYmd,
+        isoWeekNumberFromYmd: isoWeekNumberFromYmd,
+        weekAbFromYmd: weekAbFromYmd,
         toLocalDateTimeInput: toLocalDateTimeInput,
         toInputValue: toInputValue,
         parseAllDayYmd: parseAllDayYmd,

@@ -954,7 +954,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 nowIndicator: true,
                 navLinks: true,
                 weekNumbers: true,
-                weekText: 'S',
+                weekNumberCalculation: 'ISO',
+                weekText: '',
+                weekNumberDidMount: function (info) {
+                    var n = info.num;
+                    var ab = (n % 2 === 0) ? 'A' : 'B';
+                    info.el.innerHTML = '<span class="cal-week-label"><span class="cal-week-num">S' + n + '</span><span class="cal-week-ab cal-week-' + ab.toLowerCase() + '">' + ab + '</span></span>';
+                    info.el.title = 'Semaine ' + n + ' · ' + (ab === 'A' ? 'A (paire)' : 'B (impaire)');
+                },
                 editable: true,
                 eventStartEditable: true,
                 eventDurationEditable: true,
@@ -1081,12 +1088,13 @@ document.addEventListener('DOMContentLoaded', () => {
         container.querySelector('#help-emploi-btn').addEventListener('click', function () {
             alert('📋 FORMAT CSV POUR L’EMPLOI DU TEMPS\n\n' +
                 'Fichier CSV avec point-virgule (;) :\n\n' +
-                'Titre;Jour;Heure début;Heure fin;Récurrent;Classe\n' +
-                'Mathématiques;Lundi;08:00;09:00;Oui;2nde SAPAT A\n' +
-                'Réunion parents;2026-10-12;18:00;19:30;Non;\n\n' +
+                'Titre;Jour;Heure début;Heure fin;Récurrent;Classe;Semaine\n' +
+                'Mathématiques;Lundi;08:00;09:00;Oui;2nde SAPAT A;A\n' +
+                'Réunion parents;2026-10-12;18:00;19:30;Non;;\n\n' +
                 '• Jour : Lundi…Samedi, ou une date YYYY-MM-DD\n' +
                 '• Heures : HH:MM\n' +
-                '• Récurrent = Oui : chaque semaine jusqu’aux vacances d’été\n' +
+                '• Récurrent = Oui : jusqu’aux vacances d’été (hors vacances et fériés)\n' +
+                '• Semaine : A (paires), B (impaires) ou Toutes — facultatif\n' +
                 '• Classe : facultatif (colore le cours)\n\n' +
                 'Enregistrez depuis Excel / Calc en CSV point-virgule.');
         });

@@ -171,8 +171,14 @@
                     <input type="checkbox" id="event-recurring"> Répéter chaque semaine (emploi du temps)
                 </label>
                 <div id="event-recur-options" class="event-recur-options" style="display:none;">
-                    <p class="event-recur-hint">Cochez les jours. La série s’arrête aux vacances d’été et <strong>ignore automatiquement</strong> les vacances et jours fériés de l’année.</p>
+                    <p class="event-recur-hint">Choisissez les jours (ils passent en bleu). La série s’arrête aux vacances d’été et ignore automatiquement les vacances et jours fériés. Semaine A = n° pair, semaine B = n° impair.</p>
                     <div id="event-dow-chips" class="event-dow"></div>
+                    <div class="event-week-ab" role="group" aria-label="Semaines A ou B">
+                        <span class="event-week-ab-label">Semaines</span>
+                        <button type="button" class="event-week-chip selected" data-ab="" aria-pressed="true">Toutes</button>
+                        <button type="button" class="event-week-chip" data-ab="A" aria-pressed="false">A <small>paires</small></button>
+                        <button type="button" class="event-week-chip" data-ab="B" aria-pressed="false">B <small>impaires</small></button>
+                    </div>
                     <label for="event-until">Jusqu’au
                         <input type="date" id="event-until">
                     </label>
