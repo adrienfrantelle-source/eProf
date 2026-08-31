@@ -549,7 +549,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    let homeUpcomingItems = [];
     let homeUpcomingDayOffset = 0;
     const HOME_UPCOMING_MAX_DAYS = 60;
 
@@ -557,63 +556,45 @@ document.addEventListener('DOMContentLoaded', () => {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
 
-    function eventDayKey(ev) {
-        const raw = String(ev && ev.start || '');
-        if (ev && ev.allDay && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-        const when = new Date(ev && ev.start);
-        if (isNaN(when.getTime())) return '';
-        return localDayKey(when);
-    }
-
-    function upcomingFromLocalCache() {
-        const utils = window.EprofCalendarUtils;
-        if (utils && typeof utils.nextOccurrence === 'function') {
-            const now = new Date();
-            return utils.readLocalCache().map(function (ev) {
-                if (!ev || ev.done || ev.display === 'background') return null;
-                const occ = utils.nextOccurrence(ev, now);
-                if (!occ) return null;
-                return Object.assign({}, ev, { start: occ.toISOString() });
-            }).filter(Boolean).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
-        }
-        const now = Date.now() - 15 * 60 * 1000;
-        return loadEventsFromStorage().filter(function (ev) {
-            if (!ev || !ev.start || ev.done || ev.display === 'background') return false;
-            const t = new Date(ev.start).getTime();
-            return !isNaN(t) && t >= now;
-        }).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
-    }
-
-    function renderUpcomingList(items) {
-        homeUpcomingItems = Array.isArray(items) ? items : [];
+    function renderUpcomingList() {
         const box = document.getElementById('home-upcoming');
         if (!box) return;
+        const utils = window.EprofCalendarUtils;
         const day = new Date();
         day.setHours(0, 0, 0, 0);
         day.setDate(day.getDate() + homeUpcomingDayOffset);
-        const key = localDayKey(day);
-        const dayItems = homeUpcomingItems.filter(function (ev) { return eventDayKey(ev) === key; });
+        const ymd = utils && utils.toYmdLocal ? utils.toYmdLocal(day) : localDayKey(day);
+        const nextYmd = utils && utils.addDaysYmd ? utils.addDaysYmd(ymd, 1) : localDayKey(new Date(day.getTime() + 86400000));
         const label = day.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        const isToday = homeUpcomingDayOffset === 0;
+        const weekNum = utils && utils.isoWeekNumberFromYmd ? utils.isoWeekNumberFromYmd(ymd) : '';
+        const weekAb = utils && utils.weekAbFromYmd ? utils.weekAbFromYmd(ymd) : '';
         const prevDisabled = homeUpcomingDayOffset <= 0 ? ' disabled' : '';
         const nextDisabled = homeUpcomingDayOffset >= HOME_UPCOMING_MAX_DAYS ? ' disabled' : '';
+        const cache = utils && utils.readLocalCache ? utils.readLocalCache() : [];
+        const entries = utils && utils.listInstancesInRange
+            ? utils.listInstancesInRange(cache, ymd, nextYmd)
+            : [];
         let listHtml;
-        if (dayItems.length) {
-            listHtml = '<ul class="home-upcoming-list">' + dayItems.map(function (ev) {
-                const when = new Date(ev.start);
-                const timeStr = ev.allDay ? 'Journée' : when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                const title = (ev.emoji ? ev.emoji + ' ' : '') + (ev.title || 'Sans titre');
-                const dateKey = eventDayKey(ev);
-                return '<li><button type="button" class="home-upcoming-item" data-tool="calendar" data-date="' + escapeDashboardHtml(dateKey) + '"><span class="home-upcoming-when">' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
-            }).join('') + '</ul>';
+        if (entries.length && utils.instanceButtonHtml) {
+            listHtml = '<div class="agenda-today-list home-upcoming-slots">' + entries.map(function (e) {
+                return utils.instanceButtonHtml(e, 'slot');
+            }).join('') + '</div>';
         } else {
-            listHtml = '<p class="home-brief-empty">Rien de prévu ce jour. <button type="button" class="home-brief-link" data-tool="calendar">Ouvrir le calendrier</button> · <button type="button" class="home-brief-link" data-tool="agenda">Agenda</button></p>';
+            listHtml = '<p class="home-brief-empty">' + (isToday ? 'Rien de prévu aujourd’hui.' : 'Rien de prévu ce jour.') + ' <button type="button" class="home-brief-link" data-tool="calendar">Calendrier</button> · <button type="button" class="home-brief-link" data-tool="agenda">Agenda</button></p>';
         }
-        box.innerHTML = '<div class="home-upcoming-head"><h3 class="home-brief-title">🗓️ À venir</h3><div class="home-upcoming-nav"><button type="button" class="home-upcoming-arrow" data-dir="-1"' + prevDisabled + ' aria-label="Jour précédent">◀</button><span class="home-upcoming-day">' + escapeDashboardHtml(label) + '</span><button type="button" class="home-upcoming-arrow" data-dir="1"' + nextDisabled + ' aria-label="Jour suivant">▶</button></div></div>' + listHtml;
+        const kicker = isToday ? 'Aujourd’hui' : 'À venir';
+        const pill = weekNum ? '<span class="agenda-week-pill agenda-week-' + String(weekAb).toLowerCase() + '">S' + weekNum + ' · ' + weekAb + '</span>' : '';
+        box.innerHTML = '<div class="home-upcoming-head">' +
+            '<div><p class="agenda-kicker">' + kicker + '</p><h3 class="home-brief-title">🗓️ ' + escapeDashboardHtml(label) + '</h3></div>' +
+            pill +
+            '<div class="home-upcoming-nav"><button type="button" class="home-upcoming-arrow" data-dir="-1"' + prevDisabled + ' aria-label="Jour précédent">◀</button><span class="home-upcoming-day">' + (isToday ? 'aujourd’hui' : '+' + homeUpcomingDayOffset + ' j') + '</span><button type="button" class="home-upcoming-arrow" data-dir="1"' + nextDisabled + ' aria-label="Jour suivant">▶</button></div>' +
+            '</div>' + listHtml;
         box.querySelectorAll('.home-upcoming-arrow').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const dir = Number(btn.getAttribute('data-dir'));
                 homeUpcomingDayOffset = Math.max(0, Math.min(HOME_UPCOMING_MAX_DAYS, homeUpcomingDayOffset + dir));
-                renderUpcomingList(homeUpcomingItems);
+                renderUpcomingList();
             });
         });
         box.querySelectorAll('[data-tool]').forEach(function (btn) {
@@ -628,13 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fillHomeUpcoming() {
         homeUpcomingDayOffset = 0;
-        renderUpcomingList(upcomingFromLocalCache());
-        const upcomingFn = (window.EprofCalendarUtils && window.EprofCalendarUtils.listUpcoming)
-            || (window.EprofAgenda && window.EprofAgenda.listUpcoming);
-        if (upcomingFn) {
+        renderUpcomingList();
+        const utils = window.EprofCalendarUtils;
+        if (utils && utils.loadAllEvents) {
             try {
-                const items = await upcomingFn.call(window.EprofCalendarUtils || window.EprofAgenda, 80);
-                renderUpcomingList(items);
+                await utils.loadAllEvents();
+                renderUpcomingList();
             } catch (e) { /* cache déjà affiché */ }
         }
     }
@@ -791,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <option value="todo">Tâches</option>
                         <option value="rdv">Rendez-vous</option>
                     </select>
+                    <span id="cal-week-badge" class="cal-week-badge" hidden></span>
                 </div>
                 <div class="cal-toolbar-group">
                     <div class="cal-menu">
@@ -932,16 +913,37 @@ document.addEventListener('DOMContentLoaded', () => {
             var anneeCal = U ? U.getAnneeScolaire() : getAnneeScolaire();
             var calPrefs = U ? U.getCalendarDisplayPrefs() : getCalendarDisplayPrefs();
 
-            function eventsForRange(start, end) {
+            function fcRangeYmd(date, str) {
+                if (str && /^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+                return U.toYmdLocal(date);
+            }
+
+            function eventsForRange(info) {
                 if (!U) return [];
-                var from = U.toYmdLocal(start);
-                var to = U.toYmdLocal(end);
+                var from = fcRangeYmd(info.start, info.startStr);
+                var to = fcRangeYmd(info.end, info.endStr);
                 var out = [];
                 (U.readLocalCache() || []).forEach(function (it) {
-                    var slice = U.toFcEvents(it, from, to);
-                    for (var i = 0; i < slice.length; i++) out.push(slice[i]);
+                    try {
+                        var slice = U.toFcEvents(it, from, to);
+                        for (var i = 0; i < slice.length; i++) out.push(slice[i]);
+                    } catch (err) {
+                        console.warn(err);
+                    }
                 });
                 return out.concat(U.getSchoolCalendarEvents(anneeCal));
+            }
+
+            function updateWeekBadge(info) {
+                var badge = container.querySelector('#cal-week-badge');
+                if (!badge || !U) return;
+                var ymd = fcRangeYmd(info.start, info.startStr);
+                var n = U.isoWeekNumberFromYmd(ymd);
+                var ab = U.weekAbFromYmd(ymd);
+                badge.hidden = false;
+                badge.className = 'cal-week-badge cal-week-' + String(ab).toLowerCase();
+                badge.title = 'Semaine ISO ' + n + ' · ' + (ab === 'A' ? 'paire' : 'impaire');
+                badge.innerHTML = '<strong>S' + n + '</strong> <span>' + ab + '</span>';
             }
 
             calendar = new window.FullCalendar.Calendar(calendarEl, {
@@ -955,13 +957,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 navLinks: true,
                 weekNumbers: true,
                 weekNumberCalculation: 'ISO',
-                weekText: '',
-                weekNumberDidMount: function (info) {
-                    var n = info.num;
+                weekText: 'S',
+                weekNumberContent: function (arg) {
+                    var n = arg.num;
+                    if (n == null && arg.text) n = parseInt(String(arg.text).replace(/\D/g, ''), 10);
+                    if (!n) return { html: '' };
                     var ab = (n % 2 === 0) ? 'A' : 'B';
-                    info.el.innerHTML = '<span class="cal-week-label"><span class="cal-week-num">S' + n + '</span><span class="cal-week-ab cal-week-' + ab.toLowerCase() + '">' + ab + '</span></span>';
-                    info.el.title = 'Semaine ' + n + ' · ' + (ab === 'A' ? 'A (paire)' : 'B (impaire)');
+                    return {
+                        html: '<span class="cal-wn">' + n + '</span><span class="cal-wn-ab cal-week-' + ab.toLowerCase() + '">' + ab + '</span>'
+                    };
                 },
+                datesSet: updateWeekBadge,
+                timeZone: 'local',
                 editable: true,
                 eventStartEditable: true,
                 eventDurationEditable: true,
@@ -1024,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 events: function (info, successCallback) {
                     try {
-                        successCallback(eventsForRange(info.start, info.end));
+                        successCallback(eventsForRange(info));
                     } catch (err) {
                         console.error(err);
                         successCallback([]);

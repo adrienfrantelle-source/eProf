@@ -14,55 +14,6 @@
         return date.toLocaleDateString('fr-FR', opts || { weekday: 'long', day: 'numeric', month: 'long' });
     }
 
-    function formatHmFromStart(start, allDay) {
-        if (allDay) return 'Journée';
-        const d = start instanceof Date ? start : new Date(start);
-        if (isNaN(d.getTime())) return '';
-        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-    }
-
-    function formatHmRange(item, start) {
-        const utils = U();
-        if (item.allDay) return 'Toute la journée';
-        const h1 = formatHmFromStart(start, false);
-        let h2 = '';
-        if (item.endTime && utils && utils.toYmdLocal) {
-            h2 = String(item.endTime).slice(0, 5);
-        } else if (item.end) {
-            const e = new Date(item.end);
-            if (!isNaN(e.getTime()) && !item.daysOfWeek) h2 = formatHmFromStart(e, false);
-            else if (item.endTime) h2 = String(item.endTime).slice(0, 5);
-        }
-        return h2 ? h1 + ' – ' + h2 : h1;
-    }
-
-    function instancesInRange(items, fromYmd, toYmd) {
-        const utils = U();
-        const out = [];
-        items.forEach(function (item) {
-            if (!item || item.done) return;
-            const slice = utils.toFcEvents ? utils.toFcEvents(item, fromYmd, toYmd) : [];
-            slice.forEach(function (ev) {
-                const start = ev.start;
-                const ymd = typeof start === 'string' ? String(start).slice(0, 10) : utils.toYmdLocal(start);
-                if (!ymd || ymd < fromYmd || ymd >= toYmd) return;
-                out.push({
-                    item: item,
-                    ymd: ymd,
-                    start: start,
-                    allDay: !!ev.allDay,
-                    occDate: ymd
-                });
-            });
-        });
-        out.sort(function (a, b) {
-            if (a.allDay && !b.allDay) return -1;
-            if (!a.allDay && b.allDay) return 1;
-            return new Date(a.start) - new Date(b.start);
-        });
-        return out;
-    }
-
     function overdueItems(items) {
         const utils = U();
         const today = startOfDay(new Date());
@@ -96,23 +47,6 @@
             if (!tb) return -1;
             return ta - tb;
         });
-    }
-
-    function eventChipHtml(entry, compact) {
-        const utils = U();
-        const esc = utils.escapeHtml;
-        const item = entry.item;
-        const type = utils.typeLabel ? utils.typeLabel(item.type) : (item.type || '');
-        const time = formatHmRange(item, entry.start);
-        const cls = compact ? 'agenda-chip' : 'agenda-slot';
-        return `
-            <button type="button" class="${cls}" data-id="${esc(item.id)}" data-occ="${esc(entry.occDate || '')}" style="--agenda-accent:${esc(item.color || '#1e88e5')}">
-                <span class="agenda-chip-time">${esc(time)}</span>
-                <span class="agenda-chip-body">
-                    <span class="agenda-chip-title">${esc(item.emoji || '📌')} ${esc(item.title)}</span>
-                    <span class="agenda-chip-meta">${esc(type)}${item.className ? ' · ' + esc(item.className) : ''}${item.lieu ? ' · ' + esc(item.lieu) : ''}${item.daysOfWeek && item.daysOfWeek.length ? (item.weekAb ? ' · sem. ' + esc(item.weekAb) : ' · 🔁') : ''}</span>
-                </span>
-            </button>`;
     }
 
     function compactRowHtml(item, occYmd) {
@@ -202,8 +136,8 @@
             const todayYmd = utils.toYmdLocal(today);
             const tomorrowYmd = utils.addDaysYmd(todayYmd, 1);
             const weekEndYmd = utils.addDaysYmd(todayYmd, 7);
-            const todayEntries = instancesInRange(list, todayYmd, tomorrowYmd);
-            const upcoming = instancesInRange(list, tomorrowYmd, weekEndYmd);
+            const todayEntries = utils.listInstancesInRange(list, todayYmd, tomorrowYmd);
+            const upcoming = utils.listInstancesInRange(list, tomorrowYmd, weekEndYmd);
             const later = laterItems(list, utils.addDaysYmd(todayYmd, 6));
             const overdue = overdueItems(list);
             const done = doneItems(list, container.querySelector('#agenda-show-done').checked);
@@ -230,7 +164,7 @@
                         <span class="agenda-week-pill agenda-week-${weekAb.toLowerCase()}" title="Semaine ISO ${weekNum}">S${weekNum} · ${weekAb}</span>
                     </header>
                     ${todayEntries.length
-                        ? `<div class="agenda-today-list">${todayEntries.map(function (e) { return eventChipHtml(e, false); }).join('')}</div>`
+                        ? `<div class="agenda-today-list">${todayEntries.map(function (e) { return utils.instanceButtonHtml(e, 'slot'); }).join('')}</div>`
                         : '<p class="agenda-today-empty">Rien de prévu aujourd’hui. Profitez-en, ou ajoutez un élément.</p>'}
                 </section>
                 <section class="agenda-upcoming">
@@ -245,7 +179,7 @@
                             return `<article class="agenda-day${col.entries.length ? '' : ' is-empty'}">
                                 <h4><span>${utils.escapeHtml(name)}</span><strong>${num}</strong></h4>
                                 ${col.entries.length
-                                    ? col.entries.map(function (e) { return eventChipHtml(e, true); }).join('')
+                                    ? col.entries.map(function (e) { return utils.instanceButtonHtml(e, 'chip'); }).join('')
                                     : '<p class="agenda-day-free">Libre</p>'}
                             </article>`;
                         }).join('')}

@@ -741,6 +741,64 @@
         });
     }
 
+    function listInstancesInRange(items, fromYmd, toYmd) {
+        var out = [];
+        (items || []).forEach(function (item) {
+            if (!item || item.done || item.display === 'background') return;
+            try {
+                toFcEvents(item, fromYmd, toYmd).forEach(function (ev) {
+                    var start = ev.start;
+                    var ymd = typeof start === 'string' ? String(start).slice(0, 10) : toYmdLocal(start);
+                    if (!ymd || ymd < fromYmd || ymd >= toYmd) return;
+                    out.push({
+                        item: item,
+                        ymd: ymd,
+                        start: start,
+                        allDay: !!ev.allDay,
+                        occDate: ymd
+                    });
+                });
+            } catch (err) {
+                console.warn('Calendrier : occurrence ignorée', err);
+            }
+        });
+        out.sort(function (a, b) {
+            if (a.allDay && !b.allDay) return -1;
+            if (!a.allDay && b.allDay) return 1;
+            return new Date(a.start) - new Date(b.start);
+        });
+        return out;
+    }
+
+    function formatInstanceTime(entry) {
+        var item = entry.item || {};
+        if (item.allDay || entry.allDay) return 'Journée';
+        var h1 = formatHm(entry.start) || formatHm(item.startTime) || formatHm(item.start);
+        var h2 = '';
+        if (item.endTime) h2 = formatHm(item.endTime);
+        else if (item.end && !(item.daysOfWeek && item.daysOfWeek.length)) h2 = formatHm(item.end);
+        return h2 ? h1 + ' – ' + h2 : (h1 || '');
+    }
+
+    function instanceButtonHtml(entry, variant) {
+        var item = entry.item || {};
+        var cls = variant === 'chip' ? 'agenda-chip' : 'agenda-slot';
+        var time = formatInstanceTime(entry);
+        var type = typeLabel(item.type);
+        var occ = entry.occDate || entry.ymd || '';
+        return '<button type="button" class="' + cls + '" data-id="' + escapeHtml(item.id || '') + '" data-occ="' + escapeHtml(occ) + '" data-tool="calendar" data-date="' + escapeHtml(occ) + '" style="--agenda-accent:' + escapeHtml(item.color || '#1e88e5') + '">' +
+            '<span class="agenda-chip-time">' + escapeHtml(time) + '</span>' +
+            '<span class="agenda-chip-body">' +
+                '<span class="agenda-chip-title">' + escapeHtml((item.emoji || '📌') + ' ' + (item.title || '')) + '</span>' +
+                '<span class="agenda-chip-meta">' + escapeHtml(type) +
+                    (item.className ? ' · ' + escapeHtml(item.className) : '') +
+                    (item.lieu ? ' · ' + escapeHtml(item.lieu) : '') +
+                    (item.daysOfWeek && item.daysOfWeek.length ? (item.weekAb ? ' · sem. ' + escapeHtml(item.weekAb) : ' · 🔁') : '') +
+                '</span>' +
+            '</span>' +
+        '</button>';
+    }
+
     function fcEventToItem(ev) {
         var parsed = parseInstanceId(ev.id);
         var series = getItemById(parsed.seriesId);
@@ -1564,6 +1622,8 @@
         parseInstanceId: parseInstanceId,
         toFcEvent: toFcEvent,
         toFcEvents: toFcEvents,
+        listInstancesInRange: listInstancesInRange,
+        instanceButtonHtml: instanceButtonHtml,
         fcEventToItem: fcEventToItem,
         oneOffFromFcEvent: oneOffFromFcEvent,
         isUserEvent: isUserEvent,
