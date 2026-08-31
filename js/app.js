@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
 
     function getAppVersionInfo() {
-        return { version: 'V2.3.10' };
+        return { version: 'V2.3.11' };
     }
 
     function readAppParametres() {
@@ -127,7 +127,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             enseignant: enseignant || { nom: '', prenom: '', matiere: '', email: '' },
             anneeScolaire: '2026-2027',
-            calendrier: { heureDebut: '08:00', heureFin: '20:00', afficherSamedi: false },
+            calendrier: {
+                heureDebut: '08:00',
+                heureFin: '20:00',
+                afficherSamedi: false,
+                ligneDebut: '08:00',
+                ligneFin: '17:10',
+                pauseMatinDebut: '09:50',
+                pauseMatinFin: '10:05',
+                pauseMidiDebut: '11:55',
+                pauseMidiFin: '13:15',
+                pauseApresDebut: '15:05',
+                pauseApresFin: '15:20'
+            },
             affichage: { theme: 'clair', taillePolice: 'moyen', modeMobile: 'auto' },
             alertes: { seuilOublis: 3, seuilMots: 5 },
             notation: {
@@ -255,8 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showDashboard();
                 highlightSidebar('dashboard-link');
             } else if (link.id === 'calendar-link') {
-                renderCalendar(mainContent);
-                highlightSidebar('calendar-link');
+                handleDashboardTool('calendar');
             } else if (link.hasAttribute('data-tool')) {
                 handleDashboardTool(link.getAttribute('data-tool'));
                 highlightSidebar(link.getAttribute('data-tool'));
@@ -555,6 +566,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function upcomingFromLocalCache() {
+        const utils = window.EprofCalendarUtils;
+        if (utils && typeof utils.nextOccurrence === 'function') {
+            const now = new Date();
+            return utils.readLocalCache().map(function (ev) {
+                if (!ev || ev.done || ev.display === 'background') return null;
+                const occ = utils.nextOccurrence(ev, now);
+                if (!occ) return null;
+                return Object.assign({}, ev, { start: occ.toISOString() });
+            }).filter(Boolean).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+        }
         const now = Date.now() - 15 * 60 * 1000;
         return loadEventsFromStorage().filter(function (ev) {
             if (!ev || !ev.start || ev.done || ev.display === 'background') return false;
@@ -581,10 +602,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const when = new Date(ev.start);
                 const timeStr = ev.allDay ? 'Journée' : when.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                 const title = (ev.emoji ? ev.emoji + ' ' : '') + (ev.title || 'Sans titre');
-                return '<li><button type="button" class="home-upcoming-item" data-tool="agenda"><span class="home-upcoming-when">' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
+                const dateKey = eventDayKey(ev);
+                return '<li><button type="button" class="home-upcoming-item" data-tool="calendar" data-date="' + escapeDashboardHtml(dateKey) + '"><span class="home-upcoming-when">' + escapeDashboardHtml(timeStr) + '</span><span class="home-upcoming-title">' + escapeDashboardHtml(title) + '</span></button></li>';
             }).join('') + '</ul>';
         } else {
-            listHtml = '<p class="home-brief-empty">Rien de prévu ce jour. <button type="button" class="home-brief-link" data-tool="agenda">Ouvrir l’agenda</button></p>';
+            listHtml = '<p class="home-brief-empty">Rien de prévu ce jour. <button type="button" class="home-brief-link" data-tool="calendar">Ouvrir le calendrier</button> · <button type="button" class="home-brief-link" data-tool="agenda">Agenda</button></p>';
         }
         box.innerHTML = '<div class="home-upcoming-head"><h3 class="home-brief-title">🗓️ À venir</h3><div class="home-upcoming-nav"><button type="button" class="home-upcoming-arrow" data-dir="-1"' + prevDisabled + ' aria-label="Jour précédent">◀</button><span class="home-upcoming-day">' + escapeDashboardHtml(label) + '</span><button type="button" class="home-upcoming-arrow" data-dir="1"' + nextDisabled + ' aria-label="Jour suivant">▶</button></div></div>' + listHtml;
         box.querySelectorAll('.home-upcoming-arrow').forEach(function (btn) {
@@ -596,8 +618,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         box.querySelectorAll('[data-tool]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                handleDashboardTool('agenda');
-                highlightSidebar('agenda');
+                const tool = btn.getAttribute('data-tool');
+                const date = btn.getAttribute('data-date');
+                handleDashboardTool(tool, tool === 'calendar' && date ? { gotoDate: date } : undefined);
+                highlightSidebar(tool === 'calendar' ? 'calendar-link' : tool);
             });
         });
     }
@@ -605,9 +629,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fillHomeUpcoming() {
         homeUpcomingDayOffset = 0;
         renderUpcomingList(upcomingFromLocalCache());
-        if (window.EprofAgenda && typeof window.EprofAgenda.listUpcoming === 'function') {
+        const upcomingFn = (window.EprofCalendarUtils && window.EprofCalendarUtils.listUpcoming)
+            || (window.EprofAgenda && window.EprofAgenda.listUpcoming);
+        if (upcomingFn) {
             try {
-                const items = await window.EprofAgenda.listUpcoming(80);
+                const items = await upcomingFn.call(window.EprofCalendarUtils || window.EprofAgenda, 80);
                 renderUpcomingList(items);
             } catch (e) { /* cache déjà affiché */ }
         }
@@ -650,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         rememberTool(tool);
         switch(tool) {
             case 'calendar':
-                renderCalendar(mainContent);
+                renderCalendar(mainContent, extra);
                 highlightSidebar('calendar-link');
                 break;
             case 'converter':
@@ -734,10 +760,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Calendrier fusionné
-    // Calendrier FullCalendar unique
-    function renderCalendar(container) {
-        // Ajout du CSS FullCalendar si pas déjà présent
+    // Calendrier FullCalendar (données via EprofCalendarUtils, partagées avec l'agenda)
+    function renderCalendar(container, extra) {
+        var U = window.EprofCalendarUtils;
+        extra = extra || {};
         if (!document.getElementById('fc-css')) {
             var link = document.createElement('link');
             link.rel = 'stylesheet';
@@ -745,59 +771,177 @@ document.addEventListener('DOMContentLoaded', () => {
             link.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css';
             document.head.appendChild(link);
         }
+
+        var classOptions = (U ? U.getTeacherClasses() : []).map(function (nom) {
+            return '<option value="' + escapeDashboardHtml(nom) + '">' + escapeDashboardHtml(nom) + '</option>';
+        }).join('');
+
         container.innerHTML = `<div id="calendar-module">
             <div class="calendar-toolbar">
-                <button id="import-emploi-btn" class="btn-secondary">📥 Importer emploi du temps (CSV)</button>
-                <input type="file" id="import-emploi-input" accept=".csv" style="display: none;">
-                <button id="export-emploi-btn" class="btn-secondary">💾 Exporter emploi du temps (CSV)</button>
-                <button id="help-emploi-btn" class="btn-secondary">❓ Aide</button>
+                <div class="cal-toolbar-group">
+                    <button type="button" id="cal-add-btn" class="btn-primary">➕ Nouvel événement</button>
+                    <select id="cal-filter-class" class="cal-filter" title="Filtrer par classe">
+                        <option value="">Toutes les classes</option>
+                        ${classOptions}
+                    </select>
+                    <select id="cal-filter-type" class="cal-filter" title="Filtrer par nature">
+                        <option value="">Toutes les natures</option>
+                        <option value="cours">Cours</option>
+                        <option value="event">Événements</option>
+                        <option value="todo">Tâches</option>
+                        <option value="rdv">Rendez-vous</option>
+                    </select>
+                </div>
+                <div class="cal-toolbar-group">
+                    <div class="cal-menu">
+                        <button type="button" class="btn-secondary cal-menu-btn">📥 Emploi du temps ▾</button>
+                        <div class="cal-menu-drop">
+                            <button type="button" id="import-emploi-btn">Importer un CSV</button>
+                            <button type="button" id="export-emploi-btn">Exporter en CSV</button>
+                            <button type="button" id="export-ics-btn">Exporter en iCal (.ics)</button>
+                            <button type="button" id="help-emploi-btn">Aide — format CSV</button>
+                        </div>
+                    </div>
+                    <div class="cal-menu">
+                        <button type="button" class="btn-secondary cal-menu-btn">📄 Calendrier scolaire ▾</button>
+                        <div class="cal-menu-drop">
+                            <button type="button" id="cal-doc-zoneb">Calendrier scolaire (Zone B)</button>
+                            <button type="button" id="cal-doc-stages">Dates de stage</button>
+                            <button type="button" id="cal-doc-periodes">Périodes de l’année</button>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="import-emploi-input" accept=".csv,text/csv" hidden>
             </div>
             <div id="calendar-view"></div>
         </div>`;
-        // Ajout du script FullCalendar si besoin
+
         function openImageModal(titre, source, alt) {
             var existing = document.getElementById('calendar-image-modal');
             if (existing) existing.remove();
-
             var modal = document.createElement('div');
             modal.id = 'calendar-image-modal';
             modal.className = 'calendar-image-modal';
-            modal.innerHTML = `
-                <div class="calendar-image-backdrop" data-close="true"></div>
-                <div class="calendar-image-dialog">
-                    <div class="calendar-image-header">
-                        <h3>${titre}</h3>
-                        <button type="button" class="calendar-image-close" aria-label="Fermer">×</button>
-                    </div>
-                    <img src="${encodeURI(source)}" alt="${alt}" />
-                </div>
-            `;
-
+            modal.innerHTML =
+                '<div class="calendar-image-backdrop" data-close="true"></div>' +
+                '<div class="calendar-image-dialog">' +
+                    '<div class="calendar-image-header">' +
+                        '<h3>' + titre + '</h3>' +
+                        '<button type="button" class="calendar-image-close" aria-label="Fermer">×</button>' +
+                    '</div>' +
+                    '<img src="' + encodeURI(source) + '" alt="' + alt + '" />' +
+                '</div>';
             document.body.appendChild(modal);
-            modal.querySelector('.calendar-image-close').addEventListener('click', function() { modal.remove(); });
-            modal.querySelector('.calendar-image-backdrop').addEventListener('click', function() { modal.remove(); });
+            modal.querySelector('.calendar-image-close').addEventListener('click', function () { modal.remove(); });
+            modal.querySelector('.calendar-image-backdrop').addEventListener('click', function () { modal.remove(); });
         }
 
-        function openCalendarImageModal() {
+        container.querySelectorAll('.cal-menu-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var menu = btn.parentElement;
+                var open = menu.classList.contains('open');
+                container.querySelectorAll('.cal-menu').forEach(function (m) { m.classList.remove('open'); });
+                if (!open) menu.classList.add('open');
+            });
+        });
+        document.addEventListener('click', function closeMenus(e) {
+            if (!container.querySelector('#calendar-module')) {
+                document.removeEventListener('click', closeMenus);
+                return;
+            }
+            if (!e.target.closest('.cal-menu')) {
+                container.querySelectorAll('.cal-menu').forEach(function (m) { m.classList.remove('open'); });
+            }
+        });
+
+        container.querySelector('#cal-doc-zoneb').addEventListener('click', function () {
             openImageModal('Calendrier scolaire - Zone B', 'images/calendrier scolaire.png', 'Calendrier scolaire Zone B');
-        }
-
-        function openStageImageModal() {
+        });
+        container.querySelector('#cal-doc-stages').addEventListener('click', function () {
             openImageModal('Dates de stage', 'images/Dates de stage.png', 'Dates de stage');
+        });
+        container.querySelector('#cal-doc-periodes').addEventListener('click', function () {
+            openImageModal('Périodes de l’année', 'images/Périodes 26-27.png', 'Périodes de l’année');
+        });
+
+        var calendar = null;
+        var skipSync = false;
+
+        function userItems() {
+            return U ? U.readLocalCache() : [];
         }
 
-        function openPeriodesImageModal() {
-            openImageModal('Périodes 2026-2027', 'images/Périodes 26-27.png', 'Périodes 2026-2027');
+        function applyFilters() {
+            if (!calendar) return;
+            var cls = container.querySelector('#cal-filter-class').value;
+            var type = container.querySelector('#cal-filter-type').value;
+            calendar.getEvents().forEach(function (ev) {
+                if (!U.isUserEvent(ev)) return;
+                var xp = ev.extendedProps || {};
+                var okClass = !cls || xp.className === cls;
+                var okType = !type || xp.type === type;
+                ev.setProp('display', okClass && okType ? 'auto' : 'none');
+            });
+        }
+
+        function removeBySeries(id) {
+            if (!calendar || !id) return;
+            calendar.getEvents().slice().forEach(function (ev) {
+                var parsed = U.parseInstanceId(ev.id);
+                if (ev.id === id || parsed.seriesId === id) ev.remove();
+            });
+        }
+
+        function addOrReplace(item) {
+            if (!calendar || !item) return;
+            skipSync = true;
+            removeBySeries(item.id);
+            (U.toFcEvents ? U.toFcEvents(item) : [U.toFcEvent(item)]).forEach(function (ev) {
+                calendar.addEvent(ev);
+            });
+            skipSync = false;
+            applyFilters();
+        }
+
+        function decorateSlot(info) {
+            var viewType = calendar && calendar.view ? calendar.view.type : '';
+            if (viewType !== 'timeGridDay' && viewType !== 'timeGridWeek') return;
+            var prefs = U.getCalendarDisplayPrefs();
+            var mins = info.date.getHours() * 60 + info.date.getMinutes();
+            var slotEnd = mins + 30;
+            (prefs.pauses || []).forEach(function (p) {
+                var a = U.parseHm(p.start);
+                var b = U.parseHm(p.end);
+                if (mins < b && slotEnd > a) {
+                    info.el.style.backgroundColor = 'rgba(148, 163, 184, 0.15)';
+                    info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(148, 163, 184, 0.1) 10px, rgba(148, 163, 184, 0.1) 20px)';
+                }
+            });
+            [prefs.ligneDebut, prefs.ligneFin].forEach(function (hm) {
+                var t = U.parseHm(hm);
+                if (t >= mins && t < slotEnd) {
+                    var frac = (t - mins) / 30;
+                    var line = document.createElement('div');
+                    line.style.cssText = 'position:absolute;left:0;right:0;border-top:2px dashed #3b82f6;z-index:10;top:' + (frac * 100) + '%';
+                    info.el.style.position = 'relative';
+                    info.el.appendChild(line);
+                }
+            });
         }
 
         async function startFullCalendar() {
             var calendarEl = container.querySelector('#calendar-view');
-            var events = (await loadCalendarEvents()).map(toDisplayEvent);
-            var anneeCal = getAnneeScolaire();
-            var calPrefs = getCalendarDisplayPrefs();
-            var allEvents = events.concat(getCalendrierScolaireEvents(anneeCal));
-            
-            var calendar = new window.FullCalendar.Calendar(calendarEl, {
+            var items = U ? await U.loadAllEvents() : [];
+            var anneeCal = U ? U.getAnneeScolaire() : getAnneeScolaire();
+            var calPrefs = U ? U.getCalendarDisplayPrefs() : getCalendarDisplayPrefs();
+            var allEvents = [];
+            items.forEach(function (it) {
+                allEvents = allEvents.concat(U.toFcEvents ? U.toFcEvents(it) : [U.toFcEvent(it)]);
+            });
+            allEvents = allEvents.concat(U.getSchoolCalendarEvents(anneeCal));
+
+            calendar = new window.FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
                 locale: 'fr',
                 firstDay: 1,
@@ -805,26 +949,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 slotMinTime: calPrefs.slotMinTime,
                 slotMaxTime: calPrefs.slotMaxTime,
                 nowIndicator: true,
+                navLinks: true,
+                weekNumbers: true,
+                weekText: 'S',
+                editable: true,
+                eventStartEditable: true,
+                eventDurationEditable: true,
+                selectable: true,
+                selectMirror: true,
+                longPressDelay: 400,
                 scrollTime: new Date().toTimeString().slice(0, 8),
-                dayHeaderFormat: { weekday: 'short' },
-                customButtons: {
-                    calendarSchoolButton: {
-                        text: '🖼️ Calendrier scolaire',
-                        click: openCalendarImageModal
-                    },
-                    stageDatesButton: {
-                        text: '🏢 Dates de stage',
-                        click: openStageImageModal
-                    },
-                    periodesButton: {
-                        text: '📆 Périodes 26-27',
-                        click: openPeriodesImageModal
-                    }
-                },
+                dayHeaderFormat: { weekday: 'short', day: 'numeric', month: 'numeric' },
+                eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
-                    right: 'calendarSchoolButton stageDatesButton periodesButton timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
+                    right: 'timeGridDay,timeGridWeek,dayGridMonth,multiMonthYear'
                 },
                 buttonText: {
                     today: 'Aujourd\'hui',
@@ -839,239 +979,135 @@ document.addEventListener('DOMContentLoaded', () => {
                     dayGridMonth: { buttonText: 'Mois' },
                     multiMonthYear: { buttonText: 'Année' }
                 },
-                selectable: true,
-                select: function(info) {
-                    openEventModal(info.startStr, info.endStr, info.allDay, calendar);
+                select: function (info) {
+                    var allDay = info.allDay;
+                    var start;
+                    var end;
+                    if (allDay) {
+                        start = U.toYmdLocal(info.start);
+                        end = info.end ? U.addDaysYmd(U.toYmdLocal(info.end), -1) : start;
+                        if (end < start) end = start;
+                    } else {
+                        start = U.toLocalDateTimeInput(info.start);
+                        end = info.end ? U.toLocalDateTimeInput(info.end) : '';
+                    }
+                    U.openEventForm({
+                        allDay: allDay,
+                        start: start,
+                        end: end,
+                        source: 'calendar',
+                        defaultType: 'event',
+                        onSaved: addOrReplace
+                    });
+                    calendar.unselect();
                 },
-                eventClick: function(info) {
-                    showEventDetailModal(info.event, calendar);
+                eventClick: function (info) {
+                    if (!U.isUserEvent(info.event)) return;
+                    info.jsEvent.preventDefault();
+                    U.openDetailModal(U.fcEventToItem(info.event), {
+                        onSaved: addOrReplace,
+                        onDeleted: function (id) {
+                            skipSync = true;
+                            removeBySeries(id);
+                            skipSync = false;
+                        }
+                    });
+                },
+                eventAllow: function (dropInfo, dragged) {
+                    return !dragged || U.isUserEvent(dragged);
                 },
                 events: allEvents,
                 height: 'auto',
                 expandRows: true,
-                slotLaneDidMount: function(info) {
-                    var view = calendar.view;
-                    // Appliquer les customisations uniquement pour les vues timeGrid (jour/semaine)
-                    if (view.type === 'timeGridDay' || view.type === 'timeGridWeek') {
-                        var slotTime = info.date;
-                        var hours = slotTime.getHours();
-                        var minutes = slotTime.getMinutes();
-                        
-                        // Ligne pointillée à 8h00
-                        if (hours === 8 && minutes === 0) {
-                            info.el.style.borderTop = '2px dashed #3b82f6';
-                            info.el.style.position = 'relative';
-                        }
-                        
-                        // Ligne pointillée à 17h10
-                        if (hours === 17 && minutes === 0) {
-                            // FullCalendar affiche par tranches de 30min, donc on cible 17h00
-                            var afterEl = document.createElement('div');
-                            afterEl.style.position = 'absolute';
-                            afterEl.style.top = '20px'; // 10 minutes = 1/3 de slot de 30min ≈ 20px
-                            afterEl.style.left = '0';
-                            afterEl.style.right = '0';
-                            afterEl.style.borderTop = '2px dashed #3b82f6';
-                            afterEl.style.zIndex = '10';
-                            info.el.style.position = 'relative';
-                            info.el.appendChild(afterEl);
-                        }
-                        
-                        // Zone grisée : Récréation 9h50-10h05
-                        if ((hours === 9 && minutes === 30) || (hours === 10 && minutes === 0)) {
-                            info.el.style.backgroundColor = 'rgba(148, 163, 184, 0.15)';
-                            info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(148, 163, 184, 0.1) 10px, rgba(148, 163, 184, 0.1) 20px)';
-                        }
-                        
-                        // Zone grisée : Pause méridienne 11h55-13h15
-                        if ((hours === 11 && minutes === 30) || 
-                            (hours === 12 && (minutes === 0 || minutes === 30)) ||
-                            (hours === 13 && minutes === 0)) {
-                            info.el.style.backgroundColor = 'rgba(148, 163, 184, 0.2)';
-                            info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(148, 163, 184, 0.15) 10px, rgba(148, 163, 184, 0.15) 20px)';
-                        }
-                        
-                        // Zone grisée : Récréation 15h05-15h20
-                        if (hours === 15 && minutes === 0) {
-                            info.el.style.backgroundColor = 'rgba(148, 163, 184, 0.15)';
-                            info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(148, 163, 184, 0.1) 10px, rgba(148, 163, 184, 0.1) 20px)';
-                        }
-                    }
-                }
+                slotLaneDidMount: decorateSlot
             });
-            calendar.on('eventAdd', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventAdd(info.event); });
-            calendar.on('eventRemove', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventRemove(info.event); });
-            calendar.on('eventChange', function(info) { saveEventsToStorage(calendar.getEvents()); syncCalendarEventChange(info.event); });
+
+            calendar.on('eventAdd', function () { /* persistance via persistEvent */ });
+            calendar.on('eventRemove', async function (info) {
+                if (skipSync || !U || !U.isUserEvent(info.event)) return;
+                var parsed = U.parseInstanceId(info.event.id);
+                if (parsed.occurrenceDate) {
+                    await U.skipOccurrence(parsed.seriesId, parsed.occurrenceDate);
+                    return;
+                }
+                await U.deleteEvent(info.event.id);
+            });
+            calendar.on('eventChange', async function (info) {
+                if (skipSync || !U || !U.isUserEvent(info.event)) return;
+                var parsed = U.parseInstanceId(info.event.id);
+                if (parsed.occurrenceDate) {
+                    var patch = U.oneOffFromFcEvent(info.event);
+                    skipSync = true;
+                    info.event.remove();
+                    skipSync = false;
+                    var saved = await U.detachOccurrence(parsed.seriesId, parsed.occurrenceDate, patch);
+                    var series = U.readLocalCache().find(function (it) { return it.id === parsed.seriesId; });
+                    if (series) addOrReplace(series);
+                    if (saved) addOrReplace(saved);
+                    return;
+                }
+                var oldId = info.event.id;
+                var saved = await U.persistEvent(U.fcEventToItem(info.event));
+                skipSync = true;
+                var current = calendar.getEventById(oldId);
+                if (current) current.remove();
+                if (saved.id && saved.id !== oldId) removeBySeries(saved.id);
+                skipSync = false;
+                addOrReplace(saved);
+            });
+
             calendar.render();
+            if (extra.gotoDate) calendar.gotoDate(extra.gotoDate);
+            applyFilters();
         }
-            // Modale détails événement
-            function showEventDetailModal(event, calendar) {
-                var modal = document.getElementById('event-detail-modal');
-                var content = document.getElementById('event-detail-content');
-                var closeBtn = document.getElementById('close-detail-modal');
-                var closeBtn2 = document.getElementById('close-detail-btn');
-                var editBtn = document.getElementById('edit-event-btn');
-                var deleteBtn = document.getElementById('delete-event-btn');
-                content.innerHTML = `
-                    <p><strong>Titre :</strong> ${event.title}</p>
-                    <p><strong>Type :</strong> ${event.extendedProps.type === 'todo' ? 'Todo' : (event.extendedProps.type === 'rdv' ? 'Rendez-vous' : 'Événement')}</p>
-                    <p><strong>Lieu :</strong> ${event.extendedProps.lieu || ''}</p>
-                    <p><strong>Description :</strong> ${event.extendedProps.description || ''}</p>
-                    <p><strong>Début :</strong> ${event.start ? event.start.toLocaleString('fr-FR') : ''}</p>
-                    <p><strong>Fin :</strong> ${event.end ? event.end.toLocaleString('fr-FR') : ''}</p>
-                `;
-                modal.style.display = 'flex';
-                function closeModal() { modal.style.display = 'none'; }
-                closeBtn.onclick = closeModal;
-                closeBtn2.onclick = closeModal;
-                modal.onclick = function(e) { if (e.target === modal) closeModal(); };
-                editBtn.onclick = function() {
-                    closeModal();
-                    openEventModal(null, null, false, calendar, event);
-                };
-                deleteBtn.onclick = function() {
-                    if (confirm('Supprimer cet événement ?')) {
-                        event.remove();
-                        closeModal();
-                    }
-                };
-            }
-        
-        // Gestionnaires pour import/export emploi du temps
-        var importEmploiBtn = container.querySelector('#import-emploi-btn');
-        var importEmploiInput = container.querySelector('#import-emploi-input');
-        var exportEmploiBtn = container.querySelector('#export-emploi-btn');
-        var helpEmploiBtn = container.querySelector('#help-emploi-btn');
-        
-        importEmploiBtn.addEventListener('click', function() {
-            importEmploiInput.click();
+
+        container.querySelector('#cal-add-btn').addEventListener('click', function () {
+            if (!U) return;
+            U.openEventForm({ source: 'calendar', defaultType: 'event', onSaved: addOrReplace });
         });
-        
-        importEmploiInput.addEventListener('change', function(e) {
+        container.querySelector('#cal-filter-class').addEventListener('change', applyFilters);
+        container.querySelector('#cal-filter-type').addEventListener('change', applyFilters);
+
+        container.querySelector('#import-emploi-btn').addEventListener('click', function () {
+            container.querySelector('#import-emploi-input').click();
+        });
+        container.querySelector('#import-emploi-input').addEventListener('change', async function (e) {
             var file = e.target.files[0];
-            if (!file) return;
-            
-            var reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    var csv = event.target.result;
-                    var lines = csv.split('\n').filter(l => l.trim());
-                    var imported = 0;
-                    
-                    // Ignorer la ligne d'en-tête si elle existe
-                    var startIndex = lines[0].toLowerCase().includes('titre') ? 1 : 0;
-                    
-                    for (var i = startIndex; i < lines.length; i++) {
-                        var parts = lines[i].split(';');
-                        if (parts.length < 4) continue;
-                        
-                        var titre = parts[0].trim();
-                        var jour = parts[1].trim(); // Lundi, Mardi, etc. ou date YYYY-MM-DD
-                        var heureDebut = parts[2].trim(); // HH:MM
-                        var heureFin = parts[3].trim(); // HH:MM
-                        var recurrent = parts[4] ? parts[4].trim().toLowerCase() === 'oui' : false;
-                        
-                        if (!titre || !jour || !heureDebut || !heureFin) continue;
-                        
-                        // Convertir le jour en numéro (0=dimanche, 1=lundi, etc.)
-                        var jourNum = -1;
-                        var joursMap = {
-                            'lundi': 1, 'mardi': 2, 'mercredi': 3, 'jeudi': 4, 'vendredi': 5
-                        };
-                        
-                        if (joursMap[jour.toLowerCase()] !== undefined) {
-                            jourNum = joursMap[jour.toLowerCase()];
-                        }
-                        
-                        if (jourNum !== -1) {
-                            // Créer un événement récurrent pour ce jour de la semaine
-                            var today = new Date();
-                            var currentDay = today.getDay();
-                            var daysUntilTarget = (jourNum - currentDay + 7) % 7;
-                            if (daysUntilTarget === 0 && today.getHours() > parseInt(heureFin.split(':')[0])) {
-                                daysUntilTarget = 7;
-                            }
-                            
-                            var targetDate = new Date(today);
-                            targetDate.setDate(today.getDate() + daysUntilTarget);
-                            
-                            var dateStr = targetDate.toISOString().split('T')[0];
-                            
-                            var event = {
-                                title: titre,
-                                start: dateStr + 'T' + heureDebut + ':00',
-                                end: dateStr + 'T' + heureFin + ':00',
-                                allDay: false
-                            };
-                            
-                            if (recurrent) {
-                                event.daysOfWeek = [jourNum];
-                                event.startRecur = dateStr;
-                                event.endRecur = null; // Récurrent indéfiniment
-                            }
-                            
-                            calendar.addEvent(event);
-                            imported++;
-                        }
-                    }
-                    
-                    alert('✅ ' + imported + ' cours importés avec succès !');
-                    importEmploiInput.value = '';
-                } catch (error) {
-                    alert('❌ Erreur lors de l\'import : ' + error.message);
+            if (!file || !U) return;
+            try {
+                var csv = await file.text();
+                var parsed = U.parseEmploiCsv(csv);
+                for (var i = 0; i < parsed.length; i++) {
+                    var saved = await U.persistEvent(parsed[i]);
+                    addOrReplace(saved);
                 }
-            };
-            reader.readAsText(file);
+                alert(parsed.length ? ('✅ ' + parsed.length + ' cours importés (répétition jusqu’aux vacances d’été).') : 'Aucun cours lisible dans ce fichier.');
+            } catch (err) {
+                alert('❌ Erreur lors de l’import : ' + err.message);
+            }
+            e.target.value = '';
         });
-        
-        exportEmploiBtn.addEventListener('click', function() {
-            var events = calendar.getEvents();
-            var csv = 'Titre;Jour;Heure début;Heure fin;Récurrent\n';
-            
-            var joursNoms = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-            
-            events.forEach(function(event) {
-                var titre = event.title || '';
-                var start = event.start;
-                var end = event.end || event.start;
-                
-                var jour = '';
-                if (event.extendedProps.daysOfWeek && event.extendedProps.daysOfWeek.length > 0) {
-                    jour = joursNoms[event.extendedProps.daysOfWeek[0]];
-                } else {
-                    jour = start.toISOString().split('T')[0];
-                }
-                
-                var heureDebut = start.toTimeString().substring(0, 5);
-                var heureFin = end.toTimeString().substring(0, 5);
-                var recurrent = event.extendedProps.daysOfWeek ? 'Oui' : 'Non';
-                
-                csv += titre + ';' + jour + ';' + heureDebut + ';' + heureFin + ';' + recurrent + '\n';
-            });
-            
-            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'emploi-du-temps.csv';
-            link.click();
+        container.querySelector('#export-emploi-btn').addEventListener('click', function () {
+            if (!U) return;
+            U.downloadText('emploi-du-temps.csv', U.eventsToCsv(userItems()), 'text/csv;charset=utf-8;');
         });
-        
-        helpEmploiBtn.addEventListener('click', function() {
-            alert('📋 FORMAT CSV POUR L\'IMPORT D\'EMPLOI DU TEMPS\n\n' +
-                  'Créez un fichier CSV avec point-virgule (;) comme séparateur :\n\n' +
-                  'Titre;Jour;Heure début;Heure fin;Récurrent\n' +
-                  'Mathématiques;Lundi;08:00;09:00;Oui\n' +
-                  'Français;Mardi;10:15;12:15;Oui\n\n' +
-                  '📌 Colonnes :\n' +
-                  '• Titre : Nom du cours\n' +
-                  '• Jour : Lundi, Mardi, Mercredi, Jeudi, Vendredi\n' +
-                  '• Heure début : Format HH:MM (ex: 08:00)\n' +
-                  '• Heure fin : Format HH:MM (ex: 09:00)\n' +
-                  '• Récurrent : Oui (répète chaque semaine) ou Non\n\n' +
-                  '💡 Conseil : Utilisez Excel ou LibreOffice Calc,\n' +
-                  'puis enregistrez au format CSV avec séparateur point-virgule.');
+        container.querySelector('#export-ics-btn').addEventListener('click', function () {
+            if (!U) return;
+            U.downloadText('eprof-calendrier.ics', U.eventsToIcs(userItems()), 'text/calendar;charset=utf-8;');
         });
-        
+        container.querySelector('#help-emploi-btn').addEventListener('click', function () {
+            alert('📋 FORMAT CSV POUR L’EMPLOI DU TEMPS\n\n' +
+                'Fichier CSV avec point-virgule (;) :\n\n' +
+                'Titre;Jour;Heure début;Heure fin;Récurrent;Classe\n' +
+                'Mathématiques;Lundi;08:00;09:00;Oui;2nde SAPAT A\n' +
+                'Réunion parents;2026-10-12;18:00;19:30;Non;\n\n' +
+                '• Jour : Lundi…Samedi, ou une date YYYY-MM-DD\n' +
+                '• Heures : HH:MM\n' +
+                '• Récurrent = Oui : chaque semaine jusqu’aux vacances d’été\n' +
+                '• Classe : facultatif (colore le cours)\n\n' +
+                'Enregistrez depuis Excel / Calc en CSV point-virgule.');
+        });
+
         if (!window.FullCalendar) {
             var script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js';
@@ -1082,201 +1118,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Modale événement/todo
-    function openEventModal(startStr, endStr, allDay, calendar, eventToEdit) {
-        var modal = document.getElementById('event-modal');
-        var form = document.getElementById('event-form');
-        var closeBtn = document.getElementById('close-event-modal');
-        var cancelBtn = document.getElementById('event-cancel-btn');
-        form.reset();
-        if (eventToEdit) {
-            document.getElementById('event-title').value = eventToEdit.title.replace(/^📝 |^📅 |^📍 /, '');
-            document.getElementById('event-type').value = eventToEdit.extendedProps.type || 'event';
-            document.getElementById('event-lieu').value = eventToEdit.extendedProps.lieu || '';
-            document.getElementById('event-desc').value = eventToEdit.extendedProps.description || '';
-            document.getElementById('event-start').value = eventToEdit.start ? eventToEdit.start.toISOString().slice(0,16) : '';
-            document.getElementById('event-end').value = eventToEdit.end ? eventToEdit.end.toISOString().slice(0,16) : '';
-        } else {
-            document.getElementById('event-start').value = startStr ? startStr.substring(0, 16) : '';
-            document.getElementById('event-end').value = endStr ? endStr.substring(0, 16) : '';
-        }
-        modal.style.display = 'flex';
-        function closeModal() { modal.style.display = 'none'; }
-        closeBtn.onclick = closeModal;
-        cancelBtn.onclick = closeModal;
-        form.onsubmit = function(e) {
-            e.preventDefault();
-            var title = document.getElementById('event-title').value;
-            var desc = document.getElementById('event-desc').value;
-            var type = document.getElementById('event-type').value;
-            var lieu = document.getElementById('event-lieu').value;
-            var start = document.getElementById('event-start').value;
-            var end = document.getElementById('event-end').value;
-            var icon = type === 'todo' ? '📝 ' : (type === 'rdv' ? '📅 ' : (lieu ? '📍 ' : ''));
-            if (title && start) {
-                if (eventToEdit) {
-                    eventToEdit.setProp('title', icon + title);
-                    eventToEdit.setExtendedProp('description', desc);
-                    eventToEdit.setExtendedProp('type', type);
-                    eventToEdit.setExtendedProp('lieu', lieu);
-                    eventToEdit.setStart(start);
-                    eventToEdit.setEnd(end || null);
-                } else {
-                    calendar.addEvent({
-                        title: icon + title,
-                        description: desc,
-                        type: type,
-                        lieu: lieu,
-                        start: start,
-                        end: end || undefined,
-                        allDay: allDay
-                    });
-                }
-            }
-            closeModal();
-        };
-        modal.onclick = function(e) { if (e.target === modal) closeModal(); };
-    }
-
-    // Persistance locale des événements (cache hors-ligne, toujours tenu à jour)
-    // Note : les jours fériés / vacances scolaires n'ont pas de extendedProps.type,
-    // on les exclut donc pour ne jamais les dupliquer en "événement utilisateur".
-    function isUserCalendarEvent(ev) {
-        return !!(ev && ev.extendedProps && typeof ev.extendedProps.type !== 'undefined');
-    }
-    function saveEventsToStorage(events) {
-        var data = events.filter(isUserCalendarEvent).map(function(ev) {
-            var emoji = ev.extendedProps.emoji || '';
-            return {
-                id: ev.id || null,
-                title: (emoji && ev.title.indexOf(emoji + ' ') === 0) ? ev.title.slice(emoji.length + 1) : ev.title,
-                start: ev.start ? ev.start.toISOString() : null,
-                end: ev.end ? ev.end.toISOString() : null,
-                allDay: ev.allDay,
-                description: ev.extendedProps.description || '',
-                type: ev.extendedProps.type || 'event',
-                lieu: ev.extendedProps.lieu || '',
-                color: ev.extendedProps.color || '',
-                emoji: emoji,
-                done: !!ev.extendedProps.done,
-                reminderMinutes: (ev.extendedProps.reminderMinutes === null || ev.extendedProps.reminderMinutes === undefined) ? null : Number(ev.extendedProps.reminderMinutes),
-                source: ev.extendedProps.source || 'calendar'
-            };
-        });
-        try {
-            localStorage.setItem('eprof-events', JSON.stringify(data));
-        } catch(e) {}
-    }
     function loadEventsFromStorage() {
+        if (window.EprofCalendarUtils) return window.EprofCalendarUtils.readLocalCache();
         try {
-            var data = JSON.parse(localStorage.getItem('eprof-events') || '[]');
-            return data.map(function(ev) {
-                return {
-                    id: ev.id || undefined,
-                    title: ev.title,
-                    start: ev.start,
-                    end: ev.end,
-                    allDay: ev.allDay,
-                    description: ev.description,
-                    type: ev.type,
-                    lieu: ev.lieu,
-                    color: ev.color || '',
-                    emoji: ev.emoji || '',
-                    done: !!ev.done,
-                    reminderMinutes: (ev.reminderMinutes === null || ev.reminderMinutes === undefined) ? null : Number(ev.reminderMinutes),
-                    source: ev.source || 'calendar'
-                };
-            });
-        } catch(e) { return []; }
-    }
-
-    // L'emoji et la couleur sont stockés à part : on ne les applique qu'à l'affichage FullCalendar
-    function toDisplayEvent(ev) {
-        return Object.assign({}, ev, {
-            title: (ev.emoji ? ev.emoji + ' ' : '') + ev.title,
-            backgroundColor: ev.color || undefined,
-            borderColor: ev.color || undefined
-        });
-    }
-
-    // ===== Synchronisation en ligne (Supabase) =====
-    function isUuid(value) {
-        return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-    }
-    function calendarEventToRow(ev, teacherId) {
-        var emoji = ev.extendedProps.emoji || null;
-        // Le titre affiché est préfixé de l'emoji : on le retire avant enregistrement pour ne pas l'empiler
-        var rawTitle = (emoji && ev.title.indexOf(emoji + ' ') === 0) ? ev.title.slice(emoji.length + 1) : ev.title;
-        return {
-            teacher_id: teacherId,
-            title: rawTitle,
-            event_type: ev.extendedProps.type || 'event',
-            lieu: ev.extendedProps.lieu || null,
-            description: ev.extendedProps.description || null,
-            start_at: ev.start ? ev.start.toISOString() : null,
-            end_at: ev.end ? ev.end.toISOString() : null,
-            all_day: !!ev.allDay,
-            color: ev.extendedProps.color || null,
-            emoji: emoji,
-            done: !!ev.extendedProps.done,
-            reminder_minutes: (ev.extendedProps.reminderMinutes === null || ev.extendedProps.reminderMinutes === undefined) ? null : Number(ev.extendedProps.reminderMinutes),
-            source: ev.extendedProps.source || 'calendar'
-        };
-    }
-    async function loadCalendarEvents() {
-        var online = window.EprofStore && await window.EprofStore.isOnlineReady();
-        if (!online) return loadEventsFromStorage();
-
-        var teacherId = await window.EprofStore.getTeacherId();
-        var result = await window.EprofStore.list('calendar_events', { filters: { teacher_id: teacherId }, orderBy: 'start_at' });
-        if (result.error || !result.data) {
-            console.warn('⚠️ Calendrier : bascule sur le cache local (Supabase indisponible).', result.error);
-            return loadEventsFromStorage();
-        }
-
-        var events = result.data.map(function(row) {
-            return {
-                id: row.id,
-                title: row.title,
-                start: row.start_at,
-                end: row.end_at || undefined,
-                allDay: row.all_day,
-                description: row.description || '',
-                type: row.event_type || 'event',
-                lieu: row.lieu || '',
-                color: row.color || '',
-                emoji: row.emoji || '',
-                done: !!row.done,
-                reminderMinutes: (row.reminder_minutes === null || row.reminder_minutes === undefined) ? null : Number(row.reminder_minutes),
-                source: row.source || 'calendar'
-            };
-        });
-
-        try {
-            localStorage.setItem('eprof-events', JSON.stringify(events));
-        } catch (e) {}
-
-        return events;
-    }
-    async function syncCalendarEventAdd(ev) {
-        if (!isUserCalendarEvent(ev) || !window.EprofStore) return;
-        var teacherId = await window.EprofStore.getTeacherId();
-        if (!teacherId) return; // hors ligne : reste uniquement dans le cache local
-        var result = await window.EprofStore.insert('calendar_events', calendarEventToRow(ev, teacherId));
-        if (!result.error && result.data && result.data.id) {
-            ev.setProp('id', result.data.id); // aligne l'id local sur l'id Supabase pour les prochaines maj/suppr
-        }
-    }
-    async function syncCalendarEventChange(ev) {
-        if (!isUserCalendarEvent(ev) || !window.EprofStore) return;
-        var teacherId = await window.EprofStore.getTeacherId();
-        if (!teacherId) return;
-        if (!isUuid(ev.id)) return syncCalendarEventAdd(ev); // jamais synchronisé -> on le crée maintenant
-        await window.EprofStore.update('calendar_events', ev.id, calendarEventToRow(ev, teacherId));
-    }
-    async function syncCalendarEventRemove(ev) {
-        if (!isUserCalendarEvent(ev) || !window.EprofStore || !isUuid(ev.id)) return;
-        await window.EprofStore.remove('calendar_events', ev.id);
+            return JSON.parse(localStorage.getItem('eprof-events') || '[]');
+        } catch (e) { return []; }
     }
 
     // Conversion fusionnée
@@ -6500,12 +6346,44 @@ if (typeof module !== 'undefined' && module.exports) {
                         <summary>🕐 Calendrier</summary>
                         <div class="param-form">
                             <div class="param-row">
-                                <label>Heure de début :</label>
+                                <label>Première heure affichée :</label>
                                 <input type="time" id="param-heure-debut" value="${parametres.calendrier.heureDebut}">
                             </div>
                             <div class="param-row">
-                                <label>Heure de fin :</label>
+                                <label>Dernière heure affichée :</label>
                                 <input type="time" id="param-heure-fin" value="${parametres.calendrier.heureFin}">
+                            </div>
+                            <div class="param-row">
+                                <label>Ligne « début de journée » :</label>
+                                <input type="time" id="param-ligne-debut" value="${parametres.calendrier.ligneDebut || '08:00'}">
+                            </div>
+                            <div class="param-row">
+                                <label>Ligne « fin de journée » :</label>
+                                <input type="time" id="param-ligne-fin" value="${parametres.calendrier.ligneFin || '17:10'}">
+                            </div>
+                            <div class="param-row">
+                                <label>Récréation du matin :</label>
+                                <div class="param-time-pair">
+                                    <input type="time" id="param-pause-matin-debut" value="${parametres.calendrier.pauseMatinDebut || '09:50'}">
+                                    <span>→</span>
+                                    <input type="time" id="param-pause-matin-fin" value="${parametres.calendrier.pauseMatinFin || '10:05'}">
+                                </div>
+                            </div>
+                            <div class="param-row">
+                                <label>Pause méridienne :</label>
+                                <div class="param-time-pair">
+                                    <input type="time" id="param-pause-midi-debut" value="${parametres.calendrier.pauseMidiDebut || '11:55'}">
+                                    <span>→</span>
+                                    <input type="time" id="param-pause-midi-fin" value="${parametres.calendrier.pauseMidiFin || '13:15'}">
+                                </div>
+                            </div>
+                            <div class="param-row">
+                                <label>Récréation de l’après-midi :</label>
+                                <div class="param-time-pair">
+                                    <input type="time" id="param-pause-apres-debut" value="${parametres.calendrier.pauseApresDebut || '15:05'}">
+                                    <span>→</span>
+                                    <input type="time" id="param-pause-apres-fin" value="${parametres.calendrier.pauseApresFin || '15:20'}">
+                                </div>
                             </div>
                             <div class="param-row">
                                 <label>
@@ -6513,7 +6391,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                     Afficher le samedi dans le calendrier
                                 </label>
                             </div>
-                            <p class="param-hint">Ces horaires et le samedi s’appliquent à la vue planning. Les vacances (zone B) suivent l’année scolaire choisie.</p>
+                            <p class="param-hint">Ces horaires s’appliquent à la vue planning. Les vacances du calendrier scolaire (Zone B) suivent l’année choisie plus haut. Un cours récurrent s’arrête au début des vacances d’été.</p>
                         </div>
                     </details>
 
@@ -6829,6 +6707,14 @@ if (typeof module !== 'undefined' && module.exports) {
 
             parametres.calendrier.heureDebut = container.querySelector('#param-heure-debut').value;
             parametres.calendrier.heureFin = container.querySelector('#param-heure-fin').value;
+            parametres.calendrier.ligneDebut = container.querySelector('#param-ligne-debut').value;
+            parametres.calendrier.ligneFin = container.querySelector('#param-ligne-fin').value;
+            parametres.calendrier.pauseMatinDebut = container.querySelector('#param-pause-matin-debut').value;
+            parametres.calendrier.pauseMatinFin = container.querySelector('#param-pause-matin-fin').value;
+            parametres.calendrier.pauseMidiDebut = container.querySelector('#param-pause-midi-debut').value;
+            parametres.calendrier.pauseMidiFin = container.querySelector('#param-pause-midi-fin').value;
+            parametres.calendrier.pauseApresDebut = container.querySelector('#param-pause-apres-debut').value;
+            parametres.calendrier.pauseApresFin = container.querySelector('#param-pause-apres-fin').value;
             parametres.calendrier.afficherSamedi = container.querySelector('#param-afficher-samedi').checked;
             delete parametres.calendrier.dureeCoursDefaut;
             delete parametres.periodes;

@@ -22,10 +22,31 @@
     gap: 1em;
 }
 
-.agenda-hint {
+.agenda-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6em;
+    margin-bottom: 1.2em;
+}
+
+.agenda-search {
+    flex: 1 1 220px;
+    padding: 0.5em 0.7em;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95em;
+    font-family: inherit;
+}
+
+.agenda-card-type {
+    font-size: 0.78em;
     color: #64748b;
-    font-size: 0.9em;
-    margin: 0.3em 0 1.2em;
+    margin-top: 0.25em;
+}
+
+.agenda-check-spacer {
+    width: 18px;
+    flex-shrink: 0;
 }
 
 .agenda-inline-check {
@@ -302,4 +323,15 @@ body.theme-sombre .agenda-card {
 
 body.theme-sombre .agenda-card-actions button:hover {
     background: #334155;
+}
+
+body.theme-sombre .agenda-search,
+body.theme-sombre .agenda-filters .cal-filter {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre .agenda-card-type {
+    color: #94a3b8;
 }

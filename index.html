@@ -112,7 +112,7 @@
             <div class="footer-info">
                 <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
                 <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
-                <p class="footer-version" id="footer-version">Version V2.3.10</p>
+                <p class="footer-version" id="footer-version">Version V2.3.11</p>
                 <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
             </div>
             <button type="button" class="footer-docs-btn" id="docs-trigger" title="Tutoriels pour prendre eProf en main">📖 Documentation</button>
@@ -120,40 +120,86 @@
             <button type="button" class="footer-admin-btn" id="admin-panel-trigger" title="Panneau d'administration">🔐 Admin</button>
         </div>
     </footer>
-    <!-- Modale pour ajout événement/todo -->
+    <!-- Modale pour ajout / édition d'événement (calendrier et agenda) -->
     <div id="event-modal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">Ajouter un événement ou todo</h3>
-                <button class="close-modal" id="close-event-modal" title="Fermer">
+        <div class="modal-content event-modal-content">
+            <div class="modal-header">
+                <h3 id="event-modal-title">Nouvel événement</h3>
+                <button class="close-modal" id="close-event-modal" title="Fermer" type="button">
                     <span>×</span>
                 </button>
             </div>
-            <form id="event-form">
-                <label for="event-title">Titre <span style="color:red">*</span></label>
-                <input type="text" id="event-title" name="event-title" required>
-                <label for="event-type">Type <span style="color:red">*</span></label>
-                <select id="event-type" name="event-type">
-                    <option value="event">Événement</option>
-                    <option value="todo">Todo</option>
-                    <option value="rdv">Rendez-vous</option>
-                </select>
-                <label for="event-lieu">Lieu</label>
-                <input type="text" id="event-lieu" name="event-lieu" placeholder="Salle, adresse, etc.">
-                <label for="event-desc">Description</label>
-                <textarea id="event-desc" name="event-desc" placeholder="Détail, consignes, etc."></textarea>
-                <div class="event-dates-row">
-                    <div style="flex:1;">
-                        <label for="event-start">Début <span style="color:red">*</span></label>
+            <div id="event-occurrence-banner" class="event-occurrence-banner" hidden>
+                Modification de <strong>cette séance uniquement</strong>. Le reste de la série est inchangé.
+            </div>
+            <form id="event-form" class="eprof-event-form">
+                <input type="hidden" id="event-item-id">
+                <input type="hidden" id="event-item-done" value="0">
+                <input type="hidden" id="event-item-source" value="calendar">
+                <div class="event-form-row">
+                    <label for="event-title">Intitulé <span class="req">*</span>
+                        <input type="text" id="event-title" name="event-title" required placeholder="Ex : Cours de 2nde SAPAT A">
+                    </label>
+                </div>
+                <div class="event-form-row">
+                    <label for="event-type">Nature
+                        <select id="event-type" name="event-type">
+                            <option value="cours">📚 Cours</option>
+                            <option value="event">📅 Événement</option>
+                            <option value="todo">📝 Tâche</option>
+                            <option value="rdv">🤝 Rendez-vous</option>
+                        </select>
+                    </label>
+                    <label for="event-class">Classe
+                        <select id="event-class" name="event-class">
+                            <option value="">Aucune</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="event-inline-check">
+                    <input type="checkbox" id="event-all-day"> Journée ou période (sans horaire)
+                </label>
+                <div class="event-form-row">
+                    <label for="event-start">Début <span class="req">*</span>
                         <input type="datetime-local" id="event-start" name="event-start" required>
-                    </div>
-                    <div style="flex:1;">
-                        <label for="event-end">Fin</label>
+                    </label>
+                    <label for="event-end">Fin
                         <input type="datetime-local" id="event-end" name="event-end">
+                    </label>
+                </div>
+                <label class="event-inline-check">
+                    <input type="checkbox" id="event-recurring"> Répéter chaque semaine (emploi du temps)
+                </label>
+                <div id="event-recur-options" class="event-recur-options" style="display:none;">
+                    <p class="event-recur-hint">Cochez les jours. La série s’arrête aux vacances d’été et <strong>ignore automatiquement</strong> les vacances et jours fériés de l’année.</p>
+                    <div id="event-dow-chips" class="event-dow"></div>
+                    <label for="event-until">Jusqu’au
+                        <input type="date" id="event-until">
+                    </label>
+                </div>
+                <div class="event-form-row">
+                    <label for="event-lieu">Lieu
+                        <input type="text" id="event-lieu" name="event-lieu" placeholder="Salle, établissement…">
+                    </label>
+                    <label for="event-reminder">Rappel
+                        <select id="event-reminder" name="event-reminder"></select>
+                    </label>
+                </div>
+                <label for="event-desc">Note
+                    <textarea id="event-desc" name="event-desc" rows="2" placeholder="Détails, matériel à prévoir…"></textarea>
+                </label>
+                <div class="event-form-row">
+                    <div class="agenda-picker">
+                        <span class="agenda-picker-label">Couleur</span>
+                        <div id="event-colors" class="agenda-colors"></div>
+                    </div>
+                    <div class="agenda-picker">
+                        <span class="agenda-picker-label">Icône</span>
+                        <div id="event-emojis" class="agenda-emojis"></div>
                     </div>
                 </div>
                 <div class="modal-actions">
-                    <button type="submit" id="event-save-btn">Valider</button>
+                    <button type="submit" id="event-save-btn">💾 Enregistrer</button>
                     <button type="button" id="event-cancel-btn">Annuler</button>
                 </div>
             </form>
@@ -161,17 +207,17 @@
     </div>
     <!-- Modale détails événement -->
     <div id="event-detail-modal" class="modal" style="display:none;">
-        <div class="modal-content">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">Détail de l'événement</h3>
-                <button class="close-modal" id="close-detail-modal" title="Fermer">
+        <div class="modal-content event-modal-content">
+            <div class="modal-header">
+                <h3>Détail</h3>
+                <button class="close-modal" id="close-detail-modal" title="Fermer" type="button">
                     <span>×</span>
                 </button>
             </div>
-            <div id="event-detail-content"></div>
-            <div class="modal-actions">
+            <div id="event-detail-content" class="event-detail-body"></div>
+            <div class="modal-actions event-detail-actions" id="event-detail-actions">
                 <button type="button" id="edit-event-btn">Modifier</button>
-                <button type="button" id="delete-event-btn" style="background:#e53935;color:#fff;">Supprimer</button>
+                <button type="button" id="delete-event-btn">Supprimer</button>
                 <button type="button" id="close-detail-btn">Fermer</button>
             </div>
         </div>
@@ -203,6 +249,7 @@
     <script src="js/supabase-client.js"></script>
     <!-- Socle générique d'accès aux données (Supabase + repli local) -->
     <script src="js/eprof-store.js"></script>
+    <script src="js/calendar-utils.js"></script>
     <script src="js/app-logger.js"></script>
     <script src="js/referentiel.js"></script>
     <script src="js/bareme.js"></script>

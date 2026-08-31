@@ -29,7 +29,7 @@
                 'Renseignez nom, prénom, matière et e-mail. En ligne, le profil de l’établissement est utilisé en priorité.',
                 'Cliquez <strong>Gérer mes classes et matières</strong> : cochez vos classes à gauche (groupées par niveau), puis leurs matières à droite.',
                 'Choisissez l’année scolaire (trombinoscopes, vacances du calendrier) puis le thème, la taille de police et le mode mobile — l’aperçu est immédiat.',
-                'Dans Calendrier, réglez les heures affichées et l’éventuel samedi. Dans Notation, choisissez le barème (sur 20 ou sur 10) et les seuils d’alertes (oublis, mots) utilisés dans le suivi.',
+                'Dans Calendrier, réglez la plage horaire, les lignes de début/fin de journée, les récréations et l’éventuel samedi. Dans Notation, choisissez le barème (sur 20 ou sur 10) et les seuils d’alertes (oublis, mots) utilisés dans le suivi.',
                 'La section « Mon compte » permet de changer l’identifiant ou le mot de passe. Le bouton Enregistrer, toujours visible en bas, sauvegarde le reste.'
             ],
             tip: 'Sans classes sélectionnées, plusieurs outils restent vides. C’est presque toujours la première chose à régler.'
@@ -38,31 +38,33 @@
             id: 'calendrier',
             icon: '📅',
             title: 'Calendrier',
-            lead: 'Vue mensuelle de vos événements, todos et de l’emploi du temps.',
+            lead: 'Planning de la semaine, emploi du temps et documents de l’année.',
             tool: 'calendar',
             steps: [
                 'Ouvrez <strong>Calendrier</strong> dans le menu ou depuis l’accueil.',
-                'Cliquez un jour pour ajouter un événement, un todo ou un rendez-vous (titre, lieu, horaires).',
-                'Cliquez un événement existant pour le modifier ou le supprimer.',
-                'Utilisez <strong>Importer emploi du temps (CSV)</strong> pour charger vos cours, et <strong>Exporter</strong> pour en garder une copie.',
-                'Le bouton <strong>Aide</strong> du calendrier rappelle le format du fichier CSV attendu.',
-                'Les boutons <strong>Calendrier scolaire</strong>, <strong>Dates de stage</strong> et <strong>Périodes 26-27</strong> ouvrent les documents de l’année.',
-                'Les heures de début/fin et l’affichage du samedi se règlent dans Paramètres → Calendrier. Les vacances scolaires suivent l’année choisie.'
+                'Cliquez-glissez sur le planning pour créer un événement aux bons horaires, ou le bouton <strong>Nouvel événement</strong>.',
+                'Renseignez l’intitulé, la nature (cours, tâche, rendez-vous…), éventuellement la classe, la couleur et un rappel.',
+                'Pour un cours d’emploi du temps, cochez <strong>Répéter chaque semaine</strong> et les jours concernés : la série s’arrête aux vacances d’été et <strong>saute automatiquement</strong> les vacances et jours fériés.',
+                'Cliquez un cours récurrent : vous pouvez modifier ou supprimer <strong>cette séance</strong> seulement, ou toute la série. Un glisser-déposer ne change que la séance déplacée.',
+                'Le menu <strong>Emploi du temps</strong> permet d’importer/exporter un CSV et d’exporter un fichier iCal (.ics).',
+                'Le menu <strong>Calendrier scolaire</strong> ouvre le calendrier de l’année (Zone B), les dates de stage et les périodes.',
+                'Filtrez par classe ou par nature. Les heures affichées, le samedi et les pauses se règlent dans Paramètres → Calendrier.'
             ],
-            tip: 'Les éléments créés dans l’Agenda apparaissent aussi ici. Un seul planning, deux façons de le consulter. Pour élargir la plage horaire, passez par Paramètres.'
+            tip: 'L’agenda liste les mêmes événements. Un changement d’un côté se retrouve de l’autre.'
         },
         {
             id: 'agenda',
             icon: '🗓️',
             title: 'Agenda',
-            lead: 'Liste de vos tâches et rendez-vous, avec rappels si vous le souhaitez.',
+            lead: 'Liste de vos cours, tâches et rendez-vous, avec rappels si vous le souhaitez.',
             tool: 'agenda',
             steps: [
                 'Ouvrez <strong>Agenda</strong> dans le menu de gauche.',
-                'Ajoutez une entrée : titre, date, éventuellement heure, couleur et emoji.',
-                'Cochez « journée entière » pour un événement sans horaire précis.',
-                'Activez un rappel (5 minutes, 1 heure, 1 jour…) si vous voulez une notification.',
-                'Marquez une tâche comme terminée quand elle est faite. Les réglages de l’agenda permettent de masquer ou d’afficher les éléments clos.'
+                'Vous y retrouvez tout ce qui figure aussi dans le calendrier. Filtrez par nature, classe ou recherche.',
+                'Ajoutez une entrée : même formulaire que le calendrier (horaire ou journée, répétition hebdomadaire, classe, couleur).',
+                'Cochez « journée ou période » pour un événement sans horaire. La date de fin est le dernier jour inclus.',
+                'Activez un rappel si vous voulez une notification (l’application doit rester ouverte).',
+                'Les tâches peuvent être marquées comme terminées. Les cours et rendez-vous restent dans le planning.'
             ],
             tip: 'L’agenda et le calendrier partagent les mêmes événements : une modification d’un côté se retrouve de l’autre.'
         },
