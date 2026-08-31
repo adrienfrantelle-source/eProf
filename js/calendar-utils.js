@@ -1080,7 +1080,6 @@
         form.reset();
         var item = options && options.item;
         var allDay = item ? !!item.allDay : !!(options && options.allDay);
-        var settings = loadAgendaSettings();
         formCallbacks.onSaved = options && options.onSaved ? options.onSaved : null;
         formCallbacks.onDeleted = options && options.onDeleted ? options.onDeleted : null;
         formCallbacks.occurrenceEdit = options && options.occurrenceEdit ? options.occurrenceEdit : null;
@@ -1119,7 +1118,7 @@
         form.querySelector('#event-all-day').checked = allDay;
         form.querySelector('#event-reminder').value = item
             ? (item.reminderMinutes === null || item.reminderMinutes === undefined ? '' : String(item.reminderMinutes))
-            : String(settings.rappelParDefaut || '');
+            : '';
         fillClassSelect(form.querySelector('#event-class'), item ? (item.className || '') : '');
 
         var startInput = form.querySelector('#event-start');

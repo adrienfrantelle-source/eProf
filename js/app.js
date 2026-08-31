@@ -887,19 +887,22 @@ document.addEventListener('DOMContentLoaded', () => {
             var prefs = U.getCalendarDisplayPrefs();
             var mins = info.date.getHours() * 60 + info.date.getMinutes();
             var slotEnd = mins + 30;
+            var isLane = info.el.classList.contains('fc-timegrid-slot-lane');
             (prefs.pauses || []).forEach(function (p) {
                 var a = U.parseHm(p.start);
                 var b = U.parseHm(p.end);
                 if (mins < b && slotEnd > a) {
-                    info.el.style.backgroundColor = 'rgba(148, 163, 184, 0.15)';
-                    info.el.style.backgroundImage = 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(148, 163, 184, 0.1) 10px, rgba(148, 163, 184, 0.1) 20px)';
+                    if (isLane) info.el.classList.add('cal-slot-pause');
+                    if (mins > a && mins < b) info.el.classList.add('cal-slot-pause-line');
                 }
             });
+            if (!isLane) return;
             [prefs.ligneDebut, prefs.ligneFin].forEach(function (hm) {
                 var t = U.parseHm(hm);
                 if (t >= mins && t < slotEnd) {
                     var frac = (t - mins) / 30;
                     var line = document.createElement('div');
+                    line.className = 'cal-slot-guide';
                     line.style.cssText = 'position:absolute;left:0;right:0;border-top:2px dashed #3b82f6;z-index:10;top:' + (frac * 100) + '%';
                     info.el.style.position = 'relative';
                     info.el.appendChild(line);
@@ -1049,9 +1052,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 eventDrop: persistMovedEvent,
                 eventResize: persistMovedEvent,
+                slotDuration: '00:30:00',
+                snapDuration: '00:05:00',
+                slotLabelInterval: '00:30:00',
                 height: 'auto',
                 expandRows: true,
-                slotLaneDidMount: decorateSlot
+                slotLaneDidMount: decorateSlot,
+                slotLabelDidMount: decorateSlot
             });
 
             calendar.render();
