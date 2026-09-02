@@ -49,10 +49,6 @@
         { value: 0, short: 'Dim', label: 'Dimanche' }
     ];
 
-    var JOURS_MAP = {
-        dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6
-    };
-
     var FIN_COURS = {
         '2025-2026': '2026-07-04',
         '2026-2027': '2027-07-03',
@@ -1359,162 +1355,6 @@
         return feries.concat(vacancesParAnnee[key] || vacancesParAnnee['2026-2027']);
     }
 
-    function parseEmploiCsv(csv) {
-        var lines = String(csv).replace(/^\uFEFF/, '').split(/\r?\n/).filter(function (l) { return l.trim(); });
-        if (!lines.length) return [];
-        var startIndex = /titre/i.test(lines[0]) ? 1 : 0;
-        var items = [];
-        var yearStart = schoolYearStart();
-        var yearEnd = schoolYearEnd();
-        for (var i = startIndex; i < lines.length; i++) {
-            var parts = lines[i].split(';');
-            if (parts.length < 4) continue;
-            var titre = parts[0].trim();
-            var jour = parts[1].trim();
-            var heureDebut = parts[2].trim();
-            var heureFin = parts[3].trim();
-            var recurrent = parts[4] ? parts[4].trim().toLowerCase() === 'oui' : false;
-            var classe = parts[5] ? parts[5].trim() : '';
-            var semaine = parts[6] ? parts[6].trim() : '';
-            if (!titre || !jour || !heureDebut || !heureFin) continue;
-            var item = {
-                title: titre,
-                type: 'cours',
-                allDay: false,
-                lieu: '',
-                description: '',
-                color: classe && window.getClassColor ? window.getClassColor(classe) : '#1e88e5',
-                emoji: '📚',
-                done: false,
-                reminderMinutes: null,
-                source: 'calendar',
-                className: classe
-            };
-            if (/^\d{4}-\d{2}-\d{2}$/.test(jour)) {
-                item.start = localDateTimeToIso(jour + 'T' + heureDebut);
-                item.end = localDateTimeToIso(jour + 'T' + heureFin);
-            } else {
-                var jourNum = JOURS_MAP[jour.toLowerCase()];
-                if (jourNum === undefined) continue;
-                if (recurrent) {
-                    item.daysOfWeek = [jourNum];
-                    item.startRecur = yearStart;
-                    item.endRecur = yearEnd;
-                    item.startTime = heureDebut.length === 5 ? heureDebut + ':00' : heureDebut;
-                    item.endTime = heureFin.length === 5 ? heureFin + ':00' : heureFin;
-                    item.start = yearStart + 'T' + item.startTime;
-                    item.end = yearStart + 'T' + item.endTime;
-                    item.weekAb = normalizeWeekAb(semaine);
-                } else {
-                    var today = new Date();
-                    var daysUntilTarget = (jourNum - today.getDay() + 7) % 7;
-                    if (daysUntilTarget === 0 && today.getHours() > parseInt(heureFin.split(':')[0], 10)) daysUntilTarget = 7;
-                    var target = new Date(today);
-                    target.setDate(today.getDate() + daysUntilTarget);
-                    var dateStr = toYmdLocal(target);
-                    item.start = localDateTimeToIso(dateStr + 'T' + heureDebut);
-                    item.end = localDateTimeToIso(dateStr + 'T' + heureFin);
-                }
-            }
-            items.push(item);
-        }
-        return items;
-    }
-
-    function eventsToCsv(items) {
-        var joursNoms = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-        var csv = 'Titre;Jour;Heure début;Heure fin;Récurrent;Classe;Semaine\n';
-        items.forEach(function (item) {
-            if (!item || item.display === 'background') return;
-            var titre = String(item.title || '').replace(/;/g, ',');
-            var jour = '';
-            var h1 = '';
-            var h2 = '';
-            var rec = 'Non';
-            var semaine = '';
-            if (item.daysOfWeek && item.daysOfWeek.length) {
-                jour = joursNoms[item.daysOfWeek[0]] || '';
-                h1 = formatHm(item.startTime || item.start);
-                h2 = formatHm(item.endTime || item.end);
-                rec = 'Oui';
-                semaine = normalizeWeekAb(item.weekAb) || 'Toutes';
-            } else if (item.start) {
-                if (item.allDay) {
-                    jour = parseAllDayYmd(item.start);
-                    h1 = '00:00';
-                    h2 = '23:59';
-                } else {
-                    var start = new Date(item.start);
-                    var end = item.end ? new Date(item.end) : start;
-                    jour = toYmdLocal(start);
-                    h1 = pad(start.getHours()) + ':' + pad(start.getMinutes());
-                    h2 = pad(end.getHours()) + ':' + pad(end.getMinutes());
-                }
-            }
-            csv += titre + ';' + jour + ';' + h1 + ';' + h2 + ';' + rec + ';' + (item.className || '') + ';' + semaine + '\n';
-        });
-        return csv;
-    }
-
-    function icsEscape(text) {
-        return String(text || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-    }
-
-    function toIcsDate(value, allDay) {
-        if (allDay) {
-            return toYmdLocal(value).replace(/-/g, '');
-        }
-        var d = value instanceof Date ? value : new Date(value);
-        return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
-    }
-
-    function eventsToIcs(items) {
-        var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//eProf//Calendrier//FR', 'CALSCALE:GREGORIAN'];
-        items.forEach(function (item) {
-            if (!item || (!item.start && !item.daysOfWeek)) return;
-            function pushEvent(uid, startVal, endVal, allDay) {
-                lines.push('BEGIN:VEVENT');
-                lines.push('UID:' + uid + '@eprof');
-                lines.push('SUMMARY:' + icsEscape((item.emoji ? item.emoji + ' ' : '') + item.title));
-                if (item.description) lines.push('DESCRIPTION:' + icsEscape(item.description));
-                if (item.lieu) lines.push('LOCATION:' + icsEscape(item.lieu));
-                if (allDay) {
-                    lines.push('DTSTART;VALUE=DATE:' + toIcsDate(startVal, true));
-                    if (endVal) lines.push('DTEND;VALUE=DATE:' + toYmdLocal(endVal).replace(/-/g, ''));
-                } else {
-                    lines.push('DTSTART:' + toIcsDate(startVal, false));
-                    if (endVal) lines.push('DTEND:' + toIcsDate(endVal, false));
-                }
-                lines.push('END:VEVENT');
-            }
-            if (item.daysOfWeek && item.daysOfWeek.length) {
-                var st = formatHm(item.startTime || item.start) || '08:00';
-                var et = formatHm(item.endTime || item.end) || '09:00';
-                listOccurrenceYmds(item).forEach(function (ymd) {
-                    if (item.allDay) pushEvent(item.id + '-' + ymd, ymd, addDaysYmd(ymd, 1), true);
-                    else pushEvent(item.id + '-' + ymd, new Date(ymd + 'T' + st), new Date(ymd + 'T' + et), false);
-                });
-                return;
-            }
-            if (item.allDay) {
-                pushEvent(item.id, item.start, item.end ? parseAllDayExclusiveEnd(item.start, item.end) : addDaysYmd(parseAllDayYmd(item.start), 1), true);
-            } else {
-                pushEvent(item.id, item.start, item.end, false);
-            }
-        });
-        lines.push('END:VCALENDAR');
-        return lines.join('\r\n');
-    }
-
-    function downloadText(filename, content, mime) {
-        var blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8;' });
-        var link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-        setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
-    }
-
     function readNotified() {
         try { return JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]'); } catch (e) { return []; }
     }
@@ -1632,10 +1472,6 @@
         openDetailModal: openDetailModal,
         detailHtml: detailHtml,
         getSchoolCalendarEvents: getSchoolCalendarEvents,
-        parseEmploiCsv: parseEmploiCsv,
-        eventsToCsv: eventsToCsv,
-        eventsToIcs: eventsToIcs,
-        downloadText: downloadText,
         startNotificationWatcher: startNotificationWatcher,
         listUpcoming: listUpcoming,
         getTeacherClasses: getTeacherClasses,

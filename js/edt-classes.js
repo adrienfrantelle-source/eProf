@@ -1,6 +1,7 @@
 // Emplois du temps par classe (images partagées, import admin).
 (function () {
     const BUCKET = 'class-timetables';
+    const BUCKET_PROF = 'teacher-timetables';
     const MAX_BYTES = 5 * 1024 * 1024;
     const TYPES_OK = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
@@ -69,8 +70,8 @@
         });
     }
 
-    async function signedUrl(path) {
-        const { data, error } = await window.EprofStore.createSignedUrl(BUCKET, path, 3600);
+    async function signedUrl(path, bucket) {
+        const { data, error } = await window.EprofStore.createSignedUrl(bucket || BUCKET, path, 3600);
         if (error || !data) return null;
         return data.signedUrl || null;
     }
@@ -276,6 +277,122 @@
         }
     }
 
+    async function getRowProf() {
+        if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) {
+            return { data: null, error: new Error('Connectez-vous pour enregistrer votre emploi du temps.') };
+        }
+        const teacherId = await window.EprofStore.getTeacherId();
+        if (!teacherId) return { data: null, error: new Error('Non connecté.') };
+        const { data, error } = await window.EprofStore.list('teacher_timetables', {
+            filters: { teacher_id: teacherId, annee_scolaire: anneeScolaire() }
+        });
+        if (error) return { data: null, error: error };
+        return { data: data && data[0] ? data[0] : null, error: null };
+    }
+
+    function storagePathProf(teacherId, file) {
+        return teacherId + '/' + anneeScolaire() + '.' + extension(file);
+    }
+
+    async function importerProf(file) {
+        if (!window.EprofStore || !await window.EprofStore.isOnlineReady()) {
+            return { error: new Error('Connexion en ligne requise pour enregistrer votre emploi du temps.') };
+        }
+        const teacherId = await window.EprofStore.getTeacherId();
+        if (!teacherId) return { error: new Error('Non connecté.') };
+        let prepared;
+        try {
+            prepared = await compresser(file);
+        } catch (err) {
+            return { error: err };
+        }
+        if (prepared.size > MAX_BYTES) {
+            return { error: new Error('Image trop lourde (maximum 5 Mo).') };
+        }
+        const existant = await getRowProf();
+        if (existant.error) return existant;
+        const path = storagePathProf(teacherId, prepared);
+        if (existant.data && existant.data.storage_path && existant.data.storage_path !== path) {
+            await window.EprofStore.removeFile(BUCKET_PROF, existant.data.storage_path);
+        }
+        const up = await window.EprofStore.uploadFile(BUCKET_PROF, path, prepared, {
+            upsert: true,
+            contentType: prepared.type || 'image/jpeg'
+        });
+        if (up.error) return { error: up.error };
+        const saved = await window.EprofStore.upsert('teacher_timetables', [{
+            teacher_id: teacherId,
+            annee_scolaire: anneeScolaire(),
+            storage_path: path,
+            mime_type: prepared.type || 'image/jpeg',
+            original_name: file.name || 'edt.jpg',
+            updated_at: new Date().toISOString()
+        }], { onConflict: 'teacher_id,annee_scolaire' });
+        if (saved.error) return { error: saved.error };
+        return { error: null };
+    }
+
+    async function supprimerProf() {
+        const existant = await getRowProf();
+        if (existant.error) return existant;
+        if (!existant.data) return { error: null };
+        if (existant.data.storage_path) {
+            await window.EprofStore.removeFile(BUCKET_PROF, existant.data.storage_path);
+        }
+        const { error } = await window.EprofStore.remove('teacher_timetables', existant.data.id);
+        if (error) return { error: error };
+        return { error: null };
+    }
+
+    async function ouvrirProf() {
+        const row = await getRowProf();
+        if (row.error) {
+            alert(row.error.message || 'Impossible de charger votre emploi du temps.');
+            return;
+        }
+        let src = null;
+        if (row.data && row.data.storage_path) {
+            src = await signedUrl(row.data.storage_path, BUCKET_PROF);
+        }
+        const extra =
+            '<button type="button" class="btn-secondary edt-import-btn">📥 Importer une image</button>' +
+            (src ? '<button type="button" class="btn-secondary edt-delete-btn">🗑️</button>' : '');
+        const modal = openImageModal({
+            titre: 'Mon emploi du temps',
+            src: src,
+            alt: 'Emploi du temps personnel',
+            extraHeaderHtml: extra,
+            emptyHtml: 'Aucun emploi du temps pour l’instant. Importez une <strong>image</strong> (PNG ou JPEG) de votre EDT.'
+        });
+        const importBtn = modal.querySelector('.edt-import-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', async function () {
+                const file = await choisirFichier();
+                if (!file) return;
+                importBtn.disabled = true;
+                const result = await importerProf(file);
+                importBtn.disabled = false;
+                if (result.error) {
+                    alert(result.error.message || 'Import impossible.');
+                    return;
+                }
+                ouvrirProf();
+            });
+        }
+        const deleteBtn = modal.querySelector('.edt-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async function () {
+                if (!confirm('Supprimer votre emploi du temps ?')) return;
+                const result = await supprimerProf();
+                if (result.error) {
+                    alert(result.error.message || 'Suppression impossible.');
+                    return;
+                }
+                ouvrirProf();
+            });
+        }
+    }
+
     window.EprofOpenImageModal = openImageModal;
     window.EprofEdtClasses = {
         anneeScolaire: anneeScolaire,
@@ -287,5 +404,11 @@
         supprimer: supprimer,
         ouvrir: ouvrir,
         choisirFichier: choisirFichier
+    };
+    window.EprofEdtProf = {
+        getRow: getRowProf,
+        importer: importerProf,
+        supprimer: supprimerProf,
+        ouvrir: ouvrirProf
     };
 })();

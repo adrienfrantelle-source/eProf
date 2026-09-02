@@ -46,7 +46,7 @@
                 'Renseignez l’intitulé, la nature (cours, tâche, rendez-vous…), éventuellement la classe, la couleur et un rappel.',
                 'Pour un cours d’emploi du temps, cochez <strong>Répéter chaque semaine</strong>, les jours (ils passent en bleu) et éventuellement <strong>semaine A</strong> (n° pair) ou <strong>B</strong> (n° impair). La série s’arrête aux vacances d’été et saute les vacances et jours fériés.',
                 'Cliquez un cours récurrent : vous pouvez modifier ou supprimer <strong>cette séance</strong> seulement, ou toute la série. Un glisser-déposer ne change que la séance déplacée.',
-                'Le menu <strong>Emploi du temps</strong> permet d’importer/exporter un CSV et d’exporter un fichier iCal (.ics).',
+                'Le bouton <strong>Emploi du temps</strong> affiche votre EDT personnel : importez une <strong>image</strong> (PNG ou JPEG). Chaque enseignant a le sien, enregistré en ligne.',
                 'Le menu <strong>Calendrier scolaire</strong> ouvre le calendrier de l’année (Zone B), les dates de stage et les périodes.',
                 'Filtrez par classe ou par nature. Les heures affichées, le samedi et les pauses se règlent dans Paramètres → Calendrier.'
             ],

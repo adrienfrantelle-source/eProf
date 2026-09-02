@@ -774,15 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span id="cal-week-badge" class="cal-week-badge" hidden></span>
                 </div>
                 <div class="cal-toolbar-group">
-                    <div class="cal-menu">
-                        <button type="button" class="btn-secondary cal-menu-btn">📥 Emploi du temps ▾</button>
-                        <div class="cal-menu-drop">
-                            <button type="button" id="import-emploi-btn">Importer un CSV</button>
-                            <button type="button" id="export-emploi-btn">Exporter en CSV</button>
-                            <button type="button" id="export-ics-btn">Exporter en iCal (.ics)</button>
-                            <button type="button" id="help-emploi-btn">Aide — format CSV</button>
-                        </div>
-                    </div>
+                    <button type="button" id="cal-edt-btn" class="btn-secondary">📅 Emploi du temps</button>
                     <div class="cal-menu">
                         <button type="button" class="btn-secondary cal-menu-btn">📄 Calendrier scolaire ▾</button>
                         <div class="cal-menu-drop">
@@ -792,7 +784,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <input type="file" id="import-emploi-input" accept=".csv,text/csv" hidden>
             </div>
             <div id="calendar-view"></div>
         </div>`;
@@ -1092,45 +1083,8 @@ document.addEventListener('DOMContentLoaded', () => {
         container.querySelector('#cal-filter-class').addEventListener('change', applyFilters);
         container.querySelector('#cal-filter-type').addEventListener('change', applyFilters);
 
-        container.querySelector('#import-emploi-btn').addEventListener('click', function () {
-            container.querySelector('#import-emploi-input').click();
-        });
-        container.querySelector('#import-emploi-input').addEventListener('change', async function (e) {
-            var file = e.target.files[0];
-            if (!file || !U) return;
-            try {
-                var csv = await file.text();
-                var parsed = U.parseEmploiCsv(csv);
-                for (var i = 0; i < parsed.length; i++) {
-                    await U.persistEvent(parsed[i]);
-                }
-                addOrReplace();
-                alert(parsed.length ? ('✅ ' + parsed.length + ' cours importés (répétition jusqu’aux vacances d’été).') : 'Aucun cours lisible dans ce fichier.');
-            } catch (err) {
-                alert('❌ Erreur lors de l’import : ' + err.message);
-            }
-            e.target.value = '';
-        });
-        container.querySelector('#export-emploi-btn').addEventListener('click', function () {
-            if (!U) return;
-            U.downloadText('emploi-du-temps.csv', U.eventsToCsv(userItems()), 'text/csv;charset=utf-8;');
-        });
-        container.querySelector('#export-ics-btn').addEventListener('click', function () {
-            if (!U) return;
-            U.downloadText('eprof-calendrier.ics', U.eventsToIcs(userItems()), 'text/calendar;charset=utf-8;');
-        });
-        container.querySelector('#help-emploi-btn').addEventListener('click', function () {
-            alert('📋 FORMAT CSV POUR L’EMPLOI DU TEMPS\n\n' +
-                'Fichier CSV avec point-virgule (;) :\n\n' +
-                'Titre;Jour;Heure début;Heure fin;Récurrent;Classe;Semaine\n' +
-                'Mathématiques;Lundi;08:00;09:00;Oui;2nde SAPAT A;A\n' +
-                'Réunion parents;2026-10-12;18:00;19:30;Non;;\n\n' +
-                '• Jour : Lundi…Samedi, ou une date YYYY-MM-DD\n' +
-                '• Heures : HH:MM\n' +
-                '• Récurrent = Oui : jusqu’aux vacances d’été (hors vacances et fériés)\n' +
-                '• Semaine : A (paires), B (impaires) ou Toutes — facultatif\n' +
-                '• Classe : facultatif (colore le cours)\n\n' +
-                'Enregistrez depuis Excel / Calc en CSV point-virgule.');
+        container.querySelector('#cal-edt-btn').addEventListener('click', function () {
+            if (window.EprofEdtProf) window.EprofEdtProf.ouvrir();
         });
 
         if (!window.FullCalendar) {

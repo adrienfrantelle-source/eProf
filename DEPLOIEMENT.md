@@ -83,6 +83,9 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0025_class_timetables.sql` : emplois du temps par classe (images), bucket
      Storage `class-timetables`. Lecture enseignants connectés, import réservé
      à l'administrateur.
+   - `0026_teacher_timetables.sql` : emploi du temps personnel de chaque enseignant
+     (image), bucket Storage `teacher-timetables`. Chaque prof lit et écrit
+     uniquement le sien.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
