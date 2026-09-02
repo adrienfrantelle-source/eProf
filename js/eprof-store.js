@@ -125,6 +125,30 @@
         }], { onConflict: 'teacher_id,doc_type' });
     }
 
+    async function uploadFile(bucket, path, file, options) {
+        const client = await getClient();
+        if (!client) return { data: null, error: new Error('Supabase non disponible') };
+        const { data, error } = await client.storage.from(bucket).upload(path, file, options || {});
+        if (error) console.error('❌ EprofStore.uploadFile', error);
+        return { data, error };
+    }
+
+    async function removeFile(bucket, path) {
+        const client = await getClient();
+        if (!client) return { error: new Error('Supabase non disponible') };
+        const { error } = await client.storage.from(bucket).remove([path]);
+        if (error) console.error('❌ EprofStore.removeFile', error);
+        return { error };
+    }
+
+    async function createSignedUrl(bucket, path, expiresIn) {
+        const client = await getClient();
+        if (!client) return { data: null, error: new Error('Supabase non disponible') };
+        const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn || 3600);
+        if (error) console.error('❌ EprofStore.createSignedUrl', error);
+        return { data, error };
+    }
+
     window.EprofStore = {
         getClient,
         getSession,
@@ -137,6 +161,9 @@
         remove,
         removeWhere,
         getTeacherDocument,
-        saveTeacherDocument
+        saveTeacherDocument,
+        uploadFile,
+        removeFile,
+        createSignedUrl
     };
 })();

@@ -96,7 +96,9 @@
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
                 'Onglet <strong>Notes</strong> : ajoutez des observations personnelles. Elles se synchronisent en ligne pour votre compte uniquement.',
                 'Onglet <strong>Moyennes</strong> : consultez les résultats issus du carnet de notes.',
-                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes et moyennes).'
+                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes et moyennes).',
+                'Le bouton <strong>EDT</strong> affiche l’emploi du temps de la classe (image importée par l’administrateur), comme les dates de stage du calendrier.',
+                'Le bouton <strong>Tableau de suivi</strong> ouvre un tableau personnalisable (cases à cocher, notes, textes, dates).'
             ],
             tip: 'Les badges rouges apparaissent quand le nombre d’oublis ou de mots dépasse le seuil fixé dans Paramètres.'
         },

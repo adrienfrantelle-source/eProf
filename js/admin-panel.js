@@ -1288,12 +1288,14 @@
                 <button type="button" class="admin-subtab" data-section="affectations">Affectations</button>
                 <button type="button" class="admin-subtab" data-section="competences">Compétences</button>
                 <button type="button" class="admin-subtab" data-section="modeles-eval">Modèles d'évaluation</button>
+                <button type="button" class="admin-subtab" data-section="edt">Emplois du temps</button>
             </div>
             <div class="admin-section" data-section="classes"></div>
             <div class="admin-section" data-section="matieres" style="display:none;"></div>
             <div class="admin-section" data-section="affectations" style="display:none;"></div>
             <div class="admin-section" data-section="competences" style="display:none;"></div>
-            <div class="admin-section" data-section="modeles-eval" style="display:none;"></div>`,
+            <div class="admin-section" data-section="modeles-eval" style="display:none;"></div>
+            <div class="admin-section" data-section="edt" style="display:none;"></div>`,
 
         init: function (root, ctx) {
             const sections = {};
@@ -1749,12 +1751,81 @@
                 });
             }
 
+            async function renderEdt() {
+                const edt = window.EprofEdtClasses;
+                if (!edt) {
+                    sections.edt.innerHTML = '<p class="admin-error">Module emplois du temps indisponible.</p>';
+                    return;
+                }
+                const annee = edt.anneeScolaire();
+                sections.edt.innerHTML = '<p class="admin-hint">Chargement…</p>';
+                const classesRes = await window.EprofStore.list('school_classes', { orderBy: 'ordre' });
+                const edtRes = await edt.listRows();
+                if (classesRes.error) {
+                    sections.edt.innerHTML = '<p class="admin-error">Erreur : ' + escapeHtml(classesRes.error.message) + '</p>';
+                    return;
+                }
+                if (edtRes.error) {
+                    sections.edt.innerHTML = '<p class="admin-error">Erreur : ' + escapeHtml(edtRes.error.message) + '</p><p class="admin-hint">Si la table n\'existe pas encore, exécutez la migration <code>0025_class_timetables.sql</code> dans l\'éditeur SQL Supabase.</p>';
+                    return;
+                }
+                const classes = (classesRes.data || []).filter(function (c) { return c.actif !== false; });
+                const parClasse = {};
+                (edtRes.data || []).forEach(function (row) { parClasse[row.classe] = row; });
+
+                sections.edt.innerHTML = `
+                    <p class="admin-hint">Images d'emploi du temps pour l'année <strong>${escapeHtml(annee)}</strong>. Tous les enseignants voient l'EDT des classes qu'ils ont choisies, via le bouton EDT du suivi des élèves. Seul l'administrateur peut importer ou remplacer une image.</p>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
+                            <thead><tr><th>Classe</th><th>Statut</th><th></th></tr></thead>
+                            <tbody>
+                                ${classes.map(function (c) {
+                                    const row = parClasse[c.nom];
+                                    const date = row && row.updated_at ? formatDate(row.updated_at) : '';
+                                    return `<tr data-classe="${escapeHtml(c.nom)}">
+                                        <td>${escapeHtml(c.nom)}</td>
+                                        <td>${row ? '<span class="admin-badge admin-badge-on">Importé</span> ' + escapeHtml(date) : '<span class="admin-badge admin-badge-off">Absent</span>'}</td>
+                                        <td class="admin-actions">
+                                            <button type="button" class="edt-voir-btn" ${row ? '' : 'disabled'}>👁️ Voir</button>
+                                            <button type="button" class="edt-import-btn">📥 Importer</button>
+                                            <button type="button" class="edt-delete-btn" ${row ? '' : 'disabled'}>🗑️</button>
+                                        </td>
+                                    </tr>`;
+                                }).join('') || '<tr><td colspan="3">Aucune classe dans le référentiel.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>`;
+
+                sections.edt.querySelectorAll('tr[data-classe]').forEach(function (tr) {
+                    const classe = tr.dataset.classe;
+                    tr.querySelector('.edt-voir-btn').addEventListener('click', function () {
+                        edt.ouvrir(classe);
+                    });
+                    tr.querySelector('.edt-import-btn').addEventListener('click', async function () {
+                        const file = await edt.choisirFichier();
+                        if (!file) return;
+                        const result = await edt.importer(classe, file);
+                        if (result.error) return ctx.notify('❌ ' + result.error.message, true);
+                        ctx.notify('✅ EDT importé pour ' + classe + '.');
+                        renderEdt();
+                    });
+                    tr.querySelector('.edt-delete-btn').addEventListener('click', async function () {
+                        if (!confirm('Supprimer l’emploi du temps de « ' + classe + ' » ?')) return;
+                        const result = await edt.supprimer(classe);
+                        if (result.error) return ctx.notify('❌ ' + result.error.message, true);
+                        ctx.notify('🗑️ EDT supprimé.');
+                        renderEdt();
+                    });
+                });
+            }
+
             const loaders = {
                 classes: renderClasses,
                 matieres: renderMatieres,
                 affectations: renderAffectations,
                 competences: renderCompetences,
-                'modeles-eval': renderModelesEval
+                'modeles-eval': renderModelesEval,
+                edt: renderEdt
             };
 
             root.querySelectorAll('.admin-subtab').forEach(function (btn) {

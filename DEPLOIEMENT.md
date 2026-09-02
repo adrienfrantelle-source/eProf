@@ -78,6 +78,11 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
      par glisser-déposer.
    - `0021_ressources_dossiers_partage.sql` : dossiers public/privé, masquage des
      partages, et dossier officiel réservé à l'administrateur.
+   - `0022_calendar_recurrence_class.sql` / `0023` / `0024` : récurrence, dates
+     exclues et semaines A/B du calendrier.
+   - `0025_class_timetables.sql` : emplois du temps par classe (images), bucket
+     Storage `class-timetables`. Lecture enseignants connectés, import réservé
+     à l'administrateur.
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

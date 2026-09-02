@@ -1536,7 +1536,27 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
     padding-bottom: 0.75rem;
+}
+
+.calendar-image-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.calendar-image-header-actions .btn-secondary {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.calendar-image-empty {
+    margin: 0;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 1rem;
 }
 
 .calendar-image-header h3 {
@@ -5875,6 +5895,10 @@ body.theme-sombre .calendar-image-header h3,
 body.theme-sombre .modal-content h3,
 body.theme-sombre .modal-header h3 {
     color: #f1f5f9;
+}
+
+body.theme-sombre .calendar-image-empty {
+    color: #94a3b8;
 }
 
 body.theme-sombre #event-form input,

@@ -3245,6 +3245,7 @@ if (typeof module !== 'undefined' && module.exports) {
                         <h3 id="titre-classe-suivi"></h3>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button type="button" id="ouvrir-tableau-suivi-btn" class="btn-primary">📊 Tableau de suivi</button>
+                            <button type="button" id="ouvrir-edt-btn" class="btn-secondary">📅 EDT</button>
                             <button id="retour-selection-suivi" class="btn-secondary">← Retour</button>
                         </div>
                     </div>
@@ -3473,6 +3474,14 @@ if (typeof module !== 'undefined' && module.exports) {
             window.EprofSuiviTableau.attach(container, {
                 getClasse: function () { return classeActuelle; },
                 getEleves: function () { return elevesActuels; }
+            });
+        }
+
+        const edtBtn = container.querySelector('#ouvrir-edt-btn');
+        if (edtBtn) {
+            edtBtn.addEventListener('click', function () {
+                if (!classeActuelle) return;
+                if (window.EprofEdtClasses) window.EprofEdtClasses.ouvrir(classeActuelle);
             });
         }
 
