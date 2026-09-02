@@ -2195,6 +2195,232 @@ footer {
     min-width: 220px;
 }
 
+.tableau-suivi-panel {
+    margin-top: 8px;
+}
+
+.ts-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.ts-feuilles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ts-feuille-btn {
+    border: 2px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ts-feuille-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.ts-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ts-toolbar-actions .btn-primary,
+.ts-toolbar-actions .btn-secondary {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+}
+
+.ts-hint,
+.ts-empty {
+    color: #64748b;
+    font-size: 0.92rem;
+    margin: 0 0 12px;
+}
+
+.ts-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.tableau-suivi-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 480px;
+}
+
+.tableau-suivi-table th,
+.tableau-suivi-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 10px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.tableau-suivi-table thead th {
+    background: #f1f5f9;
+    font-size: 0.85rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.ts-col-eleve,
+.tableau-suivi-table .ts-nom-eleve {
+    text-align: left;
+    white-space: nowrap;
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 1;
+}
+
+.tableau-suivi-table thead .ts-col-eleve {
+    background: #f1f5f9;
+    z-index: 2;
+}
+
+.ts-col-header {
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.ts-col-header:hover {
+    background: #e2e8f0;
+}
+
+.ts-col-title {
+    display: block;
+}
+
+.ts-col-type {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.tableau-suivi-table .ts-input {
+    width: 100%;
+    max-width: 140px;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.tableau-suivi-table .ts-input-note {
+    max-width: 72px;
+    text-align: center;
+}
+
+.tableau-suivi-table .ts-cell-check {
+    text-align: center;
+}
+
+.tableau-suivi-table input[type="checkbox"].ts-input {
+    width: 18px;
+    height: 18px;
+    max-width: none;
+    accent-color: #2563eb;
+}
+
+.tableau-suivi-table .ts-resume td {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #334155;
+}
+
+.ts-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.ts-field input,
+.ts-field select {
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.ts-type-hint {
+    color: #64748b;
+    font-size: 0.88rem;
+    margin: -4px 0 12px;
+}
+
+body.theme-sombre .tableau-suivi-panel .ts-hint,
+body.theme-sombre .tableau-suivi-panel .ts-empty,
+body.theme-sombre .tableau-suivi-panel .ts-col-type,
+body.theme-sombre .tableau-suivi-panel .ts-type-hint {
+    color: #94a3b8;
+}
+
+body.theme-sombre .ts-feuille-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .ts-feuille-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+body.theme-sombre .ts-table-wrap,
+body.theme-sombre .tableau-suivi-table .ts-nom-eleve,
+body.theme-sombre .tableau-suivi-table .ts-resume td {
+    background: #1e293b;
+}
+
+body.theme-sombre .tableau-suivi-table th,
+body.theme-sombre .tableau-suivi-table td {
+    border-color: #334155;
+}
+
+body.theme-sombre .tableau-suivi-table thead th,
+body.theme-sombre .tableau-suivi-table thead .ts-col-eleve {
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .ts-col-header:hover {
+    background: #334155;
+}
+
+body.theme-sombre .tableau-suivi-table .ts-input,
+body.theme-sombre .ts-field input,
+body.theme-sombre .ts-field select {
+    background: #0f172a;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre .ts-field {
+    color: #e2e8f0;
+}
+
 .modale-eleve-title-row {
     display: flex;
     align-items: center;
@@ -5044,13 +5270,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):hover {
     background: #5f6f85;
 }
 
@@ -5266,13 +5492,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):hover {
     background: #5f6f85;
 }
 

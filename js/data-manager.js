@@ -175,6 +175,9 @@ class DataManager {
             if (data.suiviEleves) {
                 localStorage.setItem('suiviEleves', JSON.stringify(data.suiviEleves));
             }
+            if (data.suiviTableaux) {
+                localStorage.setItem('suiviTableaux', JSON.stringify(data.suiviTableaux));
+            }
             if (data.calendrier) {
                 localStorage.setItem('eprof-events', JSON.stringify(data.calendrier));
             }
@@ -199,6 +202,7 @@ class DataManager {
             evaluations: JSON.parse(localStorage.getItem('carnetNotesEvaluations') || '{}'),
             notes: JSON.parse(localStorage.getItem('carnetNotesNotes') || '{}'),
             suiviEleves: JSON.parse(localStorage.getItem('suiviEleves') || '{}'),
+            suiviTableaux: JSON.parse(localStorage.getItem('suiviTableaux') || '{}'),
             calendrier: JSON.parse(localStorage.getItem('eprof-events') || '[]'),
             parametres: JSON.parse(localStorage.getItem('parametres') || '{}'),
             timestamp: new Date().toISOString(),
@@ -264,6 +268,9 @@ class DataManager {
                         }
                         if (data.suiviEleves) {
                             localStorage.setItem('suiviEleves', JSON.stringify(data.suiviEleves));
+                        }
+                        if (data.suiviTableaux) {
+                            localStorage.setItem('suiviTableaux', JSON.stringify(data.suiviTableaux));
                         }
                         if (data.calendrier) {
                             localStorage.setItem('eprof-events', JSON.stringify(data.calendrier));

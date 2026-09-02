@@ -3169,6 +3169,7 @@ if (typeof module !== 'undefined' && module.exports) {
             if (suiviHasContent(distant)) ecrireSuiviLocal(distant);
             updateNotifications();
         });
+        if (window.EprofSuiviTableau) window.EprofSuiviTableau.hydrater();
     }
 
     function formatEnseignantNomPrenom(enseignant) {
@@ -3240,9 +3241,12 @@ if (typeof module !== 'undefined' && module.exports) {
                 
                 <!-- Liste des élèves -->
                 <div id="liste-eleves-suivi" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0; gap: 10px; flex-wrap: wrap;">
                         <h3 id="titre-classe-suivi"></h3>
-                        <button id="retour-selection-suivi" class="btn-secondary">← Retour</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" id="ouvrir-tableau-suivi-btn" class="btn-primary">📊 Tableau de suivi</button>
+                            <button id="retour-selection-suivi" class="btn-secondary">← Retour</button>
+                        </div>
                     </div>
                     <div id="grille-eleves-suivi" class="grille-eleves"></div>
                 </div>
@@ -3465,6 +3469,13 @@ if (typeof module !== 'undefined' && module.exports) {
         
         let classeActuelle = null;
         
+        if (window.EprofSuiviTableau) {
+            window.EprofSuiviTableau.attach(container, {
+                getClasse: function () { return classeActuelle; },
+                getEleves: function () { return elevesActuels; }
+            });
+        }
+
         // Event listeners sur les boutons de classe
         container.querySelectorAll('.classe-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -3475,6 +3486,7 @@ if (typeof module !== 'undefined' && module.exports) {
         
         // Charger une classe
         function chargerClasse(classe) {
+            if (window.EprofSuiviTableau) window.EprofSuiviTableau.fermer(container);
             classeActuelle = classe;
             
             const listeClasse = (window.getAvailableStudentLists ? window.getAvailableStudentLists() : {})[classe];
@@ -4350,6 +4362,7 @@ if (typeof module !== 'undefined' && module.exports) {
         
         // Retour à la sélection
         retourBtn.addEventListener('click', function() {
+            if (window.EprofSuiviTableau) window.EprofSuiviTableau.fermer(container);
             selectionDiv.style.display = 'block';
             listeDiv.style.display = 'none';
         });
@@ -6801,6 +6814,7 @@ if (typeof module !== 'undefined' && module.exports) {
                     if (confirm('⚠️ Attention : l\'importation remplacera les données correspondantes. Continuer ?')) {
                         if (donnees.parametres) localStorage.setItem('parametres', JSON.stringify(donnees.parametres));
                         if (donnees.suiviEleves) localStorage.setItem('suiviEleves', JSON.stringify(donnees.suiviEleves));
+                        if (donnees.suiviTableaux) localStorage.setItem('suiviTableaux', JSON.stringify(donnees.suiviTableaux));
                         if (donnees.jeuxPedagogiques) localStorage.setItem('jeuxPedagogiques', JSON.stringify(donnees.jeuxPedagogiques));
                         if (donnees.ressourcesPedagogiques) localStorage.setItem('ressourcesPedagogiques', JSON.stringify(donnees.ressourcesPedagogiques));
                         if (donnees.calendrier) localStorage.setItem('calendrier', JSON.stringify(donnees.calendrier));
