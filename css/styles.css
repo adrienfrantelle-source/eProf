@@ -1,15 +1,15 @@
 /* Variables CSS */
 :root {
-    --primary-color: #2563eb;
-    --primary-dark: #1e40af;
-    --secondary-color: #10b981;
-    --background: #f8fafc;
-    --surface: #ffffff;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --border: #e2e8f0;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --primary-color: var(--eprof-accent);
+    --primary-dark: var(--eprof-accent-dark);
+    --secondary-color: var(--eprof-secondary);
+    --background: var(--eprof-bg);
+    --surface: var(--eprof-surface);
+    --text-primary: var(--eprof-text);
+    --text-secondary: var(--eprof-text-secondary);
+    --border: var(--eprof-border);
+    --shadow: var(--eprof-shadow);
+    --shadow-lg: var(--eprof-shadow-lg);
 }
 
 /* Reset & Base */

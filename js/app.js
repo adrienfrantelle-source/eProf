@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 pauseApresDebut: '15:05',
                 pauseApresFin: '15:20'
             },
-            affichage: { theme: 'clair', taillePolice: 'moyen', modeMobile: 'auto' },
+            affichage: { theme: 'clair', couleurTheme: 'defaut', couleurAccent: '', densite: 'normal', taillePolice: 'moyen', modeMobile: 'auto' },
             alertes: { seuilOublis: 3, seuilMots: 5 },
             notation: {
                 systeme: 'sur20',
@@ -211,6 +211,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const parametresBoot = JSON.parse(localStorage.getItem('parametres') || '{}');
             const affichage = parametresBoot.affichage || {};
             document.body.classList.toggle('theme-sombre', affichage.theme === 'sombre');
+            // Apply color theme
+            var ct = affichage.couleurTheme || 'defaut';
+            if (ct !== 'defaut' && ct !== 'custom') {
+                document.body.classList.add('theme-' + ct);
+            }
+            if (ct === 'custom' && affichage.couleurAccent) {
+                var hex = affichage.couleurAccent.replace('#', '');
+                var r = parseInt(hex.substring(0, 2), 16);
+                var g = parseInt(hex.substring(2, 4), 16);
+                var b = parseInt(hex.substring(4, 6), 16);
+                document.documentElement.style.setProperty('--eprof-accent', affichage.couleurAccent);
+                document.documentElement.style.setProperty('--eprof-accent-rgb', r + ', ' + g + ', ' + b);
+            }
+            // Apply density
+            if (affichage.densite === 'compact') document.body.classList.add('densite-compact');
+            else if (affichage.densite === 'confortable') document.body.classList.add('densite-confortable');
             document.body.classList.remove('mode-mobile-force', 'mode-mobile-off');
             if (affichage.modeMobile === 'active') document.body.classList.add('mode-mobile-force');
             else if (affichage.modeMobile === 'inactive') document.body.classList.add('mode-mobile-off');
@@ -6241,6 +6257,15 @@ if (typeof module !== 'undefined' && module.exports) {
         if (!parametres.affichage.modeMobile) {
             parametres.affichage.modeMobile = 'auto';
         }
+        if (!parametres.affichage.couleurTheme) {
+            parametres.affichage.couleurTheme = 'defaut';
+        }
+        if (!parametres.affichage.densite) {
+            parametres.affichage.densite = 'normal';
+        }
+        if (parametres.affichage.couleurAccent === undefined) {
+            parametres.affichage.couleurAccent = '';
+        }
         delete parametres.enseignant.etablissement;
         delete parametres.calendrier.dureeCoursDefaut;
         delete parametres.periodes;
@@ -6545,6 +6570,32 @@ if (typeof module !== 'undefined' && module.exports) {
             mobileSelect.addEventListener('change', function () { appliquerModeMobile(this.value); });
         }
 
+        // Color theme presets
+        var colorPresets = container.querySelectorAll('#param-couleur-theme .color-preset');
+        colorPresets.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                colorPresets.forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                var theme = btn.dataset.theme;
+                var customRow = container.querySelector('#param-custom-accent-row');
+                if (customRow) customRow.style.display = theme === 'custom' ? 'flex' : 'none';
+                var accentInput = container.querySelector('#param-couleur-accent');
+                appliquerCouleurTheme(theme, accentInput ? accentInput.value : '');
+            });
+        });
+
+        var accentInput = container.querySelector('#param-couleur-accent');
+        if (accentInput) {
+            accentInput.addEventListener('input', function() {
+                appliquerCouleurTheme('custom', this.value);
+            });
+        }
+
+        var densiteSelect = container.querySelector('#param-densite');
+        if (densiteSelect) {
+            densiteSelect.addEventListener('change', function() { appliquerDensite(this.value); });
+        }
+
         const btnChangerIdentifiant = container.querySelector('#btn-changer-identifiant');
         if (btnChangerIdentifiant) {
             btnChangerIdentifiant.addEventListener('click', async function() {
@@ -6723,6 +6774,10 @@ if (typeof module !== 'undefined' && module.exports) {
             parametres.affichage.theme = container.querySelector('#param-theme').value;
             parametres.affichage.taillePolice = container.querySelector('#param-taille-police').value;
             parametres.affichage.modeMobile = container.querySelector('#param-mode-mobile').value;
+            var activePreset = container.querySelector('#param-couleur-theme .color-preset.active');
+            parametres.affichage.couleurTheme = activePreset ? activePreset.dataset.theme : 'defaut';
+            parametres.affichage.couleurAccent = container.querySelector('#param-couleur-accent').value || '';
+            parametres.affichage.densite = container.querySelector('#param-densite').value;
 
             parametres.alertes.seuilOublis = parseInt(container.querySelector('#param-seuil-oublis').value, 10);
             parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value, 10);
@@ -6738,6 +6793,8 @@ if (typeof module !== 'undefined' && module.exports) {
             localStorage.setItem('parametres', JSON.stringify(parametres));
 
             appliquerTheme(parametres.affichage.theme);
+            appliquerCouleurTheme(parametres.affichage.couleurTheme, parametres.affichage.couleurAccent);
+            appliquerDensite(parametres.affichage.densite);
             appliquerTaillePolice(parametres.affichage.taillePolice);
             appliquerModeMobile(parametres.affichage.modeMobile);
 
@@ -6801,6 +6858,8 @@ if (typeof module !== 'undefined' && module.exports) {
                 const reset = defaultAppParametres(parametres.enseignant);
                 localStorage.setItem('parametres', JSON.stringify(reset));
                 appliquerTheme(reset.affichage.theme);
+                appliquerCouleurTheme(reset.affichage.couleurTheme, reset.affichage.couleurAccent);
+                appliquerDensite(reset.affichage.densite);
                 appliquerTaillePolice(reset.affichage.taillePolice);
                 appliquerModeMobile(reset.affichage.modeMobile);
                 alert('✅ Préférences réinitialisées. La page va se recharger.');
@@ -6833,6 +6892,8 @@ if (typeof module !== 'undefined' && module.exports) {
         }
 
         appliquerTheme(parametres.affichage.theme);
+        appliquerCouleurTheme(parametres.affichage.couleurTheme, parametres.affichage.couleurAccent);
+        appliquerDensite(parametres.affichage.densite);
         appliquerTaillePolice(parametres.affichage.taillePolice);
         appliquerModeMobile(parametres.affichage.modeMobile);
     }
@@ -6840,11 +6901,37 @@ if (typeof module !== 'undefined' && module.exports) {
     // Fonction pour mettre à jour les informations dans le header
     // Fonctions pour appliquer le thème et la taille de police
     function appliquerTheme(theme) {
-        if (theme === 'sombre') {
-            document.body.classList.add('theme-sombre');
-        } else {
-            document.body.classList.remove('theme-sombre');
+        document.body.classList.toggle('theme-sombre', theme === 'sombre');
+    }
+
+    function appliquerCouleurTheme(couleurTheme, couleurAccent) {
+        document.body.classList.remove('theme-ocean', 'theme-foret', 'theme-crepuscule', 'theme-rose', 'theme-ambre');
+        document.documentElement.style.removeProperty('--eprof-accent');
+        document.documentElement.style.removeProperty('--eprof-accent-dark');
+        document.documentElement.style.removeProperty('--eprof-accent-light');
+        document.documentElement.style.removeProperty('--eprof-accent-rgb');
+
+        if (couleurTheme && couleurTheme !== 'defaut' && couleurTheme !== 'custom') {
+            document.body.classList.add('theme-' + couleurTheme);
+        } else if (couleurTheme === 'custom' && couleurAccent) {
+            var hex = couleurAccent.replace('#', '');
+            var r = parseInt(hex.substring(0, 2), 16);
+            var g = parseInt(hex.substring(2, 4), 16);
+            var b = parseInt(hex.substring(4, 6), 16);
+            var darkR = Math.round(r * 0.78), darkG = Math.round(g * 0.78), darkB = Math.round(b * 0.78);
+            var lightR = Math.round(r + (255 - r) * 0.85), lightG = Math.round(g + (255 - g) * 0.85), lightB = Math.round(b + (255 - b) * 0.85);
+
+            document.documentElement.style.setProperty('--eprof-accent', couleurAccent);
+            document.documentElement.style.setProperty('--eprof-accent-dark', '#' + [darkR, darkG, darkB].map(function(c) { return c.toString(16).padStart(2, '0'); }).join(''));
+            document.documentElement.style.setProperty('--eprof-accent-light', '#' + [lightR, lightG, lightB].map(function(c) { return c.toString(16).padStart(2, '0'); }).join(''));
+            document.documentElement.style.setProperty('--eprof-accent-rgb', r + ', ' + g + ', ' + b);
         }
+    }
+
+    function appliquerDensite(densite) {
+        document.body.classList.remove('densite-compact', 'densite-confortable');
+        if (densite === 'compact') document.body.classList.add('densite-compact');
+        else if (densite === 'confortable') document.body.classList.add('densite-confortable');
     }
 
     function appliquerTaillePolice(taille) {

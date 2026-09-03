@@ -1,13 +1,13 @@
 /* ===== VARIABLES ===== */
 :root {
-    --primary-color: #1a2236;
-    --secondary-color: #3b82f6;
-    --success-color: #10b981;
-    --danger-color: #ef4444;
-    --warning-color: #f59e0b;
-    --bg-light: #f3f4f6;
-    --text-dark: #1f2937;
-    --border-color: #d1d5db;
+    --primary-color: var(--eprof-accent);
+    --secondary-color: var(--eprof-info);
+    --success-color: var(--eprof-success);
+    --danger-color: var(--eprof-danger);
+    --warning-color: var(--eprof-warning);
+    --bg-light: var(--eprof-surface-alt);
+    --text-dark: var(--eprof-text);
+    --border-color: var(--eprof-border-strong);
 }
 
 /* ===== BASE ===== */

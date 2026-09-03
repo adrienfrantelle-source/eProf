@@ -3995,8 +3995,8 @@ body.theme-sombre .jeux-famille-vide {
 
 /* Thème sombre */
 body.theme-sombre {
-    background: #1e293b;
-    color: #e2e8f0;
+    background: var(--eprof-bg);
+    color: var(--eprof-text);
 }
 
 body.theme-sombre .sidebar {
@@ -6171,5 +6171,40 @@ body.theme-sombre #event-cancel-btn {
 
 body.theme-sombre .agenda-picker-label {
     color: #e2e8f0;
+}
+
+/* ===== Color preset buttons ===== */
+.param-color-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.color-preset {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+.color-preset:hover {
+    transform: scale(1.12);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+.color-preset.active {
+    border-color: var(--eprof-text, #1e293b);
+    box-shadow: 0 0 0 2px var(--eprof-accent, #2563eb);
+    transform: scale(1.1);
+}
+.color-preset-custom {
+    background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body.theme-sombre .color-preset.active {
+    border-color: #e2e8f0;
 }
 

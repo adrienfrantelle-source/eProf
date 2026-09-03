@@ -7,17 +7,28 @@
 
     var COLORS = [
         { value: '#e53935', label: 'Rouge' },
+        { value: '#f44336', label: 'Rouge clair' },
         { value: '#fb8c00', label: 'Orange' },
+        { value: '#ff7043', label: 'Corail' },
         { value: '#fdd835', label: 'Jaune' },
+        { value: '#ffb300', label: 'Ambre' },
         { value: '#43a047', label: 'Vert' },
+        { value: '#66bb6a', label: 'Vert clair' },
+        { value: '#26a69a', label: 'Sarcelle' },
         { value: '#00acc1', label: 'Cyan' },
         { value: '#1e88e5', label: 'Bleu' },
+        { value: '#42a5f5', label: 'Bleu clair' },
+        { value: '#5c6bc0', label: 'Indigo' },
         { value: '#8e24aa', label: 'Violet' },
+        { value: '#ab47bc', label: 'Violet clair' },
+        { value: '#ec407a', label: 'Rose' },
         { value: '#6d4c41', label: 'Brun' },
-        { value: '#546e7a', label: 'Gris' }
+        { value: '#546e7a', label: 'Gris' },
+        { value: '#455a64', label: 'Gris foncé' },
+        { value: '#212121', label: 'Noir' }
     ];
 
-    var EMOJIS = ['📌', '✅', '📝', '📚', '🧪', '🎯', '⏰', '📞', '✉️', '👥', '🏫', '🚌', '🍽️', '💡', '⚠️', '🔥', '🎉', '🩺', '💰', '🖨️', '🧹', '📊', '🎓', '🌱'];
+    var EMOJIS = ['📌', '✅', '📝', '📚', '🧪', '🎯', '⏰', '📞', '✉️', '👥', '🏫', '🚌', '🍽️', '💡', '⚠️', '🔥', '🎉', '🩺', '💰', '🖨️', '🧹', '📊', '🎓', '🌱', '🎨', '🎵', '🎤', '🏅', '🧠', '💻', '🔬', '🌍', '🇫🇷', '✈️', '📸', '🎬', '🏠', '💼', '🔧', '📎', '🗓️', '💬', '❤️', '⭐', '🌈', '🎁', '🏃', '🧩', '♻️', '🔔'];
 
     var TYPES = [
         { value: 'cours', label: '📚 Cours' },
@@ -504,7 +515,7 @@
             type: row.event_type || 'event',
             lieu: row.lieu || '',
             color: row.color || '#1e88e5',
-            emoji: row.emoji || '📌',
+            emoji: row.emoji || '',
             done: !!row.done,
             reminderMinutes: (row.reminder_minutes === null || row.reminder_minutes === undefined) ? null : Number(row.reminder_minutes),
             source: row.source || 'calendar',
@@ -785,7 +796,7 @@
         return '<button type="button" class="' + cls + '" data-id="' + escapeHtml(item.id || '') + '" data-occ="' + escapeHtml(occ) + '" data-tool="calendar" data-date="' + escapeHtml(occ) + '" style="--agenda-accent:' + escapeHtml(item.color || '#1e88e5') + '">' +
             '<span class="agenda-chip-time">' + escapeHtml(time) + '</span>' +
             '<span class="agenda-chip-body">' +
-                '<span class="agenda-chip-title">' + escapeHtml((item.emoji || '📌') + ' ' + (item.title || '')) + '</span>' +
+                '<span class="agenda-chip-title">' + (item.emoji ? escapeHtml(item.emoji) + ' ' : '') + escapeHtml(item.title || '') + '</span>' +
                 '<span class="agenda-chip-meta">' + escapeHtml(type) +
                     (item.className ? ' · ' + escapeHtml(item.className) : '') +
                     (item.lieu ? ' · ' + escapeHtml(item.lieu) : '') +
@@ -948,9 +959,10 @@
         }
         var emojis = form.querySelector('#event-emojis');
         if (emojis && !emojis.children.length) {
-            emojis.innerHTML = EMOJIS.map(function (e, i) {
-                return '<button type="button" class="agenda-emoji' + (i === 0 ? ' selected' : '') + '" data-emoji="' + e + '">' + e + '</button>';
-            }).join('');
+            emojis.innerHTML = '<button type="button" class="agenda-emoji selected" data-emoji="" title="Aucun emoji" style="font-size:0.85em;color:#94a3b8;">∅</button>' +
+                EMOJIS.map(function (e) {
+                    return '<button type="button" class="agenda-emoji" data-emoji="' + e + '">' + e + '</button>';
+                }).join('');
         }
         var dow = form.querySelector('#event-dow-chips');
         if (dow && !dow.children.length) {
@@ -1033,7 +1045,7 @@
                 lieu: form.querySelector('#event-lieu').value.trim(),
                 description: form.querySelector('#event-desc').value.trim(),
                 color: colorEl ? colorEl.dataset.color : '#1e88e5',
-                emoji: emojiEl ? emojiEl.dataset.emoji : '📌',
+                emoji: emojiEl ? emojiEl.dataset.emoji : '',
                 reminderMinutes: reminderRaw === '' ? null : Number(reminderRaw),
                 className: form.querySelector('#event-class').value,
                 daysOfWeek: days.length ? days : null,
@@ -1165,7 +1177,7 @@
             : schoolYearEnd();
 
         var color = item ? (item.color || '#1e88e5') : '#1e88e5';
-        var emoji = item ? (item.emoji || '📌') : '📌';
+        var emoji = item ? (item.emoji || '') : '';
         selectInGroup(form, '.agenda-color', function (el) { return el.dataset.color === color; });
         selectInGroup(form, '.agenda-emoji', function (el) { return el.dataset.emoji === emoji; });
 
@@ -1380,7 +1392,7 @@
             var triggerTs = startTs - Number(item.reminderMinutes) * 60000;
             var key = item.id + '@' + triggerTs;
             if (now >= triggerTs && now < triggerTs + 600000 && notified.indexOf(key) === -1) {
-                new Notification((item.emoji || '📌') + ' ' + item.title, {
+                new Notification((item.emoji ? item.emoji + ' ' : '') + item.title, {
                     body: formatDateTime(item, start) + (item.lieu ? '\n📍 ' + item.lieu : '')
                 });
                 markNotified(key);
