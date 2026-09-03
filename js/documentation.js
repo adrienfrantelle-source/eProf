@@ -196,13 +196,14 @@
             id: 'converter',
             icon: '🔄',
             title: 'Conversion de fichiers',
-            lead: 'Convertissez un document (Word, Excel, PDF, image…) sans quitter la plateforme.',
+            lead: 'Convertissez CSV, Excel, ODS, Word, PDF, HTML et images dans le navigateur.',
             tool: 'converter',
             steps: [
-                'Ouvrez <strong>Conversion de fichier</strong>.',
-                'Déposez ou sélectionnez le fichier à convertir.',
-                'Choisissez le format d’arrivée parmi les options proposées pour ce type de fichier.',
-                'Cliquez <strong>Convertir</strong>, puis téléchargez le résultat.'
+                'Ouvrez <strong>Conversion de fichiers</strong>.',
+                'Glissez-déposez un ou plusieurs fichiers (10 Mo max. par fichier).',
+                'Pour un CSV, choisissez le séparateur ; pour un Excel, choisissez la feuille.',
+                'Choisissez la conversion (CSV↔Excel, Excel/ODS→PDF, Word→PDF/HTML, PDF→texte/images, fusion PDF, images→PDF, HTML→PDF).',
+                'Cliquez <strong>Convertir</strong>, comparez les aperçus, puis téléchargez le résultat.'
             ],
             tip: 'La conversion se fait dans le navigateur. Aucun fichier n’est stocké dans eProf après le téléchargement.'
         },
