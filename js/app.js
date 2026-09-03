@@ -6342,10 +6342,36 @@ if (typeof module !== 'undefined' && module.exports) {
                         <summary>🎨 Affichage</summary>
                         <div class="param-form">
                             <div class="param-row">
-                                <label>Thème :</label>
+                                <label>Mode :</label>
                                 <select id="param-theme">
-                                    <option value="clair" ${parametres.affichage.theme === 'clair' ? 'selected' : ''}>Clair</option>
-                                    <option value="sombre" ${parametres.affichage.theme === 'sombre' ? 'selected' : ''}>Sombre</option>
+                                    <option value="clair" ${parametres.affichage.theme === 'clair' ? 'selected' : ''}>☀️ Clair</option>
+                                    <option value="sombre" ${parametres.affichage.theme === 'sombre' ? 'selected' : ''}>🌙 Sombre</option>
+                                </select>
+                            </div>
+                            <div class="param-row">
+                                <label>Couleur du thème :</label>
+                                <div id="param-couleur-theme" class="param-color-presets">
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'defaut' ? ' active' : ''}" data-theme="defaut" style="background:linear-gradient(135deg,#2563eb,#1e40af)" title="Bleu (défaut)"></button>
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'ocean' ? ' active' : ''}" data-theme="ocean" style="background:linear-gradient(135deg,#0891b2,#164e63)" title="Océan"></button>
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'foret' ? ' active' : ''}" data-theme="foret" style="background:linear-gradient(135deg,#16a34a,#14532d)" title="Forêt"></button>
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'crepuscule' ? ' active' : ''}" data-theme="crepuscule" style="background:linear-gradient(135deg,#7c3aed,#4c1d95)" title="Crépuscule"></button>
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'rose' ? ' active' : ''}" data-theme="rose" style="background:linear-gradient(135deg,#e11d48,#881337)" title="Rose"></button>
+                                    <button type="button" class="color-preset${parametres.affichage.couleurTheme === 'ambre' ? ' active' : ''}" data-theme="ambre" style="background:linear-gradient(135deg,#d97706,#78350f)" title="Ambre"></button>
+                                    <button type="button" class="color-preset color-preset-custom${parametres.affichage.couleurTheme === 'custom' ? ' active' : ''}" data-theme="custom" title="Personnalisé">
+                                        <span style="font-size:0.85em">✏️</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="param-row param-custom-accent" id="param-custom-accent-row" style="display:${parametres.affichage.couleurTheme === 'custom' ? 'flex' : 'none'}">
+                                <label>Couleur d'accent :</label>
+                                <input type="color" id="param-couleur-accent" value="${parametres.affichage.couleurAccent || '#2563eb'}">
+                            </div>
+                            <div class="param-row">
+                                <label>Densité :</label>
+                                <select id="param-densite">
+                                    <option value="compact" ${parametres.affichage.densite === 'compact' ? 'selected' : ''}>Compact</option>
+                                    <option value="normal" ${parametres.affichage.densite === 'normal' ? 'selected' : ''}>Normal</option>
+                                    <option value="confortable" ${parametres.affichage.densite === 'confortable' ? 'selected' : ''}>Confortable</option>
                                 </select>
                             </div>
                             <div class="param-row">
@@ -6364,7 +6390,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="inactive" ${parametres.affichage.modeMobile === 'inactive' ? 'selected' : ''}>Toujours désactivé</option>
                                 </select>
                             </div>
-                            <p class="param-hint">Le thème, la police et le mode mobile s’appliquent immédiatement. Enregistrez pour les conserver.</p>
+                            <p class="param-hint">Les changements de thème, couleur et densité s'appliquent immédiatement. Enregistrez pour les conserver.</p>
                         </div>
                     </details>
 
@@ -6967,11 +6993,11 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <button id="config-perso-btn" class="btn-secondary">🎨 Organisation personnalisée</button>
                                 </div>
                                 
-                                <div id="config-perso-zone" style="display:none;margin-bottom:20px;padding:15px;background:#eff6ff;border-radius:8px;">
+                                <div id="config-perso-zone" class="plan-info-zone">
                                     <label>Nombre de places dans la classe :</label>
-                                    <input type="number" id="nb-places-input" min="1" max="64" value="30" style="width:100px;padding:8px;border:2px solid #3b82f6;border-radius:6px;margin-left:10px;" />
+                                    <input type="number" id="nb-places-input" class="plan-number-input" min="1" max="64" value="30" />
                                     <button id="creer-grille-btn" class="btn-primary" style="margin-left:10px;">Créer la grille</button>
-                                    <p style="color:#1e40af;font-size:0.9rem;margin-top:10px;">
+                                    <p class="plan-hint-text">
                                         📍 Cliquez dans la grille pour placer les tables. Cliquez sur une table placée pour la griser/activer.
                                     </p>
                                 </div>
@@ -6992,7 +7018,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <div id="import-excel-zone" style="display:none;">
                                     <label>Sélectionnez un fichier Excel :</label>
                                     <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="margin-bottom:10px;" />
-                                    <p style="color:#64748b;font-size:0.9rem;margin-top:5px;">
+                                    <p class="plan-hint-text">
                                         📋 Format attendu : Colonne B = Nom, Colonne C = Prénom, Colonne D = Sexe (F/M)<br>
                                         📍 Les données doivent commencer à la ligne 7
                                     </p>
@@ -7000,7 +7026,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                 
                                 <div id="import-liste-zone" style="display:none;">
                                     <label>Liste ${getAnneeScolaire()} :</label>
-                                    <select id="liste-classe-select" style="width:100%;padding:10px;margin:10px 0;border:2px solid #3b82f6;border-radius:6px;font-size:1rem;">
+                                    <select id="liste-classe-select" class="plan-select">
                                         ${(function () {
                                             const listes = getListsForTeacher();
                                             const noms = getVisibleTeacherClasses();
@@ -7010,7 +7036,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                         })()}
                                     </select>
                                     <button id="charger-liste-btn" class="btn-primary">📥 Charger la liste</button>
-                                    <p style="color:#64748b;font-size:0.9rem;margin-top:10px;">
+                                    <p class="plan-hint-text">
                                         💡 Les listes sont importées par l’administrateur. Vous pouvez sinon utiliser l’import brut ou un fichier Excel.
                                     </p>
                                 </div>
@@ -7050,7 +7076,7 @@ if (typeof module !== 'undefined' && module.exports) {
                             <button id="ajouter-eleve-btn" class="btn-primary">Ajouter</button>
                         </div>
                         <div id="eleves-disponibles" class="eleves-container">
-                            <p style="color:#888;font-style:italic;">Importez une liste d'élèves pour commencer</p>
+                            <p class="plan-empty-msg">Importez une liste d'élèves pour commencer</p>
                         </div>
                     </div>
                 </div>

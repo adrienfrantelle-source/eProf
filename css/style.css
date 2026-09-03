@@ -2040,6 +2040,44 @@ footer {
     margin-top: 15px;
 }
 
+.plan-info-zone {
+    display: none;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #eff6ff;
+    border: 2px solid #3b82f6;
+    border-radius: 8px;
+}
+
+.plan-number-input {
+    width: 100px;
+    padding: 8px;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    margin-left: 10px;
+    font-size: 1rem;
+}
+
+.plan-hint-text {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-top: 10px;
+}
+
+.plan-empty-msg {
+    color: #888;
+    font-style: italic;
+}
+
+.plan-select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 2px solid #3b82f6;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
 #config-perso-zone label {
     display: block;
     margin-bottom: 10px;
@@ -3872,6 +3910,16 @@ body.theme-sombre .jeux-famille-vide {
     width: 20px;
     height: 20px;
     cursor: pointer;
+}
+
+.param-row input[type="color"] {
+    width: 48px;
+    height: 40px;
+    padding: 2px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    background: transparent;
 }
 
 .param-actions {
@@ -6206,5 +6254,184 @@ body.theme-sombre .agenda-picker-label {
 }
 body.theme-sombre .color-preset.active {
     border-color: #e2e8f0;
+}
+
+/* ===== Plan de classe — thème sombre ===== */
+body.theme-sombre #plan-classe-module {
+    color: var(--eprof-text, #e2e8f0);
+}
+
+body.theme-sombre #plan-classe-module h2,
+body.theme-sombre #plan-classe-module h3 {
+    color: #f1f5f9;
+}
+
+body.theme-sombre #plan-classe-module .plan-classe-controls,
+body.theme-sombre #plan-classe-module .import-section {
+    background: var(--eprof-surface-alt, #334155);
+    border-color: var(--eprof-border-strong, #475569);
+}
+
+body.theme-sombre #plan-classe-module .import-section label {
+    color: #cbd5e1;
+}
+
+body.theme-sombre #plan-classe-module .salle-classe {
+    background: var(--eprof-surface, #1e293b);
+    border-color: var(--eprof-border-strong, #475569);
+    box-shadow: none;
+}
+
+body.theme-sombre #plan-classe-module .place {
+    background: #334155;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre #plan-classe-module .place:hover {
+    background: #3b4f66;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre #plan-classe-module .place.occupied {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #bfdbfe;
+}
+
+body.theme-sombre #plan-classe-module .place.place-feminin {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #bfdbfe;
+}
+
+body.theme-sombre #plan-classe-module .place.place-masculin {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #a7f3d0;
+}
+
+body.theme-sombre #plan-classe-module .place.drag-over {
+    background: #422006;
+    border-color: #f59e0b;
+}
+
+body.theme-sombre #plan-classe-module .place.place-disabled {
+    background: #374151;
+    border-color: #4b5563;
+    color: #9ca3af;
+}
+
+body.theme-sombre #plan-classe-module .grille-perso-9x9 {
+    background: #0f172a;
+}
+
+body.theme-sombre #plan-classe-module .grille-cell {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+body.theme-sombre #plan-classe-module .grille-cell:hover {
+    background: #334155;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre #plan-classe-module .instructions-grille {
+    background: #422006;
+    border-color: #d97706;
+    color: #fde68a;
+}
+
+body.theme-sombre #plan-classe-module #config-perso-zone,
+body.theme-sombre #plan-classe-module .plan-info-zone {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+}
+
+body.theme-sombre #plan-classe-module #config-perso-zone label,
+body.theme-sombre #plan-classe-module .plan-info-zone label {
+    color: #93c5fd;
+}
+
+body.theme-sombre #plan-classe-module .plan-hint-text {
+    color: #94a3b8;
+}
+
+body.theme-sombre #plan-classe-module .plan-empty-msg {
+    color: #94a3b8;
+}
+
+body.theme-sombre #plan-classe-module #config-perso-zone input,
+body.theme-sombre #plan-classe-module .plan-number-input {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #3b82f6;
+}
+
+body.theme-sombre #plan-classe-module .eleves-liste {
+    background: var(--eprof-surface-alt, #334155);
+    border-color: var(--eprof-border-strong, #475569);
+}
+
+body.theme-sombre #plan-classe-module .eleves-liste h3 {
+    color: #93c5fd;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card.eleve-feminin {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #bfdbfe;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card.eleve-masculin {
+    background: #064e3b;
+    border-color: #10b981;
+    color: #a7f3d0;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card:hover {
+    background: #2d3a4f;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card.eleve-feminin:hover {
+    background: #1e40af;
+    border-color: #60a5fa;
+}
+
+body.theme-sombre #plan-classe-module .eleve-card.eleve-masculin:hover {
+    background: #047857;
+    border-color: #34d399;
+}
+
+body.theme-sombre #plan-classe-module .manual-student-add input {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre #plan-classe-module .plan-select,
+body.theme-sombre #plan-classe-module .import-section select,
+body.theme-sombre #plan-classe-module #liste-classe-select {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre #plan-classe-module .import-section textarea {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-sombre #plan-classe-module .bureau-prof > div {
+    background: var(--eprof-accent, #2563eb) !important;
+    color: #fff !important;
 }
 
