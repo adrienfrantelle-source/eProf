@@ -32,6 +32,7 @@
     --eprof-border-strong: #cbd5e1;
     --eprof-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --eprof-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --eprof-chrome: #1e3a8a;
 
     /* Density */
     --eprof-density-factor: 1;
@@ -47,7 +48,8 @@
 /* ===== THEMES ===== */
 
 /* Dark (sombre) - applied via body.theme-sombre */
-body.theme-sombre {
+body.theme-sombre,
+html.theme-sombre {
     --eprof-bg: #1e293b;
     --eprof-bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     --eprof-surface: #0f172a;
@@ -60,6 +62,7 @@ body.theme-sombre {
     --eprof-border-strong: #475569;
     --eprof-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --eprof-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    --eprof-chrome: #0f172a;
 }
 
 /* Ocean theme */

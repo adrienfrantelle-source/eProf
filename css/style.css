@@ -371,7 +371,7 @@
     background: #ddd;
 }
 .active-sidebar {
-    background: #e53935 !important;
+    background: var(--eprof-accent, #e53935) !important;
     color: #fff !important;
 }
 /* Layout principal avec sidebar */
@@ -380,7 +380,7 @@
     min-height: 100vh;
 }
 .sidebar {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     color: #fff;
     width: 280px;
     min-height: 100vh;
@@ -466,7 +466,7 @@ body.sidebar-collapsed .sidebar-msg-badge {
     margin-bottom: 0.2em;
 }
 .sidebar nav a:hover {
-    background: #e53935;
+    background: var(--eprof-accent, #e53935);
     color: #fff;
 }
 .sidebar nav a[data-tool="messagerie"] {
@@ -1030,7 +1030,7 @@ body {
 }
 
 header {
-    background: #1a2236; /* bleu foncé du logo */
+    background: var(--eprof-chrome, #1a2236);
     color: #fff;
     padding: 1em 2em;
     box-shadow: 0 2px 8px #0002;
@@ -1196,14 +1196,14 @@ nav a {
     transition: background 0.2s;
 }
 nav a:hover {
-    background: #e53935;
+    background: var(--eprof-accent, #e53935);
     color: #fff;
 }
 main {
     padding: 2em;
 }
 footer {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     color: #fff;
     text-align: center;
     padding: 1em 0;
@@ -2479,7 +2479,7 @@ body.theme-sombre .converter-controls input {
 }
 
 .btn-primary {
-    background: #2563eb;
+    background: var(--eprof-accent, #2563eb);
     color: white;
     padding: 12px 24px;
     border: none;
@@ -2491,7 +2491,7 @@ body.theme-sombre .converter-controls input {
 }
 
 .btn-primary:hover {
-    background: #1e40af;
+    background: var(--eprof-accent-dark, #1e40af);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
@@ -4321,7 +4321,7 @@ body.theme-sombre {
 }
 
 body.theme-sombre .sidebar {
-    background: #0f172a;
+    background: var(--eprof-chrome, #0f172a);
 }
 
 body.theme-sombre .sidebar-toggle {
@@ -4331,7 +4331,7 @@ body.theme-sombre .sidebar-toggle {
 }
 
 body.theme-sombre header {
-    background: #0f172a;
+    background: var(--eprof-chrome, #0f172a);
 }
 
 body.theme-sombre .quick-link {
@@ -5439,7 +5439,7 @@ body.theme-sombre .fc-event {
 
 /* Styles pour le nouveau footer */
 footer {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     color: white;
     padding: 20px 0;
     margin-top: auto;
@@ -5492,7 +5492,7 @@ footer {
 
 /* Footer en mode sombre */
 body.theme-sombre footer {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     border-top: 2px solid #334155;
 }
 
@@ -5661,7 +5661,7 @@ body {
 
 /* Styles pour le nouveau footer */
 footer {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     color: white;
     padding: 20px 0;
     margin-top: auto;
@@ -5714,7 +5714,7 @@ footer {
 
 /* Footer en mode sombre */
 body.theme-sombre footer {
-    background: #1a2236;
+    background: var(--eprof-chrome, #1a2236);
     border-top: 2px solid #334155;
 }
 

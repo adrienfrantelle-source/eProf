@@ -17,35 +17,19 @@ function getAnneeScolaireFromPrefs() {
 }
 
 function applyCarnetDisplayTheme() {
-    var sombre = false;
-    try {
-        var p = JSON.parse(localStorage.getItem('parametres') || '{}');
-        sombre = (p.affichage || {}).theme === 'sombre';
-    } catch (e) {}
-    document.documentElement.classList.toggle('theme-sombre', sombre);
-    if (document.body) document.body.classList.toggle('theme-sombre', sombre);
-    var ct = (p.affichage || {}).couleurTheme || 'defaut';
-    if (ct !== 'defaut' && ct !== 'custom') {
-        document.documentElement.classList.add('theme-' + ct);
-        if (document.body) document.body.classList.add('theme-' + ct);
+    if (window.EprofTheme) {
+        window.EprofTheme.applyFromStorage();
+    } else {
+        var sombre = false;
+        var p = {};
+        try {
+            p = JSON.parse(localStorage.getItem('parametres') || '{}');
+            sombre = (p.affichage || {}).theme === 'sombre';
+        } catch (e) {}
+        document.documentElement.classList.toggle('theme-sombre', sombre);
+        if (document.body) document.body.classList.toggle('theme-sombre', sombre);
     }
-    if (ct === 'custom' && (p.affichage || {}).couleurAccent) {
-        var hex = p.affichage.couleurAccent.replace('#', '');
-        var r = parseInt(hex.substring(0, 2), 16);
-        var g = parseInt(hex.substring(2, 4), 16);
-        var b = parseInt(hex.substring(4, 6), 16);
-        document.documentElement.style.setProperty('--eprof-accent', p.affichage.couleurAccent);
-        document.documentElement.style.setProperty('--eprof-accent-rgb', r + ', ' + g + ', ' + b);
-    }
-    var densite = (p.affichage || {}).densite || 'normal';
-    if (densite === 'compact') {
-        document.documentElement.classList.add('densite-compact');
-        if (document.body) document.body.classList.add('densite-compact');
-    } else if (densite === 'confortable') {
-        document.documentElement.classList.add('densite-confortable');
-        if (document.body) document.body.classList.add('densite-confortable');
-    }
-    if (sombre && window.Chart && window.Chart.defaults) {
+    if (isCarnetDarkTheme() && window.Chart && window.Chart.defaults) {
         Chart.defaults.color = '#cbd5e1';
         if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
             Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};

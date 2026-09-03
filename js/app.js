@@ -211,18 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const parametresBoot = JSON.parse(localStorage.getItem('parametres') || '{}');
             const affichage = parametresBoot.affichage || {};
             document.body.classList.toggle('theme-sombre', affichage.theme === 'sombre');
-            // Apply color theme
-            var ct = affichage.couleurTheme || 'defaut';
-            if (ct !== 'defaut' && ct !== 'custom') {
-                document.body.classList.add('theme-' + ct);
-            }
-            if (ct === 'custom' && affichage.couleurAccent) {
-                var hex = affichage.couleurAccent.replace('#', '');
-                var r = parseInt(hex.substring(0, 2), 16);
-                var g = parseInt(hex.substring(2, 4), 16);
-                var b = parseInt(hex.substring(4, 6), 16);
-                document.documentElement.style.setProperty('--eprof-accent', affichage.couleurAccent);
-                document.documentElement.style.setProperty('--eprof-accent-rgb', r + ', ' + g + ', ' + b);
+            if (window.EprofTheme) {
+                window.EprofTheme.apply(affichage.couleurTheme || 'defaut', affichage.couleurAccent || '', affichage.theme === 'sombre');
             }
             // Apply density
             if (affichage.densite === 'compact') document.body.classList.add('densite-compact');
@@ -6482,29 +6472,24 @@ if (typeof module !== 'undefined' && module.exports) {
     // Fonctions pour appliquer le thème et la taille de police
     function appliquerTheme(theme) {
         document.body.classList.toggle('theme-sombre', theme === 'sombre');
+        document.documentElement.classList.toggle('theme-sombre', theme === 'sombre');
+        var affichage = {};
+        try { affichage = (JSON.parse(localStorage.getItem('parametres') || '{}').affichage) || {}; } catch (e) {}
+        var preset = document.querySelector('#param-couleur-theme .color-preset.active');
+        var couleurTheme = (preset && preset.dataset.theme) || affichage.couleurTheme || 'defaut';
+        var couleurAccent = (document.querySelector('#param-couleur-accent') || {}).value || affichage.couleurAccent || '';
+        if (window.EprofTheme) window.EprofTheme.apply(couleurTheme, couleurAccent, theme === 'sombre');
     }
 
     function appliquerCouleurTheme(couleurTheme, couleurAccent) {
+        var sombre = document.body.classList.contains('theme-sombre');
+        if (window.EprofTheme) {
+            window.EprofTheme.apply(couleurTheme || 'defaut', couleurAccent || '', sombre);
+            return;
+        }
         document.body.classList.remove('theme-ocean', 'theme-foret', 'theme-crepuscule', 'theme-rose', 'theme-ambre');
-        document.documentElement.style.removeProperty('--eprof-accent');
-        document.documentElement.style.removeProperty('--eprof-accent-dark');
-        document.documentElement.style.removeProperty('--eprof-accent-light');
-        document.documentElement.style.removeProperty('--eprof-accent-rgb');
-
         if (couleurTheme && couleurTheme !== 'defaut' && couleurTheme !== 'custom') {
             document.body.classList.add('theme-' + couleurTheme);
-        } else if (couleurTheme === 'custom' && couleurAccent) {
-            var hex = couleurAccent.replace('#', '');
-            var r = parseInt(hex.substring(0, 2), 16);
-            var g = parseInt(hex.substring(2, 4), 16);
-            var b = parseInt(hex.substring(4, 6), 16);
-            var darkR = Math.round(r * 0.78), darkG = Math.round(g * 0.78), darkB = Math.round(b * 0.78);
-            var lightR = Math.round(r + (255 - r) * 0.85), lightG = Math.round(g + (255 - g) * 0.85), lightB = Math.round(b + (255 - b) * 0.85);
-
-            document.documentElement.style.setProperty('--eprof-accent', couleurAccent);
-            document.documentElement.style.setProperty('--eprof-accent-dark', '#' + [darkR, darkG, darkB].map(function(c) { return c.toString(16).padStart(2, '0'); }).join(''));
-            document.documentElement.style.setProperty('--eprof-accent-light', '#' + [lightR, lightG, lightB].map(function(c) { return c.toString(16).padStart(2, '0'); }).join(''));
-            document.documentElement.style.setProperty('--eprof-accent-rgb', r + ', ' + g + ', ' + b);
         }
     }
 

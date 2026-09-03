@@ -19,7 +19,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1a2236 0%, #2d3e57 100%);
+    background: linear-gradient(135deg, var(--eprof-chrome, #1a2236) 0%, var(--eprof-accent-dark, #2d3e57) 100%);
     min-height: 100vh;
     padding: 16px 20px;
 }
@@ -1056,7 +1056,7 @@ header h1 {
 html.theme-sombre,
 html.theme-sombre body,
 body.theme-sombre {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(135deg, var(--eprof-chrome, #0f172a) 0%, var(--eprof-bg, #1e293b) 100%);
     color: #e2e8f0;
 }
 
