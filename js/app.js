@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 pauseApresDebut: '15:05',
                 pauseApresFin: '15:20'
             },
-            affichage: { theme: 'clair', couleurTheme: 'defaut', couleurAccent: '', densite: 'normal', taillePolice: 'moyen', modeMobile: 'auto' },
+            affichage: { theme: 'clair', couleurTheme: 'defaut', couleurAccent: '', densite: 'normal', taillePolice: 'moyen', modeMobile: 'auto', ambiance: 'none', fondIntensite: 'moyen', chromeStyle: 'uni' },
             alertes: { seuilOublis: 3, seuilMots: 5 },
             notation: {
                 systeme: 'sur20',
@@ -5810,6 +5810,15 @@ if (typeof module !== 'undefined' && module.exports) {
         if (parametres.affichage.couleurAccent === undefined) {
             parametres.affichage.couleurAccent = '';
         }
+        if (!parametres.affichage.ambiance) {
+            parametres.affichage.ambiance = 'none';
+        }
+        if (!parametres.affichage.fondIntensite) {
+            parametres.affichage.fondIntensite = 'moyen';
+        }
+        if (!parametres.affichage.chromeStyle) {
+            parametres.affichage.chromeStyle = 'uni';
+        }
         delete parametres.enseignant.etablissement;
         delete parametres.calendrier.dureeCoursDefaut;
         delete parametres.periodes;
@@ -5911,6 +5920,52 @@ if (typeof module !== 'undefined' && module.exports) {
                                 <input type="color" id="param-couleur-accent" value="${parametres.affichage.couleurAccent || '#2563eb'}">
                             </div>
                             <div class="param-row">
+                                <label>Looks prêts à l'emploi :</label>
+                                <div class="look-row" id="param-looks">
+                                    <button type="button" class="look-chip" data-look="classique">Classique</button>
+                                    <button type="button" class="look-chip" data-look="campus">Campus eProf</button>
+                                    <button type="button" class="look-chip" data-look="lycee">Lycée Jeanne Delanoue</button>
+                                    <button type="button" class="look-chip" data-look="nature">Nature Chlorofil</button>
+                                    <button type="button" class="look-chip" data-look="atelier">Atelier crépuscule</button>
+                                </div>
+                            </div>
+                            <div class="param-row">
+                                <label>Fond d'interface :</label>
+                                <div id="param-ambiance" class="ambiance-grid">
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'none' ? ' active' : ''}" data-ambiance="none"><i class="ambiance-thumb amb-none"></i><span>Aucun</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'eprof' ? ' active' : ''}" data-ambiance="eprof"><i class="ambiance-thumb amb-eprof"></i><span>Logo eProf</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'lycee' ? ' active' : ''}" data-ambiance="lycee"><i class="ambiance-thumb amb-lycee"></i><span>Logo lycée</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'chlorofil' ? ' active' : ''}" data-ambiance="chlorofil"><i class="ambiance-thumb amb-chlorofil"></i><span>Chlorofil</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'points' ? ' active' : ''}" data-ambiance="points"><i class="ambiance-thumb amb-points"></i><span>Points</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'losanges' ? ' active' : ''}" data-ambiance="losanges"><i class="ambiance-thumb amb-losanges"></i><span>Losanges</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'vagues' ? ' active' : ''}" data-ambiance="vagues"><i class="ambiance-thumb amb-vagues"></i><span>Vagues</span></button>
+                                    <button type="button" class="ambiance-card${parametres.affichage.ambiance === 'custom' ? ' active' : ''}" data-ambiance="custom"><i class="ambiance-thumb amb-custom"></i><span>Mon image</span></button>
+                                </div>
+                            </div>
+                            <div class="param-row" id="param-fond-perso-row" style="display:${parametres.affichage.ambiance === 'custom' ? 'flex' : 'none'}">
+                                <label>Image personnelle :</label>
+                                <div class="fond-perso-actions">
+                                    <input type="file" id="param-fond-perso" accept="image/jpeg,image/png,image/webp">
+                                    <button type="button" id="param-fond-perso-clear" class="btn-secondary">Retirer</button>
+                                </div>
+                            </div>
+                            <div class="param-row">
+                                <label>Intensité du fond :</label>
+                                <select id="param-fond-intensite">
+                                    <option value="faible" ${parametres.affichage.fondIntensite === 'faible' ? 'selected' : ''}>Discret</option>
+                                    <option value="moyen" ${parametres.affichage.fondIntensite === 'moyen' ? 'selected' : ''}>Moyen</option>
+                                    <option value="fort" ${parametres.affichage.fondIntensite === 'fort' ? 'selected' : ''}>Marqué</option>
+                                </select>
+                            </div>
+                            <div class="param-row">
+                                <label>En-tête et menu :</label>
+                                <select id="param-chrome-style">
+                                    <option value="uni" ${parametres.affichage.chromeStyle === 'uni' ? 'selected' : ''}>Couleur unie</option>
+                                    <option value="degrade" ${parametres.affichage.chromeStyle === 'degrade' ? 'selected' : ''}>Dégradé</option>
+                                    <option value="texture" ${parametres.affichage.chromeStyle === 'texture' ? 'selected' : ''}>Texture logo eProf</option>
+                                </select>
+                            </div>
+                            <div class="param-row">
                                 <label>Densité :</label>
                                 <select id="param-densite">
                                     <option value="compact" ${parametres.affichage.densite === 'compact' ? 'selected' : ''}>Compact</option>
@@ -5934,7 +5989,7 @@ if (typeof module !== 'undefined' && module.exports) {
                                     <option value="inactive" ${parametres.affichage.modeMobile === 'inactive' ? 'selected' : ''}>Toujours désactivé</option>
                                 </select>
                             </div>
-                            <p class="param-hint">Les changements de thème, couleur et densité s'appliquent immédiatement. Enregistrez pour les conserver.</p>
+                            <p class="param-hint">Les changements s'appliquent immédiatement. Enregistrez pour les conserver. L'image personnelle reste sur cet appareil.</p>
                         </div>
                     </details>
 
@@ -6149,21 +6204,100 @@ if (typeof module !== 'undefined' && module.exports) {
                 var theme = btn.dataset.theme;
                 var customRow = container.querySelector('#param-custom-accent-row');
                 if (customRow) customRow.style.display = theme === 'custom' ? 'flex' : 'none';
-                var accentInput = container.querySelector('#param-couleur-accent');
-                appliquerCouleurTheme(theme, accentInput ? accentInput.value : '');
+                appliquerAffichageDepuisFormulaire(container);
             });
         });
 
         var accentInput = container.querySelector('#param-couleur-accent');
         if (accentInput) {
             accentInput.addEventListener('input', function() {
-                appliquerCouleurTheme('custom', this.value);
+                var customBtn = container.querySelector('.color-preset[data-theme="custom"]');
+                if (customBtn) {
+                    colorPresets.forEach(function(b) { b.classList.remove('active'); });
+                    customBtn.classList.add('active');
+                }
+                appliquerAffichageDepuisFormulaire(container);
             });
         }
 
         var densiteSelect = container.querySelector('#param-densite');
         if (densiteSelect) {
             densiteSelect.addEventListener('change', function() { appliquerDensite(this.value); });
+        }
+
+        var LOOKS = {
+            classique: { couleurTheme: 'defaut', ambiance: 'none', chromeStyle: 'uni', fondIntensite: 'moyen' },
+            campus: { couleurTheme: 'defaut', ambiance: 'eprof', chromeStyle: 'texture', fondIntensite: 'faible' },
+            lycee: { couleurTheme: 'ocean', ambiance: 'lycee', chromeStyle: 'degrade', fondIntensite: 'moyen' },
+            nature: { couleurTheme: 'foret', ambiance: 'chlorofil', chromeStyle: 'uni', fondIntensite: 'faible' },
+            atelier: { couleurTheme: 'crepuscule', ambiance: 'losanges', chromeStyle: 'degrade', fondIntensite: 'moyen' }
+        };
+
+        container.querySelectorAll('#param-looks .look-chip').forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                var look = LOOKS[chip.dataset.look];
+                if (!look) return;
+                container.querySelectorAll('#param-looks .look-chip').forEach(function(c) { c.classList.remove('active'); });
+                chip.classList.add('active');
+                var colorBtn = container.querySelector('.color-preset[data-theme="' + look.couleurTheme + '"]');
+                if (colorBtn) {
+                    colorPresets.forEach(function(b) { b.classList.remove('active'); });
+                    colorBtn.classList.add('active');
+                }
+                var ambBtn = container.querySelector('.ambiance-card[data-ambiance="' + look.ambiance + '"]');
+                if (ambBtn) {
+                    container.querySelectorAll('.ambiance-card').forEach(function(b) { b.classList.remove('active'); });
+                    ambBtn.classList.add('active');
+                }
+                var chromeSel = container.querySelector('#param-chrome-style');
+                var intensiteSel = container.querySelector('#param-fond-intensite');
+                if (chromeSel) chromeSel.value = look.chromeStyle;
+                if (intensiteSel) intensiteSel.value = look.fondIntensite;
+                var persoRow = container.querySelector('#param-fond-perso-row');
+                if (persoRow) persoRow.style.display = look.ambiance === 'custom' ? 'flex' : 'none';
+                appliquerAffichageDepuisFormulaire(container);
+            });
+        });
+
+        container.querySelectorAll('#param-ambiance .ambiance-card').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                container.querySelectorAll('.ambiance-card').forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                var persoRow = container.querySelector('#param-fond-perso-row');
+                if (persoRow) persoRow.style.display = btn.dataset.ambiance === 'custom' ? 'flex' : 'none';
+                appliquerAffichageDepuisFormulaire(container);
+            });
+        });
+
+        var intensiteSel = container.querySelector('#param-fond-intensite');
+        if (intensiteSel) intensiteSel.addEventListener('change', function() { appliquerAffichageDepuisFormulaire(container); });
+        var chromeSel = container.querySelector('#param-chrome-style');
+        if (chromeSel) chromeSel.addEventListener('change', function() { appliquerAffichageDepuisFormulaire(container); });
+
+        var fondInput = container.querySelector('#param-fond-perso');
+        if (fondInput && window.EprofTheme) {
+            fondInput.addEventListener('change', function() {
+                var file = fondInput.files && fondInput.files[0];
+                if (!file) return;
+                window.EprofTheme.compressImageFile(file, 1400, 0.62).then(function(dataUrl) {
+                    if (!window.EprofTheme.saveFondPerso(dataUrl)) {
+                        alert('Image trop lourde pour être mémorisée. Choisissez un fichier plus petit.');
+                        return;
+                    }
+                    var customCard = container.querySelector('.ambiance-card[data-ambiance="custom"]');
+                    if (customCard) customCard.click();
+                    else appliquerAffichageDepuisFormulaire(container);
+                }).catch(function() {
+                    alert('Impossible de lire cette image.');
+                });
+            });
+        }
+        var fondClear = container.querySelector('#param-fond-perso-clear');
+        if (fondClear && window.EprofTheme) {
+            fondClear.addEventListener('click', function() {
+                window.EprofTheme.saveFondPerso('');
+                appliquerAffichageDepuisFormulaire(container);
+            });
         }
 
         const btnChangerIdentifiant = container.querySelector('#btn-changer-identifiant');
@@ -6348,6 +6482,10 @@ if (typeof module !== 'undefined' && module.exports) {
             parametres.affichage.couleurTheme = activePreset ? activePreset.dataset.theme : 'defaut';
             parametres.affichage.couleurAccent = container.querySelector('#param-couleur-accent').value || '';
             parametres.affichage.densite = container.querySelector('#param-densite').value;
+            var activeAmbiance = container.querySelector('#param-ambiance .ambiance-card.active');
+            parametres.affichage.ambiance = activeAmbiance ? activeAmbiance.dataset.ambiance : 'none';
+            parametres.affichage.fondIntensite = container.querySelector('#param-fond-intensite').value;
+            parametres.affichage.chromeStyle = container.querySelector('#param-chrome-style').value;
 
             parametres.alertes.seuilOublis = parseInt(container.querySelector('#param-seuil-oublis').value, 10);
             parametres.alertes.seuilMots = parseInt(container.querySelector('#param-seuil-mots').value, 10);
@@ -6470,26 +6608,51 @@ if (typeof module !== 'undefined' && module.exports) {
 
     // Fonction pour mettre à jour les informations dans le header
     // Fonctions pour appliquer le thème et la taille de police
+    function appliquerAffichageDepuisFormulaire(container) {
+        container = container || document;
+        var themeSelect = container.querySelector('#param-theme');
+        var sombre = themeSelect ? themeSelect.value === 'sombre' : document.body.classList.contains('theme-sombre');
+        document.body.classList.toggle('theme-sombre', sombre);
+        document.documentElement.classList.toggle('theme-sombre', sombre);
+        var preset = container.querySelector('#param-couleur-theme .color-preset.active');
+        var amb = container.querySelector('#param-ambiance .ambiance-card.active');
+        if (window.EprofTheme) {
+            window.EprofTheme.apply(
+                preset ? preset.dataset.theme : 'defaut',
+                (container.querySelector('#param-couleur-accent') || {}).value || '',
+                sombre,
+                {
+                    ambiance: amb ? amb.dataset.ambiance : 'none',
+                    fondIntensite: (container.querySelector('#param-fond-intensite') || {}).value || 'moyen',
+                    chromeStyle: (container.querySelector('#param-chrome-style') || {}).value || 'uni',
+                    fondPersoUrl: window.EprofTheme.readFondPerso()
+                }
+            );
+        }
+    }
+
     function appliquerTheme(theme) {
+        var form = document.getElementById('parametres-module');
+        if (form && form.querySelector('#param-theme')) {
+            appliquerAffichageDepuisFormulaire(form);
+            return;
+        }
         document.body.classList.toggle('theme-sombre', theme === 'sombre');
         document.documentElement.classList.toggle('theme-sombre', theme === 'sombre');
-        var affichage = {};
-        try { affichage = (JSON.parse(localStorage.getItem('parametres') || '{}').affichage) || {}; } catch (e) {}
-        var preset = document.querySelector('#param-couleur-theme .color-preset.active');
-        var couleurTheme = (preset && preset.dataset.theme) || affichage.couleurTheme || 'defaut';
-        var couleurAccent = (document.querySelector('#param-couleur-accent') || {}).value || affichage.couleurAccent || '';
-        if (window.EprofTheme) window.EprofTheme.apply(couleurTheme, couleurAccent, theme === 'sombre');
+        if (window.EprofTheme) window.EprofTheme.applyFromStorage();
     }
 
     function appliquerCouleurTheme(couleurTheme, couleurAccent) {
-        var sombre = document.body.classList.contains('theme-sombre');
-        if (window.EprofTheme) {
-            window.EprofTheme.apply(couleurTheme || 'defaut', couleurAccent || '', sombre);
+        var form = document.getElementById('parametres-module');
+        if (form && form.querySelector('#param-couleur-theme')) {
+            appliquerAffichageDepuisFormulaire(form);
             return;
         }
-        document.body.classList.remove('theme-ocean', 'theme-foret', 'theme-crepuscule', 'theme-rose', 'theme-ambre');
-        if (couleurTheme && couleurTheme !== 'defaut' && couleurTheme !== 'custom') {
-            document.body.classList.add('theme-' + couleurTheme);
+        var sombre = document.body.classList.contains('theme-sombre');
+        if (window.EprofTheme) {
+            window.EprofTheme.apply(couleurTheme || 'defaut', couleurAccent || '', sombre, {
+                fondPersoUrl: window.EprofTheme.readFondPerso()
+            });
         }
     }
 

@@ -380,7 +380,10 @@
     min-height: 100vh;
 }
 .sidebar {
-    background: var(--eprof-chrome, #1a2236);
+    background-color: var(--eprof-chrome, #1a2236);
+    background-image: var(--eprof-chrome-image, none);
+    background-size: cover;
+    background-position: center;
     color: #fff;
     width: 280px;
     min-height: 100vh;
@@ -1025,12 +1028,35 @@ body {
     color: var(--eprof-text, #1a2236);
 }
 
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: var(--eprof-wallpaper-image, none);
+    background-size: var(--eprof-wallpaper-size, auto);
+    background-repeat: var(--eprof-wallpaper-repeat, no-repeat);
+    background-position: var(--eprof-wallpaper-pos, center);
+    opacity: var(--eprof-wallpaper-opacity, 0);
+}
+
+.layout,
+header,
+footer {
+    position: relative;
+    z-index: 1;
+}
+
 :root {
     --eprof-header-h: 88px;
 }
 
 header {
-    background: var(--eprof-chrome, #1a2236);
+    background-color: var(--eprof-chrome, #1a2236);
+    background-image: var(--eprof-chrome-image, none);
+    background-size: cover;
+    background-position: center;
     color: #fff;
     padding: 1em 2em;
     box-shadow: 0 2px 8px #0002;
@@ -4321,7 +4347,7 @@ body.theme-sombre {
 }
 
 body.theme-sombre .sidebar {
-    background: var(--eprof-chrome, #0f172a);
+    background-color: var(--eprof-chrome, #0f172a);
 }
 
 body.theme-sombre .sidebar-toggle {
@@ -4331,7 +4357,7 @@ body.theme-sombre .sidebar-toggle {
 }
 
 body.theme-sombre header {
-    background: var(--eprof-chrome, #0f172a);
+    background-color: var(--eprof-chrome, #0f172a);
 }
 
 body.theme-sombre .quick-link {
@@ -6744,4 +6770,83 @@ body.theme-rose .section-title,
 body.theme-ambre .section-title {
     color: var(--eprof-accent-dark);
 }
+
+.ambiance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 10px;
+    width: 100%;
+}
+.ambiance-card {
+    border: 2px solid var(--eprof-border, #e2e8f0);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--eprof-surface, #fff);
+    text-align: left;
+    font-family: inherit;
+    color: var(--eprof-text, #1e293b);
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.ambiance-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--eprof-accent, #2563eb);
+}
+.ambiance-card.active {
+    border-color: var(--eprof-accent, #2563eb);
+    box-shadow: 0 0 0 3px rgba(var(--eprof-accent-rgb, 37, 99, 235), 0.28);
+}
+.ambiance-thumb {
+    height: 64px;
+    background: #cbd5e1 center / cover no-repeat;
+}
+.ambiance-thumb.amb-none { background: linear-gradient(135deg, #e2e8f0, #f8fafc); }
+.ambiance-thumb.amb-eprof { background-image: url("../images/logo eProf.jpg"); background-size: 62%; background-color: #e0e7ff; }
+.ambiance-thumb.amb-lycee { background-image: url("../images/LOGO JD - Cholet blanc sans fond.png"); background-size: 70%; background-color: #1e3a8a; }
+.ambiance-thumb.amb-chlorofil { background-image: url("../images/logo-chlorofil.png"); background-size: 42px; background-repeat: repeat; background-color: #dcfce7; }
+.ambiance-thumb.amb-points { background-image: radial-gradient(circle, #334155 1.2px, #e2e8f0 1.4px); background-size: 12px 12px; }
+.ambiance-thumb.amb-losanges { background-image: repeating-linear-gradient(135deg, #c4b5fd 0 8px, #ede9fe 8px 16px); }
+.ambiance-thumb.amb-vagues { background-image: repeating-linear-gradient(180deg, #e0f2fe 0 8px, #7dd3fc 8px 10px); }
+.ambiance-thumb.amb-custom { background: conic-gradient(from 90deg, #94a3b8, #e2e8f0, #64748b); }
+.ambiance-card span {
+    display: block;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.look-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.look-chip {
+    border: 2px solid var(--eprof-border, #e2e8f0);
+    background: var(--eprof-surface, #fff);
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: var(--eprof-text, #1e293b);
+}
+.look-chip:hover,
+.look-chip.active {
+    border-color: var(--eprof-accent, #2563eb);
+    background: var(--eprof-accent-light, #dbeafe);
+}
+.fond-perso-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+body.theme-sombre .ambiance-card,
+body.theme-sombre .look-chip {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
 

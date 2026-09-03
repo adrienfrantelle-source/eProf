@@ -1,4 +1,9 @@
 (function (global) {
+    var FOND_KEY = 'eprof-fond-perso';
+    var AMBIANCE_CLASSES = ['ambiance-none', 'ambiance-eprof', 'ambiance-lycee', 'ambiance-chlorofil', 'ambiance-points', 'ambiance-losanges', 'ambiance-vagues', 'ambiance-custom'];
+    var CHROME_CLASSES = ['chrome-uni', 'chrome-degrade', 'chrome-texture'];
+    var COLOR_CLASSES = ['theme-ocean', 'theme-foret', 'theme-crepuscule', 'theme-rose', 'theme-ambre', 'theme-custom'];
+
     function padHex(n) {
         return Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
     }
@@ -52,6 +57,8 @@
         ambre: '#78350f'
     };
 
+    var OPACITY = { faible: 0.05, moyen: 0.1, fort: 0.18 };
+
     function buildPalette(name, customHex, sombre) {
         var key = name === 'custom' ? 'custom' : (LIGHT[name] ? name : 'defaut');
         var base = parseHex(name === 'custom' ? customHex : LIGHT[key].accent);
@@ -62,13 +69,11 @@
         var chrome = sombre
             ? (DARK_CHROME[key] || toHex(darken(base, 0.55)))
             : (LIGHT[key] && LIGHT[key].chrome) || toHex(darken(base, 0.45));
-        if (name === 'custom') {
-            chrome = toHex(darken(base, sombre ? 0.55 : 0.42));
-        }
-        var bg = sombre ? toHex(mix(darken(base, 0.78), { r: 15, g: 23, b: 42 }, 0.45)) : (LIGHT[key] && LIGHT[key].bg) || toHex(lighten(base, 0.82));
+        if (name === 'custom') chrome = toHex(darken(base, sombre ? 0.55 : 0.42));
+        var bg = sombre
+            ? toHex(mix(darken(base, 0.78), { r: 15, g: 23, b: 42 }, 0.45))
+            : (LIGHT[key] && LIGHT[key].bg) || toHex(lighten(base, 0.82));
         if (name === 'custom' && !sombre) bg = toHex(lighten(base, 0.84));
-        var surface = sombre ? '#0f172a' : '#ffffff';
-        var surfaceAlt = sombre ? '#1e293b' : toHex(lighten(base, 0.9));
         return {
             accent: accent,
             accentDark: accentDark,
@@ -76,22 +81,58 @@
             rgb: base.r + ', ' + base.g + ', ' + base.b,
             chrome: chrome,
             bg: bg,
-            surface: surface,
-            surfaceAlt: surfaceAlt
+            surface: sombre ? '#0f172a' : '#ffffff',
+            surfaceAlt: sombre ? '#1e293b' : toHex(lighten(base, 0.9))
         };
     }
 
-    var VAR_KEYS = [
-        '--eprof-accent', '--eprof-accent-dark', '--eprof-accent-light', '--eprof-accent-rgb',
-        '--eprof-chrome', '--eprof-bg', '--eprof-surface', '--eprof-surface-alt', '--eprof-surface-hover'
-    ];
-
-    function clearInlineVars(el) {
-        if (!el || !el.style) return;
-        VAR_KEYS.forEach(function (k) { el.style.removeProperty(k); });
+    function wallpaperFor(ambiance, customUrl) {
+        if (ambiance === 'eprof') {
+            return { image: 'url("images/logo eProf.jpg")', size: 'min(48vw, 380px)', repeat: 'no-repeat', pos: 'center 38%' };
+        }
+        if (ambiance === 'lycee') {
+            return { image: 'url("images/LOGO JD - Cholet blanc sans fond.png")', size: 'min(55vw, 440px)', repeat: 'no-repeat', pos: 'center 40%' };
+        }
+        if (ambiance === 'chlorofil') {
+            return { image: 'url("images/logo-chlorofil.png")', size: '160px', repeat: 'repeat', pos: '0 0' };
+        }
+        if (ambiance === 'points') {
+            return {
+                image: 'radial-gradient(circle, rgba(15,23,42,0.22) 1.2px, transparent 1.4px)',
+                size: '18px 18px',
+                repeat: 'repeat',
+                pos: '0 0'
+            };
+        }
+        if (ambiance === 'losanges') {
+            return {
+                image: 'repeating-linear-gradient(135deg, rgba(15,23,42,0.08) 0 12px, transparent 12px 24px)',
+                size: 'auto',
+                repeat: 'repeat',
+                pos: '0 0'
+            };
+        }
+        if (ambiance === 'vagues') {
+            return {
+                image: 'repeating-linear-gradient(180deg, transparent 0 18px, rgba(8,145,178,0.12) 18px 20px)',
+                size: 'auto',
+                repeat: 'repeat',
+                pos: '0 0'
+            };
+        }
+        if (ambiance === 'custom' && customUrl) {
+            return { image: 'url("' + customUrl + '")', size: 'cover', repeat: 'no-repeat', pos: 'center' };
+        }
+        return { image: 'none', size: 'auto', repeat: 'no-repeat', pos: 'center' };
     }
 
-    function writeVars(palette) {
+    function syncClasses(el, all, keep) {
+        if (!el) return;
+        all.forEach(function (c) { el.classList.remove(c); });
+        if (keep) el.classList.add(keep);
+    }
+
+    function writeVars(palette, wallpaper, intensite, chromeStyle) {
         var root = document.documentElement;
         root.style.setProperty('--eprof-accent', palette.accent);
         root.style.setProperty('--eprof-accent-dark', palette.accentDark);
@@ -102,28 +143,59 @@
         root.style.setProperty('--eprof-surface', palette.surface);
         root.style.setProperty('--eprof-surface-alt', palette.surfaceAlt);
         root.style.setProperty('--eprof-surface-hover', palette.surfaceAlt);
+        root.style.setProperty('--eprof-wallpaper-image', wallpaper.image);
+        root.style.setProperty('--eprof-wallpaper-size', wallpaper.size);
+        root.style.setProperty('--eprof-wallpaper-repeat', wallpaper.repeat);
+        root.style.setProperty('--eprof-wallpaper-pos', wallpaper.pos);
+        root.style.setProperty('--eprof-wallpaper-opacity', String(OPACITY[intensite] || OPACITY.moyen));
         if (document.body) {
             document.body.style.setProperty('--eprof-accent', palette.accent);
             document.body.style.setProperty('--eprof-chrome', palette.chrome);
             document.body.style.setProperty('--eprof-bg', palette.bg);
         }
+        var chromeImage = 'none';
+        if (chromeStyle === 'degrade') {
+            chromeImage = 'linear-gradient(90deg, ' + palette.chrome + ' 0%, ' + palette.accentDark + ' 100%)';
+        } else if (chromeStyle === 'texture') {
+            chromeImage = 'linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.28)), url("images/logo eProf.jpg")';
+        }
+        root.style.setProperty('--eprof-chrome-image', chromeImage);
     }
 
-    function syncColorClasses(name) {
-        var classes = ['theme-ocean', 'theme-foret', 'theme-crepuscule', 'theme-rose', 'theme-ambre', 'theme-custom'];
-        [document.documentElement, document.body].forEach(function (el) {
-            if (!el) return;
-            classes.forEach(function (c) { el.classList.remove(c); });
-            if (name && name !== 'defaut') el.classList.add('theme-' + name);
-        });
-    }
-
-    function apply(couleurTheme, couleurAccent, sombre) {
+    function apply(couleurTheme, couleurAccent, sombre, extras) {
+        extras = extras || {};
         var name = couleurTheme || 'defaut';
         if (name !== 'custom' && !LIGHT[name]) name = 'defaut';
-        syncColorClasses(name);
-        writeVars(buildPalette(name, couleurAccent, !!sombre));
-        if (document.body) document.body.dataset.eprofColorTheme = name;
+        var ambiance = extras.ambiance || 'none';
+        var intensite = extras.fondIntensite || 'moyen';
+        var chromeStyle = extras.chromeStyle || 'uni';
+        var customUrl = extras.fondPersoUrl || '';
+        if (ambiance === 'custom' && !customUrl) ambiance = 'none';
+
+        [document.documentElement, document.body].forEach(function (el) {
+            syncClasses(el, COLOR_CLASSES, name !== 'defaut' ? 'theme-' + name : '');
+            syncClasses(el, AMBIANCE_CLASSES, 'ambiance-' + ambiance);
+            syncClasses(el, CHROME_CLASSES, 'chrome-' + chromeStyle);
+        });
+        writeVars(buildPalette(name, couleurAccent, !!sombre), wallpaperFor(ambiance, customUrl), intensite, chromeStyle);
+        if (document.body) {
+            document.body.dataset.eprofColorTheme = name;
+            document.body.dataset.eprofAmbiance = ambiance;
+        }
+    }
+
+    function readFondPerso() {
+        try { return localStorage.getItem(FOND_KEY) || ''; } catch (e) { return ''; }
+    }
+
+    function saveFondPerso(dataUrl) {
+        try {
+            if (!dataUrl) localStorage.removeItem(FOND_KEY);
+            else localStorage.setItem(FOND_KEY, dataUrl);
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     function applyFromStorage() {
@@ -135,7 +207,12 @@
         [document.documentElement, document.body].forEach(function (el) {
             if (el) el.classList.toggle('theme-sombre', sombre);
         });
-        apply(affichage.couleurTheme || 'defaut', affichage.couleurAccent || '', sombre);
+        apply(affichage.couleurTheme || 'defaut', affichage.couleurAccent || '', sombre, {
+            ambiance: affichage.ambiance || 'none',
+            fondIntensite: affichage.fondIntensite || 'moyen',
+            chromeStyle: affichage.chromeStyle || 'uni',
+            fondPersoUrl: readFondPerso()
+        });
         var densite = affichage.densite || 'normal';
         [document.documentElement, document.body].forEach(function (el) {
             if (!el) return;
@@ -145,10 +222,35 @@
         });
     }
 
+    function compressImageFile(file, maxW, quality) {
+        return new Promise(function (resolve, reject) {
+            var img = new Image();
+            var url = URL.createObjectURL(file);
+            img.onload = function () {
+                var w = img.naturalWidth;
+                var h = img.naturalHeight;
+                var scale = Math.min(1, maxW / Math.max(w, h));
+                var canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(w * scale));
+                canvas.height = Math.max(1, Math.round(h * scale));
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = function () {
+                URL.revokeObjectURL(url);
+                reject(new Error('Image illisible'));
+            };
+            img.src = url;
+        });
+    }
+
     global.EprofTheme = {
         apply: apply,
         applyFromStorage: applyFromStorage,
-        clearInlineVars: clearInlineVars
+        readFondPerso: readFondPerso,
+        saveFondPerso: saveFondPerso,
+        compressImageFile: compressImageFile
     };
 
     try { applyFromStorage(); } catch (e) {}
