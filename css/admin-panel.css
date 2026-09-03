@@ -637,3 +637,56 @@ body.theme-sombre .admin-feedback {
     background: #14532d;
     color: #bbf7d0;
 }
+
+.admin-trombi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 0.75em;
+    margin-top: 0.8em;
+}
+
+.admin-trombi-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5em;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+}
+
+.admin-trombi-card img {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #e2e8f0;
+}
+
+.admin-trombi-card input,
+.admin-trombi-card select {
+    width: 100%;
+    font-size: 0.8rem;
+    padding: 0.25em 0.35em;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+}
+
+.admin-trombi-card .trombi-keep {
+    font-size: 0.8rem;
+    display: flex;
+    gap: 0.35em;
+    align-items: center;
+}
+
+body.theme-sombre .admin-trombi-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.theme-sombre .admin-trombi-card input,
+body.theme-sombre .admin-trombi-card select {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: #475569;
+}

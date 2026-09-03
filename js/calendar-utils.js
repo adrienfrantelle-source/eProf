@@ -83,6 +83,9 @@
     var DEFAULT_AGENDA_SETTINGS = { notificationsActives: false, rappelParDefaut: '60', afficherTermines: false };
 
     var formBound = false;
+    var COURSE_DURATION_MIN = 55;
+    var courseEndManual = false;
+    var fillingCourseEnd = false;
     var formCallbacks = { onSaved: null, onDeleted: null, occurrenceEdit: null };
     var notificationTimer = null;
     var closedDayCache = {};
@@ -912,6 +915,36 @@
         });
     }
 
+    function addMinutesToLocalInput(value, minutes) {
+        if (!value) return '';
+        var d = new Date(value);
+        if (isNaN(d.getTime())) return '';
+        d.setMinutes(d.getMinutes() + minutes);
+        return toLocalDateTimeInput(d);
+    }
+
+    function durationMinutesBetween(startVal, endVal) {
+        if (!startVal || !endVal) return null;
+        var a = new Date(startVal);
+        var b = new Date(endVal);
+        if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+        return Math.round((b.getTime() - a.getTime()) / 60000);
+    }
+
+    function applyCoursDuration(form) {
+        if (!form) return;
+        var typeEl = form.querySelector('#event-type');
+        var allDayEl = form.querySelector('#event-all-day');
+        var startInput = form.querySelector('#event-start');
+        var endInput = form.querySelector('#event-end');
+        if (!typeEl || !allDayEl || !startInput || !endInput) return;
+        if (typeEl.value !== 'cours' || allDayEl.checked || !startInput.value) return;
+        if (courseEndManual) return;
+        fillingCourseEnd = true;
+        endInput.value = addMinutesToLocalInput(startInput.value, COURSE_DURATION_MIN);
+        fillingCourseEnd = false;
+    }
+
     function applyRecurringMode(form) {
         var on = form.querySelector('#event-recurring').checked;
         var box = form.querySelector('#event-recur-options');
@@ -971,7 +1004,24 @@
             }).join('');
         }
 
-        form.querySelector('#event-all-day').addEventListener('change', function () { applyAllDayMode(form); });
+        form.querySelector('#event-all-day').addEventListener('change', function () {
+            applyAllDayMode(form);
+            if (!this.checked) applyCoursDuration(form);
+        });
+        form.querySelector('#event-type').addEventListener('change', function () {
+            if (this.value === 'cours') {
+                courseEndManual = false;
+                applyCoursDuration(form);
+            }
+        });
+        form.querySelector('#event-start').addEventListener('input', function () { applyCoursDuration(form); });
+        form.querySelector('#event-start').addEventListener('change', function () { applyCoursDuration(form); });
+        function markEndManual() {
+            if (fillingCourseEnd) return;
+            courseEndManual = true;
+        }
+        form.querySelector('#event-end').addEventListener('input', markEndManual);
+        form.querySelector('#event-end').addEventListener('change', markEndManual);
         form.querySelector('#event-recurring').addEventListener('change', function () { applyRecurringMode(form); });
         form.querySelector('#event-class').addEventListener('change', function () {
             var nom = form.querySelector('#event-class').value;
@@ -1004,6 +1054,8 @@
         function closeModal() {
             modal.style.display = 'none';
             form.reset();
+            courseEndManual = false;
+            fillingCourseEnd = false;
             formCallbacks.onSaved = null;
             formCallbacks.onDeleted = null;
             formCallbacks.occurrenceEdit = null;
@@ -1180,6 +1232,17 @@
         var emoji = item ? (item.emoji || '') : '';
         selectInGroup(form, '.agenda-color', function (el) { return el.dataset.color === color; });
         selectInGroup(form, '.agenda-emoji', function (el) { return el.dataset.emoji === emoji; });
+
+        courseEndManual = false;
+        var typeVal = form.querySelector('#event-type').value;
+        if (typeVal === 'cours' && !allDay) {
+            var dur = durationMinutesBetween(startInput.value, endInput.value);
+            if (item && endInput.value && dur != null && Math.abs(dur - COURSE_DURATION_MIN) > 1) {
+                courseEndManual = true;
+            } else {
+                applyCoursDuration(form);
+            }
+        }
 
         modal.style.display = 'flex';
         setTimeout(function () { form.querySelector('#event-title').focus(); }, 30);

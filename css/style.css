@@ -931,6 +931,25 @@ main#main-content {
     font-size: 2.4em;
     line-height: 1;
     margin-bottom: 6px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f1f5f9;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trombi-photo-img {
+    aspect-ratio: 3 / 4;
+    min-height: 0;
+}
+
+.trombi-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .trombi-nom {
@@ -2095,6 +2114,42 @@ body.theme-sombre .converter-controls input {
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
+}
+
+.plan-lien-classe-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.plan-lien-classe-row label {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.plan-lien-classe-row .plan-select {
+    min-width: 200px;
+}
+
+.plan-lien-classe-row .plan-hint-text {
+    flex: 1 1 100%;
+    margin: 0;
+}
+
+.suivi-plan-classe-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.suivi-plan-classe-select {
+    max-width: 220px;
+    padding: 6px 8px;
+    font-size: 0.85rem;
 }
 
 .plan-config-accordion {
@@ -6348,6 +6403,18 @@ body.theme-sombre .archive-item-card strong {
 body.theme-sombre .trombi-nom-famille,
 body.theme-sombre .archive-item-card span {
     color: #94a3b8;
+}
+
+body.theme-sombre .trombi-photo {
+    background: #0f172a;
+}
+
+body.theme-sombre .plan-lien-classe-row {
+    border-bottom-color: #475569;
+}
+
+body.theme-sombre .plan-lien-classe-row label {
+    color: #e2e8f0;
 }
 
 body.theme-sombre .archive-year-btn.active {

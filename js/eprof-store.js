@@ -149,6 +149,16 @@
         return { data, error };
     }
 
+    async function createSignedUrls(bucket, paths, expiresIn) {
+        const client = await getClient();
+        if (!client) return { data: null, error: new Error('Supabase non disponible') };
+        const list = (paths || []).filter(Boolean);
+        if (!list.length) return { data: [], error: null };
+        const { data, error } = await client.storage.from(bucket).createSignedUrls(list, expiresIn || 3600);
+        if (error) console.error('❌ EprofStore.createSignedUrls', error);
+        return { data, error };
+    }
+
     window.EprofStore = {
         getClient,
         getSession,
@@ -164,6 +174,7 @@
         saveTeacherDocument,
         uploadFile,
         removeFile,
-        createSignedUrl
+        createSignedUrl,
+        createSignedUrls
     };
 })();

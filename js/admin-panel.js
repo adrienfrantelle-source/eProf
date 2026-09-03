@@ -2006,6 +2006,17 @@
                 <div class="eleves-apercu"></div>
             </div>
 
+            <div class="admin-card">
+                <h4>📸 Importer un trombinoscope (PDF)</h4>
+                <p class="admin-hint">Fichier Pronote (photo au-dessus du nom). Les photos sont associées aux élèves <strong>déjà présents</strong> dans la classe : aucune fiche n’est créée. Vérifiez l’aperçu, corrigez un nom ou choisissez l’élève à la main, puis validez.</p>
+                <div class="admin-inline-form">
+                    <select class="eleves-trombi-classe"></select>
+                    <input type="file" class="eleves-trombi-pdf" accept="application/pdf,.pdf">
+                    <button type="button" class="btn-secondary eleves-trombi-lire-btn">Lire le PDF</button>
+                </div>
+                <div class="eleves-trombi-apercu"></div>
+            </div>
+
             <form class="admin-add-form eleve-add-form">
                 <input type="text" class="eleve-nom" placeholder="NOM" required>
                 <input type="text" class="eleve-prenom" placeholder="Prénom" required>
@@ -2041,6 +2052,8 @@
                 const options = classes.map(function (c) { return `<option value="${escapeHtml(c.nom)}">${escapeHtml(c.nom)}</option>`; }).join('');
                 root.querySelector('.eleves-classe-import').innerHTML = options;
                 root.querySelector('.eleve-classe').innerHTML = options;
+                const trombiClasse = root.querySelector('.eleves-trombi-classe');
+                if (trombiClasse) trombiClasse.innerHTML = options;
                 root.querySelector('.eleves-filtre-classe').innerHTML = '<option value="">Toutes les classes</option>' + options;
             }
 
@@ -2063,6 +2076,7 @@
                         </select></td>
                         <td><select class="admin-cell e-classe">${classes.map(function (c) { return `<option value="${escapeHtml(c.nom)}"${c.nom === e.classe ? ' selected' : ''}>${escapeHtml(c.nom)}</option>`; }).join('')}</select></td>
                         <td class="admin-actions">
+                            ${e.photo_path ? '<span title="Photo de trombinoscope">📷</span>' : ''}
                             <button type="button" class="eleve-save-btn" title="Enregistrer">💾</button>
                             <button type="button" class="eleve-delete-btn" title="Supprimer">🗑️</button>
                         </td>
@@ -2184,6 +2198,199 @@
                 } catch (err) {
                     ctx.notify('❌ ' + err.message, true);
                 }
+            });
+
+            const TROMBI_BUCKET = 'student-photos';
+            let trombiRows = [];
+
+            function slugPhoto(value) {
+                return String(value || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^A-Za-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '') || 'eleve';
+            }
+
+            function photoStoragePath(classe, nom, prenom, eleveId) {
+                const idBit = eleveId ? '-' + String(eleveId).slice(0, 8) : '';
+                return ANNEE_COURANTE + '/' + slugPhoto(classe) + '/' + slugPhoto(nom) + '_' + slugPhoto(prenom) + idBit + '.jpg';
+            }
+
+            function elevesDeClasse(classe) {
+                return eleves.filter(function (e) { return e.classe === classe; });
+            }
+
+            function renderTrombiApercu() {
+                const apercu = root.querySelector('.eleves-trombi-apercu');
+                const classe = root.querySelector('.eleves-trombi-classe').value;
+                const liste = elevesDeClasse(classe);
+                if (!trombiRows.length) {
+                    apercu.innerHTML = '';
+                    return;
+                }
+                const parser = window.EprofTrombiPdf;
+                if (!parser) return;
+                trombiRows.forEach(function (row) {
+                    const matched = parser.matchStudent(row.nom, row.prenom, liste);
+                    if (matched) {
+                        row.matchId = matched.id;
+                        if (row.keep !== false) row.keep = true;
+                    } else if (!liste.some(function (e) { return e.id === row.matchId; })) {
+                        row.matchId = '';
+                        row.keep = false;
+                    }
+                });
+                const associes = trombiRows.filter(function (r) { return r.matchId; }).length;
+                apercu.innerHTML = `
+                    <p class="admin-hint">${trombiRows.length} photo(s) lue(s) — ${associes} associée(s) à un élève de « ${escapeHtml(classe || '—')} ». Décochez pour ignorer. Les photos sans élève correspondant ne sont pas importées.</p>
+                    <div class="admin-trombi-grid">
+                        ${trombiRows.map(function (row, idx) {
+                            const options = '<option value="">— Non trouvé —</option>' + liste.map(function (e) {
+                                return `<option value="${escapeHtml(e.id)}"${e.id === row.matchId ? ' selected' : ''}>${escapeHtml(e.prenom + ' ' + e.nom)}</option>`;
+                            }).join('');
+                            const checked = row.keep !== false && row.matchId ? ' checked' : '';
+                            const disabled = row.matchId ? '' : ' disabled';
+                            return `<article class="admin-trombi-card" data-idx="${idx}">
+                                <img src="${row.dataUrl}" alt="">
+                                <input type="text" class="trombi-nom" value="${escapeHtml(row.nom)}" aria-label="Nom">
+                                <input type="text" class="trombi-prenom" value="${escapeHtml(row.prenom)}" aria-label="Prénom">
+                                <select class="trombi-match" aria-label="Élève associé">${options}</select>
+                                <label class="trombi-keep"><input type="checkbox" class="trombi-keep-box"${checked}${disabled}> Importer</label>
+                            </article>`;
+                        }).join('')}
+                    </div>
+                    <div class="admin-inline-form" style="margin-top:0.8em;">
+                        <button type="button" class="btn-primary eleves-trombi-valider-btn">Valider l’import des photos</button>
+                    </div>`;
+
+                apercu.querySelectorAll('.admin-trombi-card').forEach(function (card) {
+                    const idx = Number(card.dataset.idx);
+                    const row = trombiRows[idx];
+                    const nomInput = card.querySelector('.trombi-nom');
+                    const prenomInput = card.querySelector('.trombi-prenom');
+                    const matchSel = card.querySelector('.trombi-match');
+                    const keepBox = card.querySelector('.trombi-keep-box');
+
+                    function syncKeep() {
+                        keepBox.disabled = !row.matchId;
+                        if (!row.matchId) {
+                            keepBox.checked = false;
+                            row.keep = false;
+                        }
+                    }
+
+                    nomInput.addEventListener('change', function () {
+                        row.nom = nomInput.value.trim().toUpperCase();
+                        nomInput.value = row.nom;
+                        const hit = parser.matchStudent(row.nom, row.prenom, liste);
+                        row.matchId = hit ? hit.id : '';
+                        matchSel.value = row.matchId;
+                        row.keep = !!row.matchId;
+                        keepBox.checked = row.keep;
+                        syncKeep();
+                    });
+                    prenomInput.addEventListener('change', function () {
+                        row.prenom = prenomInput.value.trim();
+                        const hit = parser.matchStudent(row.nom, row.prenom, liste);
+                        row.matchId = hit ? hit.id : '';
+                        matchSel.value = row.matchId;
+                        row.keep = !!row.matchId;
+                        keepBox.checked = row.keep;
+                        syncKeep();
+                    });
+                    matchSel.addEventListener('change', function () {
+                        row.matchId = matchSel.value;
+                        row.keep = !!row.matchId;
+                        keepBox.checked = row.keep;
+                        syncKeep();
+                    });
+                    keepBox.addEventListener('change', function () {
+                        row.keep = keepBox.checked;
+                    });
+                });
+
+                const valider = apercu.querySelector('.eleves-trombi-valider-btn');
+                if (valider) valider.addEventListener('click', importerPhotosTrombi);
+            }
+
+            async function importerPhotosTrombi() {
+                const classe = root.querySelector('.eleves-trombi-classe').value;
+                if (!classe) return ctx.notify('❌ Choisissez la classe.', true);
+                if (!window.EprofTrombiPdf) return ctx.notify('❌ Module PDF indisponible.', true);
+                const aImporter = trombiRows.filter(function (r) { return r.keep !== false && r.matchId && r.dataUrl; });
+                if (!aImporter.length) return ctx.notify('❌ Aucune photo associée à importer.', true);
+                if (!confirm('Enregistrer ' + aImporter.length + ' photo(s) pour « ' + classe + ' » ?')) return;
+
+                const parser = window.EprofTrombiPdf;
+                let ok = 0;
+                let lastError = '';
+                for (let i = 0; i < aImporter.length; i++) {
+                    const row = aImporter[i];
+                    ctx.notify('Import des photos… ' + (i + 1) + ' / ' + aImporter.length);
+                    const eleve = eleves.find(function (e) { return e.id === row.matchId; });
+                    if (!eleve) continue;
+                    const blob = parser.dataUrlToBlob(row.dataUrl);
+                    const path = photoStoragePath(classe, eleve.nom, eleve.prenom, eleve.id);
+                    const file = new File([blob], slugPhoto(eleve.nom) + '.jpg', { type: 'image/jpeg' });
+                    if (eleve.photo_path && eleve.photo_path !== path) {
+                        await window.EprofStore.removeFile(TROMBI_BUCKET, eleve.photo_path);
+                    }
+                    const up = await window.EprofStore.uploadFile(TROMBI_BUCKET, path, file, {
+                        upsert: true,
+                        contentType: 'image/jpeg'
+                    });
+                    if (up.error) {
+                        lastError = up.error.message || 'upload';
+                        continue;
+                    }
+                    const saved = await window.EprofStore.update('school_students', eleve.id, { photo_path: path });
+                    if (saved.error) {
+                        lastError = saved.error.message || 'mise à jour';
+                        continue;
+                    }
+                    ok += 1;
+                }
+                if (window.EprofReferentiel) window.EprofReferentiel.load(true);
+                await logAction('import_trombinoscope', classe, { photos: ok, total: aImporter.length });
+                if (ok === aImporter.length) {
+                    ctx.notify('✅ ' + ok + ' photo(s) enregistrée(s) pour ' + classe + '.');
+                } else {
+                    ctx.notify('⚠️ ' + ok + ' / ' + aImporter.length + ' photo(s) enregistrée(s)' + (lastError ? ' (' + lastError + ')' : '') + '. Pensez à appliquer la migration student-photos si le stockage n’existe pas encore.', true);
+                }
+                root.querySelector('.eleves-trombi-pdf').value = '';
+                reload();
+            }
+
+            root.querySelector('.eleves-trombi-lire-btn').addEventListener('click', async function () {
+                const fichier = root.querySelector('.eleves-trombi-pdf').files[0];
+                if (!fichier) return ctx.notify('❌ Choisissez un PDF de trombinoscope.', true);
+                if (!window.EprofTrombiPdf) return ctx.notify('❌ Module PDF indisponible. Rechargez la page.', true);
+                ctx.notify('Lecture du PDF…');
+                try {
+                    const parsed = await window.EprofTrombiPdf.parseFile(fichier, {
+                        classNames: classes.map(function (c) { return c.nom; })
+                    });
+                    if (!parsed.students.length) {
+                        return ctx.notify('❌ Aucune photo d’élève détectée. Vérifiez qu’il s’agit d’un trombinoscope Pronote.', true);
+                    }
+                    if (parsed.classe) {
+                        const sel = root.querySelector('.eleves-trombi-classe');
+                        if (Array.prototype.some.call(sel.options, function (o) { return o.value === parsed.classe; })) {
+                            sel.value = parsed.classe;
+                        }
+                    }
+                    trombiRows = parsed.students.map(function (s) {
+                        return { nom: s.nom, prenom: s.prenom, dataUrl: s.dataUrl, matchId: '', keep: true };
+                    });
+                    renderTrombiApercu();
+                    ctx.notify('✅ ' + trombiRows.length + ' photo(s) lue(s). Vérifiez l’association puis validez.');
+                } catch (err) {
+                    ctx.notify('❌ ' + (err && err.message ? err.message : 'Lecture du PDF impossible.'), true);
+                }
+            });
+
+            root.querySelector('.eleves-trombi-classe').addEventListener('change', function () {
+                if (trombiRows.length) renderTrombiApercu();
             });
 
             reload();

@@ -175,10 +175,126 @@ document.addEventListener('DOMContentLoaded', () => {
         return out;
     }
 
+    function getLinkedPlansStorageKey() {
+        if (window.teacherManager && window.teacherManager.getStorageKey) {
+            return window.teacherManager.getStorageKey('linkedClassPlans');
+        }
+        return 'eprof-linked-class-plans';
+    }
+
+    function loadLinkedClassPlans() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(getLinkedPlansStorageKey()) || '[]');
+            return Array.isArray(raw) ? raw : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function writeLinkedClassPlans(list) {
+        try {
+            localStorage.setItem(getLinkedPlansStorageKey(), JSON.stringify((list || []).slice(0, 40)));
+        } catch (e) { /* quota */ }
+    }
+
+    function rememberLinkedClassPlan(plan, name) {
+        if (!plan) return null;
+        const list = loadLinkedClassPlans();
+        const id = plan.localId || ('plan-' + Date.now());
+        plan.localId = id;
+        const entry = {
+            localId: id,
+            cloudId: plan.cloudId || null,
+            name: name || plan.nomPlan || 'Plan de classe',
+            classeLiee: plan.classeLiee || '',
+            date: plan.date || new Date().toISOString(),
+            plan: plan
+        };
+        const idx = list.findIndex(function (p) { return p.localId === id; });
+        if (idx >= 0) list[idx] = entry;
+        else list.unshift(entry);
+        writeLinkedClassPlans(list);
+        return entry;
+    }
+
+    function getPlansForClasse(classe) {
+        if (!classe) return [];
+        return loadLinkedClassPlans()
+            .filter(function (p) { return p.classeLiee === classe && p.plan; })
+            .sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+    }
+
+    function planClasseLieeOptionsHtml(selected) {
+        const noms = getVisibleTeacherClasses();
+        const sel = selected || '';
+        if (!noms.length) return '<option value="">— Aucune classe enseignée —</option>';
+        return '<option value="">— Aucune classe —</option>' + noms.map(function (n) {
+            return `<option value="${n}"${n === sel ? ' selected' : ''}>${n}</option>`;
+        }).join('');
+    }
+
+    function setPlanClasseLieeSelect(container, classe) {
+        const sel = container.querySelector('#plan-classe-liee');
+        if (!sel) return;
+        if (classe && !Array.prototype.some.call(sel.options, function (o) { return o.value === classe; })) {
+            const opt = document.createElement('option');
+            opt.value = classe;
+            opt.textContent = classe;
+            sel.appendChild(opt);
+        }
+        sel.value = classe || '';
+    }
+
+    function mergeCloudPlansIntoLocal(rows) {
+        (rows || []).forEach(function (row) {
+            const plan = Object.assign({}, row.data || {});
+            if (!plan.classeLiee) return;
+            plan.cloudId = row.id;
+            plan.nomPlan = row.name || plan.nomPlan;
+            plan.localId = plan.localId || ('cloud-' + row.id);
+            plan.date = row.updated_at || plan.date || new Date().toISOString();
+            rememberLinkedClassPlan(plan, row.name);
+        });
+    }
+
     function classeBtnHtml(classe, count) {
         const color = window.getClassColor ? window.getClassColor(classe) : '#2563eb';
         const extra = typeof count === 'number' ? ` <small>(${count})</small>` : '';
         return `<button class="classe-btn" data-classe="${classe}" style="background:${color};">📚 ${classe}${extra}</button>`;
+    }
+
+    function trombiPhotoHtml(classe, eleve) {
+        const src = eleve.photoUrl
+            || (window.EprofTrombiPhotos && window.EprofTrombiPhotos.lookup
+                ? window.EprofTrombiPhotos.lookup(classe, eleve.nom, eleve.prenom)
+                : null);
+        if (src) {
+            const alt = ((eleve.prenom || '') + ' ' + (eleve.nom || '')).trim();
+            return `<div class="trombi-photo trombi-photo-img"><img src="${src}" alt="${alt}" onerror="this.parentNode.classList.remove('trombi-photo-img'); this.parentNode.textContent='🧑';"></div>`;
+        }
+        const emoji = eleve.sexe === 'F' ? '👧' : (eleve.sexe === 'M' ? '👦' : '🧑');
+        return `<div class="trombi-photo">${emoji}</div>`;
+    }
+
+    async function resolveTrombiPhotoUrls(eleves) {
+        const list = (eleves || []).map(function (e) { return Object.assign({}, e); });
+        const paths = list.map(function (e) { return e.photo_path; }).filter(Boolean);
+        if (!paths.length || !window.EprofStore || typeof window.EprofStore.createSignedUrls !== 'function') {
+            return list;
+        }
+        try {
+            if (!(await window.EprofStore.isOnlineReady())) return list;
+            const { data, error } = await window.EprofStore.createSignedUrls('student-photos', paths, 3600);
+            if (error || !data) return list;
+            const map = {};
+            data.forEach(function (item) {
+                if (item && item.path && item.signedUrl && !item.error) map[item.path] = item.signedUrl;
+            });
+            list.forEach(function (e) {
+                if (e.photo_path && map[e.photo_path]) e.photoUrl = map[e.photo_path];
+            });
+        } catch (err) { /* hors ligne : photos locales */ }
+        return list;
     }
 
     function emptyTeacherClassesHtml() {
@@ -670,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 highlightSidebar('converter');
                 break;
             case 'plan-classe':
-                renderPlanClasse(mainContent);
+                renderPlanClasse(mainContent, extra);
                 highlightSidebar('plan-classe');
                 break;
             case 'tableau-blanc':
@@ -2471,6 +2587,15 @@ if (typeof module !== 'undefined' && module.exports) {
         const listes = getListsForTeacher();
         const classes = getVisibleTeacherClasses();
 
+        function elevesPourTrombi(classe) {
+            const fromList = (listes[classe] || []).slice();
+            if (fromList.length) return fromList;
+            if (window.EprofTrombiPhotos && typeof window.EprofTrombiPhotos.studentsForClass === 'function') {
+                return window.EprofTrombiPhotos.studentsForClass(classe) || [];
+            }
+            return [];
+        }
+
         if (classes.length === 0) {
             container.innerHTML = `
                 <div id="suivi-eleves-module">
@@ -2486,7 +2611,7 @@ if (typeof module !== 'undefined' && module.exports) {
                 <div class="selection-classe-suivi">
                     <h3>Sélectionnez une classe</h3>
                     <div class="classes-grid">
-                        ${classes.map(classe => classeBtnHtml(classe, (listes[classe] || []).length)).join('')}
+                        ${classes.map(classe => classeBtnHtml(classe, elevesPourTrombi(classe).length)).join('')}
                     </div>
                 </div>
                 <div id="trombi-contenu" style="display:none; margin-top:20px;">
@@ -2506,22 +2631,27 @@ if (typeof module !== 'undefined' && module.exports) {
         const grille = container.querySelector('#trombi-grille');
 
         container.querySelectorAll('.classe-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', async function () {
                 const classe = this.dataset.classe;
-                const eleves = (listes[classe] || []).slice()
+                let eleves = elevesPourTrombi(classe)
                     .sort((a, b) => (a.nom + a.prenom).localeCompare(b.nom + b.prenom));
 
-                container.querySelector('#trombi-titre').textContent = `${classe} — ${eleves.length} élève(s)`;
-                grille.innerHTML = eleves.map(e => `
-                    <div class="trombi-carte">
-                        <div class="trombi-photo">${e.sexe === 'F' ? '👧' : (e.sexe === 'M' ? '👦' : '🧑')}</div>
-                        <div class="trombi-nom">${e.prenom}</div>
-                        <div class="trombi-nom-famille">${e.nom}</div>
-                    </div>
-                `).join('');
+                function paint() {
+                    container.querySelector('#trombi-titre').textContent = `${classe} — ${eleves.length} élève(s)`;
+                    grille.innerHTML = eleves.map(e => `
+                        <div class="trombi-carte">
+                            ${trombiPhotoHtml(classe, e)}
+                            <div class="trombi-nom">${e.prenom}</div>
+                            <div class="trombi-nom-famille">${e.nom}</div>
+                        </div>
+                    `).join('');
+                }
 
+                paint();
                 selection.style.display = 'none';
                 contenu.style.display = 'block';
+                eleves = await resolveTrombiPhotoUrls(eleves);
+                paint();
             });
         });
 
@@ -2760,6 +2890,10 @@ if (typeof module !== 'undefined' && module.exports) {
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button type="button" id="ouvrir-tableau-suivi-btn" class="btn-primary">📊 Tableau de suivi</button>
                             <button type="button" id="ouvrir-edt-btn" class="btn-secondary">📅 EDT</button>
+                            <span id="suivi-plan-classe-actions" class="suivi-plan-classe-actions" hidden>
+                                <button type="button" id="ouvrir-plan-classe-btn" class="btn-secondary">🪑 Plan de classe</button>
+                                <select id="suivi-plan-classe-select" class="plan-select suivi-plan-classe-select" hidden aria-label="Autres plans de classe"></select>
+                            </span>
                             <button id="retour-selection-suivi" class="btn-secondary">← Retour</button>
                         </div>
                     </div>
@@ -2999,6 +3133,66 @@ if (typeof module !== 'undefined' && module.exports) {
             });
         }
 
+        function formatPlanDate(iso) {
+            try {
+                return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function refreshPlanClasseAccess(classe) {
+            const wrap = container.querySelector('#suivi-plan-classe-actions');
+            const sel = container.querySelector('#suivi-plan-classe-select');
+            if (!wrap || !sel) return;
+            const plans = getPlansForClasse(classe);
+            if (!plans.length) {
+                wrap.hidden = true;
+                sel.hidden = true;
+                sel.innerHTML = '';
+                return;
+            }
+            wrap.hidden = false;
+            if (plans.length > 1) {
+                sel.hidden = false;
+                sel.innerHTML = plans.map(function (p, i) {
+                    const when = formatPlanDate(p.date);
+                    const label = (p.name || 'Plan') + (i === 0 ? ' (récent)' : '') + (when ? ' — ' + when : '');
+                    return `<option value="${p.localId}">${label}</option>`;
+                }).join('');
+            } else {
+                sel.hidden = true;
+                sel.innerHTML = `<option value="${plans[0].localId}" selected></option>`;
+            }
+        }
+
+        async function syncCloudPlansForClasse(classe) {
+            if (!window.EprofStore || !(await window.EprofStore.isOnlineReady())) return;
+            try {
+                const teacherId = await window.EprofStore.getTeacherId();
+                const { data, error } = await window.EprofStore.list('class_plans', {
+                    filters: { teacher_id: teacherId },
+                    orderBy: 'updated_at',
+                    ascending: false
+                });
+                if (error || !data) return;
+                mergeCloudPlansIntoLocal(data);
+                if (classeActuelle === classe) refreshPlanClasseAccess(classe);
+            } catch (e) { /* hors ligne */ }
+        }
+
+        const planClasseBtn = container.querySelector('#ouvrir-plan-classe-btn');
+        if (planClasseBtn) {
+            planClasseBtn.addEventListener('click', function () {
+                if (!classeActuelle) return;
+                const plans = getPlansForClasse(classeActuelle);
+                if (!plans.length) return;
+                const sel = container.querySelector('#suivi-plan-classe-select');
+                const chosen = (sel && sel.value && plans.find(function (p) { return p.localId === sel.value; })) || plans[0];
+                handleDashboardTool('plan-classe', { planToLoad: chosen.plan, planLocalId: chosen.localId });
+            });
+        }
+
         // Event listeners sur les boutons de classe
         container.querySelectorAll('.classe-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -3030,6 +3224,8 @@ if (typeof module !== 'undefined' && module.exports) {
             elevesActuels.sort((a, b) => a.nom.localeCompare(b.nom));
             
             afficherEleves(classe);
+            refreshPlanClasseAccess(classe);
+            syncCloudPlansForClasse(classe);
             
             // Afficher le bouton d'émargement
             const emargementContainer = container.querySelector('#emargement-container');
@@ -6680,12 +6876,19 @@ if (typeof module !== 'undefined' && module.exports) {
     // ========================================
     // PLAN DE CLASSE
     // ========================================
-    function renderPlanClasse(container) {
+    function renderPlanClasse(container, extra) {
         container.innerHTML = `
             <div id="plan-classe-module">
                 <h2>🪑 Plan de classe</h2>
                 
                 <div class="plan-classe-controls">
+                    <div class="plan-lien-classe-row">
+                        <label for="plan-classe-liee">Lier à une classe</label>
+                        <select id="plan-classe-liee" class="plan-select">
+                            ${planClasseLieeOptionsHtml('')}
+                        </select>
+                        <p class="plan-hint-text">Accessible ensuite depuis le suivi des élèves. Si plusieurs plans sont liés, le plus récent est proposé en premier.</p>
+                    </div>
                     <details class="plan-config-accordion" id="plan-config-accordion">
                         <summary>⚙️ Configuration de la classe</summary>
                         <div class="config-accordion-body">
@@ -6795,7 +6998,7 @@ if (typeof module !== 'undefined' && module.exports) {
             </div>
         `;
 
-        initPlanClasse(container);
+        initPlanClasse(container, extra);
     }
 
     function generateTablesHTML() {
@@ -6815,7 +7018,7 @@ if (typeof module !== 'undefined' && module.exports) {
         return html;
     }
 
-    function initPlanClasse(container) {
+    function initPlanClasse(container, extra) {
         const configDefautBtn = container.querySelector('#config-defaut-btn');
         const configPersoBtn = container.querySelector('#config-perso-btn');
         const configAccordion = container.querySelector('#plan-config-accordion');
@@ -6851,6 +7054,24 @@ if (typeof module !== 'undefined' && module.exports) {
         let currentEleves = [];
         let modePersonnalise = false;
         let modeConfigurationTables = false; // true = on configure les tables, false = on place les élèves
+        let currentPlanLocalId = (extra && extra.planLocalId) || '';
+
+        function persistCurrentLinkedPlan(name) {
+            const plan = capturerPlan(container, modePersonnalise);
+            if (currentPlanLocalId) plan.localId = currentPlanLocalId;
+            if (name) plan.nomPlan = name;
+            if (!plan.classeLiee && !currentPlanLocalId) return plan;
+            const entry = rememberLinkedClassPlan(plan, name || plan.nomPlan);
+            if (entry) currentPlanLocalId = entry.localId;
+            return plan;
+        }
+
+        const planLieeSelect = container.querySelector('#plan-classe-liee');
+        if (planLieeSelect) {
+            planLieeSelect.addEventListener('change', function () {
+                persistCurrentLinkedPlan();
+            });
+        }
 
         // Gestion configuration défaut vs personnalisée
         configDefautBtn.addEventListener('click', function() {
@@ -7013,6 +7234,8 @@ if (typeof module !== 'undefined' && module.exports) {
                 currentEleves.push(...eleves);
                 afficherElevesDisponibles(currentEleves, elevesDisponibles);
                 importListeZone.style.display = 'none';
+                setPlanClasseLieeSelect(container, classe);
+                persistCurrentLinkedPlan('Plan ' + classe);
                 
                 alert(`✅ ${eleves.length} élève(s) de la classe "${classe}" importé(s) avec succès !`);
                 
@@ -7039,7 +7262,7 @@ if (typeof module !== 'undefined' && module.exports) {
             const nomFichier = prompt('📝 Entrez le nom du plan de classe :', 'plan-classe-' + new Date().toISOString().slice(0,10));
             if (!nomFichier) return;
             
-            const plan = capturerPlan(container, modePersonnalise);
+            const plan = persistCurrentLinkedPlan(nomFichier);
             plan.nomPlan = nomFichier;
             plan.dateCreation = new Date().toISOString();
             
@@ -7097,7 +7320,7 @@ if (typeof module !== 'undefined' && module.exports) {
             const nomPlan = prompt('📝 Nom du plan à enregistrer en ligne :', 'plan-classe-' + new Date().toISOString().slice(0, 10));
             if (!nomPlan) return;
 
-            const plan = capturerPlan(container, modePersonnalise);
+            const plan = persistCurrentLinkedPlan(nomPlan);
             plan.nomPlan = nomPlan;
 
             const teacherId = await window.EprofStore.getTeacherId();
@@ -7173,7 +7396,13 @@ if (typeof module !== 'undefined' && module.exports) {
                     const row = plans.find(function(p) { return p.id === btn.getAttribute('data-id'); });
                     if (!row) return;
                     modePersonnalise = !!row.data.modePersonnalise;
+                    if (row.data.localId) currentPlanLocalId = row.data.localId;
                     restaurerPlan(row.data, container);
+                    if (row.data.elevesDisponibles) {
+                        currentEleves.length = 0;
+                        currentEleves.push(...row.data.elevesDisponibles);
+                    }
+                    persistCurrentLinkedPlan(row.name);
                     modal.remove();
                     alert(`✅ Plan "${row.name}" chargé !`);
                 });
@@ -7300,6 +7529,9 @@ if (typeof module !== 'undefined' && module.exports) {
                     }
                     
                     const nomPlan = plan.nomPlan || file.name;
+                    if (plan.localId) currentPlanLocalId = plan.localId;
+                    setPlanClasseLieeSelect(container, plan.classeLiee);
+                    persistCurrentLinkedPlan(nomPlan);
                     alert(`✅ Plan "${nomPlan}" chargé avec succès !`);
                     
                 } catch (error) {
@@ -7377,6 +7609,17 @@ if (typeof module !== 'undefined' && module.exports) {
         });
         
         // Initialiser les places avec le drag and drop
+        if (extra && extra.planToLoad) {
+            const plan = extra.planToLoad;
+            currentPlanLocalId = extra.planLocalId || plan.localId || currentPlanLocalId;
+            modePersonnalise = !!plan.modePersonnalise;
+            restaurerPlan(plan, container);
+            if (plan.elevesDisponibles && plan.elevesDisponibles.length) {
+                currentEleves.length = 0;
+                currentEleves.push(...plan.elevesDisponibles);
+            }
+            setPlanClasseLieeSelect(container, plan.classeLiee);
+        }
         activerDragDropPlaces(container, elevesDisponibles, currentEleves);
     }
 
@@ -7745,7 +7988,8 @@ if (typeof module !== 'undefined' && module.exports) {
             date: new Date().toISOString(),
             modePersonnalise: modePersonnalise,
             places: [],
-            elevesDisponibles: []
+            elevesDisponibles: [],
+            classeLiee: (container.querySelector('#plan-classe-liee') || {}).value || ''
         };
         
         // Capturer les élèves disponibles
@@ -7866,6 +8110,8 @@ if (typeof module !== 'undefined' && module.exports) {
         if (plan.elevesDisponibles && plan.elevesDisponibles.length > 0) {
             afficherElevesDisponibles(plan.elevesDisponibles, elevesDisponibles);
         }
+
+        setPlanClasseLieeSelect(container, plan.classeLiee);
     }
 
     function exportPlanPDF(container) {

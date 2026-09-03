@@ -97,7 +97,12 @@
         const data = cache || readCache();
         const eleves = (data && data.eleves) || [];
         return eleves.reduce(function (acc, e) {
-            (acc[e.classe] = acc[e.classe] || []).push({ nom: e.nom, prenom: e.prenom, sexe: e.sexe || '' });
+            (acc[e.classe] = acc[e.classe] || []).push({
+                nom: e.nom,
+                prenom: e.prenom,
+                sexe: e.sexe || '',
+                photo_path: e.photo_path || ''
+            });
             return acc;
         }, {});
     }
