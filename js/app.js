@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
 
     function getAppVersionInfo() {
-        return { version: 'V2.3.11' };
+        return { version: 'V2.5.17' };
     }
 
     function readAppParametres() {

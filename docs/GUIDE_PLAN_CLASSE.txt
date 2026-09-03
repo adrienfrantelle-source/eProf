@@ -79,6 +79,15 @@ Légende : ■ = table active   □ = cellule vide
 🔧 FONCTIONS AVANCÉES
 ═══════════════════════════════════════════════════════════════
 
+🔗 LIER UN PLAN À UNE CLASSE
+────────────────────────────────────────────────────────────────
+► En haut du module, choisissez « Lier à une classe »
+► Le plan devient accessible depuis le suivi des élèves de cette classe
+► Charger une liste officielle sélectionne automatiquement cette classe
+► Si plusieurs plans sont liés à la même classe, le plus récent s’ouvre
+  en premier ; un petit menu permet d’afficher les autres
+► Le lien est enregistré avec le fichier JSON et avec la sauvegarde en ligne
+
 💾 SAUVEGARDER
   → Cliquez sur "💾 Sauvegarder le plan"
   → Le plan (avec organisation et placement) est enregistré

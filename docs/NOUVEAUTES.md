@@ -1,5 +1,22 @@
 # Nouvelles fonctionnalités eProf
 
+## V2.5.17 — Calendrier, plans de classe et trombinoscopes
+
+### Cours de 55 minutes (calendrier et agenda)
+Lors de la création d’un événement de nature **Cours**, l’heure de fin se cale automatiquement 55 minutes après l’heure de début. Elle se réajuste si le début change. Dès que l’enseignant saisit la fin à la main, eProf ne force plus cette durée. Un cours déjà enregistré avec une autre durée (ex. 90 min) reste tel quel à la réouverture.
+
+### Lien plan de classe ↔ suivi des élèves
+En haut du **plan de classe**, une liste permet de lier le plan à une classe enseignée. Le lien est enregistré (local et, si l’enseignant sauvegarde en ligne, dans le JSON du plan). Charger une liste d’élèves sélectionne automatiquement cette classe. Dans le **suivi des élèves**, un bouton **Plan de classe** ouvre le plan le plus récent lié à la classe ; s’il y en a plusieurs, un menu permet d’en choisir un autre.
+
+### Photos de trombinoscope
+Les trombinoscopes affichent les portraits lorsqu’ils sont disponibles (fichiers locaux ou photos importées en ligne). Sans photo, une pastille reste affichée.
+
+**Année 2026-2027 — Tle SAPAT A (23) et Tle SAPAT B (25)** : portraits extraits des PDF Pronote (photo au-dessus du nom).
+
+**Administrateur** : dans Admin → Élèves, **Importer un trombinoscope (PDF)**. Le fichier Pronote est lu dans le navigateur ; un aperçu permet de corriger le nom ou l’élève associé. Les photos sont enregistrées dans le bucket Storage `student-photos` et liées à `school_students.photo_path`. Aucune fiche élève n’est créée : la liste CSV reste la source officielle. Migration : `0027_student_photos.sql`.
+
+---
+
 ## ❓ Générateur de Quiz - Version manuelle
 
 ### Description

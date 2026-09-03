@@ -86,6 +86,9 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0026_teacher_timetables.sql` : emploi du temps personnel de chaque enseignant
      (image), bucket Storage `teacher-timetables`. Chaque prof lit et écrit
      uniquement le sien.
+   - `0027_student_photos.sql` : colonne `school_students.photo_path` et bucket
+     Storage `student-photos`. Lecture enseignants connectés, import PDF
+     Pronote réservé à l’administrateur (Admin → Élèves).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to
@@ -171,9 +174,9 @@ configuré ou si l'enseignant n'est pas connecté :
 | Accueil | Badge "En ligne / Hors ligne" dans le header |
 | Calendrier | Synchronisé (`calendar_events`) |
 | Tableau blanc | Local uniquement (outil de session, pas de compte à synchroniser) |
-| Plan de classe | Export/import fichier existant **+** enregistrement en ligne (`class_plans`) |
+| Plan de classe | Export/import fichier **+** enregistrement en ligne (`class_plans`) ; liaison optionnelle à une classe, ouverture depuis le suivi |
 | Jeu pédagogique | Synchronisé (`pedagogical_games`) |
-| Trombinoscopes | Statique (rien à synchroniser) |
+| Trombinoscopes | Photos locales et/ou Storage (`student-photos` / `photo_path`) ; listes `school_students` |
 | Suivi des élèves | Fonctionnalité en pause (listes 2026-2027 non importées) ; prêt à suivre le même schéma que le carnet de notes (`teacher_documents`) une fois réactivé |
 | Carnet de notes (`carnet-notes.html`) | Sauvegarde/chargement en ligne (`teacher_documents`, doc_type `carnet_notes`) + correction d'un bug bloquant (`allowedClasses`) |
 | Conversion de fichier | Aucune donnée persistée |
