@@ -20,8 +20,39 @@
 
     function classesMatch(a, b) {
         if (!a || !b) return false;
-        if (a === b) return true;
         return normClasse(a) === normClasse(b);
+    }
+
+    function resolveTaughtClass(nom) {
+        if (!nom) return '';
+        var names = getVisibleTeacherClasses();
+        var hit = names.find(function (n) { return classesMatch(n, nom); });
+        return hit || '';
+    }
+
+    function searchStudents(query, limit) {
+        var q = fold(query);
+        if (q.length < 2) return [];
+        var listes = getListsForTeacher();
+        var out = [];
+        Object.keys(listes).sort().forEach(function (classe) {
+            (listes[classe] || []).forEach(function (e) {
+                var hay = fold((e.prenom || '') + ' ' + (e.nom || '') + ' ' + classe);
+                if (hay.indexOf(q) === -1) return;
+                out.push({
+                    classe: classe,
+                    nom: e.nom,
+                    prenom: e.prenom,
+                    sexe: e.sexe,
+                    photo_path: e.photo_path || '',
+                    nomComplet: ((e.prenom || '') + ' ' + String(e.nom || '').toUpperCase()).trim()
+                });
+            });
+        });
+        out.sort(function (a, b) {
+            return (a.nom + ' ' + a.prenom).localeCompare(b.nom + ' ' + b.prenom, 'fr');
+        });
+        return out.slice(0, limit || 12);
     }
 
     function makePersonKey(nom, prenom) {
@@ -308,6 +339,8 @@
         setPlanClasseLieeSelect: setPlanClasseLieeSelect,
         mergeCloudPlansIntoLocal: mergeCloudPlansIntoLocal,
         loadLinkedClassPlans: loadLinkedClassPlans,
+        resolveTaughtClass: resolveTaughtClass,
+        searchStudents: searchStudents,
         openTool: openTool
     };
 })(window);

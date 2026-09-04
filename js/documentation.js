@@ -13,7 +13,7 @@
                 'Connectez-vous avec l’identifiant fourni par l’établissement (sans taper @jeannedelanoue.com : il est déjà ajouté).',
                 'À la première connexion, choisissez vos classes et, si besoin, les matières associées. Vous pourrez les modifier plus tard dans Paramètres.',
                 'Vérifiez le badge en haut à droite : <strong>🟢 En ligne</strong> signifie que vos données se synchronisent. <strong>⚪ Hors ligne</strong> : vous pouvez continuer, la synchro reprendra ensuite.',
-                'L’accueil et le menu de gauche donnent accès à tous les outils. En haut de l’accueil : prochains rendez-vous, vos classes et les outils récemment ouverts. Cliquez une carte ou un lien pour ouvrir un module. Le bouton ◀ en haut du menu réduit la barre latérale pour gagner de la place.',
+                'L’accueil et le menu de gauche donnent accès à tous les outils. En haut de l’accueil : prochains rendez-vous, vos classes et les outils récemment ouverts. Cliquez une carte ou un lien pour ouvrir un module. Le bouton ◀ en haut du menu réduit la barre latérale pour gagner de la place. Le champ <strong>Rechercher un élève</strong> (raccourci <strong>/</strong>) ouvre directement la fiche depuis n’importe quel écran.',
                 'Revenez ici dès que vous avez un doute : chaque tutoriel décrit un outil, étape par étape.'
             ],
             tip: 'Une idée ou un blocage ? Le bouton « Suggestions & bugs » du footer transmet votre message à l’administrateur.'
@@ -45,7 +45,7 @@
                 'Cliquez-glissez sur le planning pour créer un événement aux bons horaires, ou le bouton <strong>Nouvel événement</strong>.',
                 'Renseignez l’intitulé, la nature (cours, tâche, rendez-vous…), éventuellement la classe, la couleur et un rappel. Pour un <strong>cours</strong>, l’heure de fin se cale automatiquement <strong>55 min</strong> après le début (bouton 1 h 50 pour une double séance). Elle suit si vous changez le début. Si vous réglez la fin à la main, elle n’est plus forcée.',
                 'Pour un cours d’emploi du temps, cochez <strong>Répéter chaque semaine</strong>, les jours (ils passent en bleu) et éventuellement <strong>semaine A</strong> (n° pair) ou <strong>B</strong> (n° impair). La série s’arrête aux vacances d’été et saute les vacances et jours fériés.',
-                'Cliquez un cours récurrent : vous pouvez modifier ou supprimer <strong>cette séance</strong> seulement, ou toute la série. Un glisser-déposer ne change que la séance déplacée.',
+                'Cliquez un cours : s’il a une classe, les boutons <strong>Suivi</strong> et éventuellement <strong>Plan de classe</strong> ouvrent l’outil correspondant. Pour un cours récurrent, vous pouvez aussi modifier ou supprimer <strong>cette séance</strong> seulement, ou toute la série. Un glisser-déposer ne change que la séance déplacée.',
                 'Le bouton <strong>Emploi du temps</strong> affiche votre EDT personnel : importez une <strong>image</strong> (PNG ou JPEG). Chaque enseignant a le sien, enregistré en ligne.',
                 'Le menu <strong>Calendrier scolaire</strong> ouvre le calendrier de l’année (Zone B), les dates de stage et les périodes.',
                 'Filtrez par classe ou par nature. Les heures affichées, le samedi et les pauses se règlent dans Paramètres → Calendrier.'
@@ -66,7 +66,7 @@
                 'Activez un rappel si vous voulez une notification (l’application doit rester ouverte).',
                 'Les tâches peuvent être marquées comme terminées. Les cours et rendez-vous restent dans le planning.'
             ],
-            tip: 'L’agenda et le calendrier partagent les mêmes événements : une modification d’un côté se retrouve de l’autre.'
+            tip: 'L’agenda et le calendrier partagent les mêmes événements. Un clic sur une séance avec une classe ouvre aussi le suivi ou le plan.'
         },
         {
             id: 'notes',
@@ -90,8 +90,8 @@
             lead: 'Oublis de matériel, mots à mettre, notes personnelles et aperçu des moyennes, classe par classe.',
             tool: 'eleves',
             steps: [
-                'Ouvrez <strong>Suivi des élèves</strong> et cliquez la classe concernée.',
-                'Cliquez un élève pour ouvrir sa fiche (photo, oublis, mots, notes, moyennes).',
+                'Ouvrez <strong>Suivi des élèves</strong> et cliquez la classe concernée, ou cherchez un élève depuis l’en-tête.',
+                'Cliquez un élève pour ouvrir sa fiche : l’onglet <strong>Synthèse</strong> résume oublis, mots, notes et moyenne, avec une <strong>fiche courte (1 page)</strong> ou une fiche complète.',
                 'Onglet <strong>Oublis</strong> : cochez le matériel manquant (manuel, cours, travail non fait…), choisissez la date, puis Ajouter.',
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
                 'Onglet <strong>Notes</strong> : ajoutez des observations personnelles. Elles se synchronisent en ligne pour votre compte uniquement.',

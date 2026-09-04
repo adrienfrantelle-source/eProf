@@ -798,7 +798,7 @@
         var time = formatInstanceTime(entry);
         var type = typeLabel(item.type);
         var occ = entry.occDate || entry.ymd || '';
-        return '<button type="button" class="' + cls + '" data-id="' + escapeHtml(item.id || '') + '" data-occ="' + escapeHtml(occ) + '" data-tool="calendar" data-date="' + escapeHtml(occ) + '" style="--agenda-accent:' + escapeHtml(item.color || '#1e88e5') + '">' +
+        return '<button type="button" class="' + cls + '" data-id="' + escapeHtml(item.id || '') + '" data-occ="' + escapeHtml(occ) + '" data-tool="calendar" data-date="' + escapeHtml(occ) + '" data-classe="' + escapeHtml(item.className || '') + '" style="--agenda-accent:' + escapeHtml(item.color || '#1e88e5') + '">' +
             '<span class="agenda-chip-time">' + escapeHtml(time) + '</span>' +
             '<span class="agenda-chip-body">' +
                 '<span class="agenda-chip-title">' + (item.emoji ? escapeHtml(item.emoji) + ' ' : '') + escapeHtml(item.title || '') + '</span>' +
@@ -1329,7 +1329,22 @@
             ? '<p class="event-detail-scope">Séance du ' + escapeHtml(new Date(occDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })) + '</p>'
             : '');
         if (actions) {
-            actions.innerHTML = isSeries
+            var classeLiee = '';
+            if (item.className && window.EprofEleves && window.EprofEleves.resolveTaughtClass) {
+                classeLiee = window.EprofEleves.resolveTaughtClass(item.className) || item.className;
+            } else if (item.className) {
+                classeLiee = item.className;
+            }
+            var plansClasse = (classeLiee && window.EprofEleves && window.EprofEleves.getPlansForClasse)
+                ? window.EprofEleves.getPlansForClasse(classeLiee)
+                : [];
+            var classBtns = classeLiee
+                ? '<button type="button" id="open-class-suivi-btn" class="btn-primary">👨‍🎓 Suivi ' + escapeHtml(classeLiee) + '</button>' +
+                  (plansClasse.length
+                      ? '<button type="button" id="open-class-plan-btn" class="btn-secondary">🪑 Plan de classe</button>'
+                      : '')
+                : '';
+            actions.innerHTML = classBtns + (isSeries
                 ? '<button type="button" id="edit-occurrence-btn" class="btn-primary">Modifier cette séance</button>' +
                   '<button type="button" id="edit-event-btn">Modifier la série</button>' +
                   '<button type="button" id="delete-occurrence-btn" class="btn-danger-light">Supprimer cette séance</button>' +
@@ -1337,7 +1352,7 @@
                   '<button type="button" id="close-detail-btn">Fermer</button>'
                 : '<button type="button" id="edit-event-btn">Modifier</button>' +
                   '<button type="button" id="delete-event-btn">Supprimer</button>' +
-                  '<button type="button" id="close-detail-btn">Fermer</button>';
+                  '<button type="button" id="close-detail-btn">Fermer</button>');
         }
         modal.style.display = 'flex';
         function closeModal() { modal.style.display = 'none'; }
@@ -1380,6 +1395,35 @@
                 var series = await skipOccurrence(item.id, occDate);
                 closeModal();
                 if (handlers.onSaved && series) handlers.onSaved(series);
+            };
+        }
+        var suiviBtn = document.getElementById('open-class-suivi-btn');
+        if (suiviBtn) {
+            suiviBtn.onclick = function () {
+                var classe = (window.EprofEleves && window.EprofEleves.resolveTaughtClass)
+                    ? (window.EprofEleves.resolveTaughtClass(item.className) || item.className)
+                    : item.className;
+                closeModal();
+                if (window.EprofEleves && window.EprofEleves.openTool) {
+                    window.EprofEleves.openTool('eleves', { classe: classe });
+                }
+            };
+        }
+        var planBtn = document.getElementById('open-class-plan-btn');
+        if (planBtn) {
+            planBtn.onclick = function () {
+                var classe = (window.EprofEleves && window.EprofEleves.resolveTaughtClass)
+                    ? (window.EprofEleves.resolveTaughtClass(item.className) || item.className)
+                    : item.className;
+                closeModal();
+                var plans = window.EprofEleves && window.EprofEleves.getPlansForClasse
+                    ? window.EprofEleves.getPlansForClasse(classe)
+                    : [];
+                if (plans.length) {
+                    window.EprofEleves.openTool('plan-classe', { planToLoad: plans[0].plan, planLocalId: plans[0].localId });
+                } else if (window.EprofEleves && window.EprofEleves.openTool) {
+                    window.EprofEleves.openTool('plan-classe');
+                }
             };
         }
     }

@@ -1,4 +1,10 @@
 ========================================
+ARCHIVE — MODULE RETIRÉ (eProf V2.5.19)
+Le générateur de quiz n’est plus dans l’application.
+Ce fichier est conservé uniquement comme historique.
+========================================
+
+========================================
 GUIDE D'UTILISATION DU GÉNÉRATEUR DE QUIZ
 VERSION MANUELLE
 ========================================

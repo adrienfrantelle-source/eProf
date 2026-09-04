@@ -232,7 +232,8 @@
                 <div id="liste-eleves-suivi" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0; gap: 10px; flex-wrap: wrap;">
                         <h3 id="titre-classe-suivi"></h3>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <input type="search" id="suivi-recherche-eleve" class="suivi-recherche-eleve" placeholder="Filtrer les élèves…" aria-label="Filtrer les élèves">
                             <button type="button" id="ouvrir-tableau-suivi-btn" class="btn-primary">📊 Tableau de suivi</button>
                             <button type="button" id="ouvrir-edt-btn" class="btn-secondary">📅 EDT</button>
                             <span id="suivi-plan-classe-actions" class="suivi-plan-classe-actions" hidden>
@@ -256,13 +257,18 @@
                         </div>
                         
                         <div class="tabs-modale">
-                            <button class="tab-btn active" data-tab="oublis">📦 Oublis</button>
+                            <button class="tab-btn active" data-tab="synthese">📋 Synthèse</button>
+                            <button class="tab-btn" data-tab="oublis">📦 Oublis</button>
                             <button class="tab-btn" data-tab="mots">📝 Mots</button>
                             <button class="tab-btn" data-tab="remarques">🗒️ Notes</button>
                             <button class="tab-btn" data-tab="moyennes">📊 Moyennes</button>
                         </div>
+
+                        <div id="tab-synthese" class="tab-content active">
+                            <div id="synthese-eleve"></div>
+                        </div>
                         
-                        <div id="tab-oublis" class="tab-content active">
+                        <div id="tab-oublis" class="tab-content" style="display: none;">
                             <h4>Ajouter un oubli</h4>
                             <div class="ajout-oubli">
                                 <div class="oubli-checkboxes">
@@ -599,12 +605,31 @@
         if (classeInitiale) chargerClasse(classeInitiale, eleveInitial);
         
         // Afficher la grille des élèves
+        let filtreEleves = '';
+        const suiviRecherche = container.querySelector('#suivi-recherche-eleve');
+        if (suiviRecherche) {
+            suiviRecherche.addEventListener('input', function () {
+                filtreEleves = this.value.trim();
+                if (classeActuelle) afficherEleves(classeActuelle);
+            });
+        }
+
         function afficherEleves(classe) {
             selectionDiv.style.display = 'none';
             listeDiv.style.display = 'block';
-            titreClasse.textContent = `Classe : ${classe} (${elevesActuels.length} élèves)`;
+            const q = (window.EprofEleves && window.EprofEleves.fold)
+                ? window.EprofEleves.fold(filtreEleves)
+                : String(filtreEleves || '').toUpperCase();
+            const visibles = !q ? elevesActuels : elevesActuels.filter(function (eleve) {
+                return window.EprofEleves.fold(eleve.nomComplet + ' ' + (eleve.nom || '') + ' ' + (eleve.prenom || '')).indexOf(q) !== -1;
+            });
+            titreClasse.textContent = `Classe : ${classe} (${visibles.length}${q ? ' / ' + elevesActuels.length : ''} élèves)`;
+            if (!visibles.length) {
+                grilleEleves.innerHTML = '<p class="trombi-empty">Aucun élève ne correspond au filtre.</p>';
+                return;
+            }
             
-            grilleEleves.innerHTML = elevesActuels.map(eleve => {
+            grilleEleves.innerHTML = visibles.map(eleve => {
                 const sexeClass = eleve.sexe === 'F' ? 'eleve-f' : 'eleve-m';
                 const oublis = suiviData[eleve.nomComplet]?.oublis || [];
                 const oublisNonTraites = oublis.filter(o => !o.motMis);
@@ -706,7 +731,83 @@
             afficherMots();
             afficherNotesPerso();
             afficherMoyennes();
+            afficherSynthese();
+            container.querySelectorAll('.tab-btn').forEach(function (b) {
+                b.classList.toggle('active', b.getAttribute('data-tab') === 'synthese');
+            });
+            container.querySelectorAll('.tab-content').forEach(function (c) {
+                c.style.display = c.id === 'tab-synthese' ? 'block' : 'none';
+            });
             modale.style.display = 'flex';
+        }
+
+        function afficherSynthese() {
+            const box = container.querySelector('#synthese-eleve');
+            if (!box || !eleveSelectionne) return;
+            const eleve = elevesActuels.find(function (e) { return e.nomComplet === eleveSelectionne; })
+                || { nomComplet: eleveSelectionne };
+            const data = suiviData[eleveSelectionne] || {};
+            const oublis = data.oublis || [];
+            const mots = data.motsAMettre || [];
+            const notes = Array.isArray(data.notesPerso) ? data.notesPerso.slice() : [];
+            const oublisOuverts = oublis.filter(function (o) { return !o.motMis; });
+            const motsOuverts = mots.filter(function (m) { return !m.mis; });
+            notes.sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+            const resume = resumeMoyennesFiche(eleve);
+            const moyTxt = resume && resume.generale != null
+                ? resume.generale.toFixed(1).replace('.', ',') + ' / 20'
+                : '—';
+            const moyClass = resume && resume.generale != null
+                ? (resume.generale >= 10 ? 'ok' : 'warn')
+                : '';
+
+            function byDateDesc(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            }
+            function recentList(items, empty, render) {
+                const sorted = items.slice().sort(byDateDesc);
+                if (!sorted.length) return '<p class="vide">' + empty + '</p>';
+                return '<ul class="synthese-list">' + sorted.slice(0, 3).map(render).join('') +
+                    (sorted.length > 3 ? '<li class="synthese-more">+' + (sorted.length - 3) + ' autre(s)</li>' : '') +
+                    '</ul>';
+            }
+
+            box.innerHTML =
+                '<div class="synthese-chips">' +
+                    '<div class="synthese-chip"><span>Oublis à traiter</span><strong>' + oublisOuverts.length + '</strong></div>' +
+                    '<div class="synthese-chip"><span>Mots à mettre</span><strong>' + motsOuverts.length + '</strong></div>' +
+                    '<div class="synthese-chip"><span>Notes perso</span><strong>' + notes.length + '</strong></div>' +
+                    '<div class="synthese-chip ' + moyClass + '"><span>Moyenne</span><strong>' + moyTxt + '</strong></div>' +
+                '</div>' +
+                '<div class="synthese-cols">' +
+                    '<section><h4>Derniers oublis</h4>' +
+                    recentList(oublisOuverts.concat(oublis.filter(function (o) { return o.motMis; })), 'Aucun oubli.', function (o) {
+                        return '<li>' + escapeFicheHtml(formatDateFiche(o.date)) + ' · ' + escapeFicheHtml(o.materiel || '') +
+                            (o.motMis ? ' <em>traité</em>' : '') + '</li>';
+                    }) + '</section>' +
+                    '<section><h4>Derniers mots</h4>' +
+                    recentList(motsOuverts.concat(mots.filter(function (m) { return m.mis; })), 'Aucun mot.', function (m) {
+                        return '<li>' + escapeFicheHtml(formatDateFiche(m.date)) + ' · ' + escapeFicheHtml((m.motif || '').slice(0, 80)) +
+                            (m.mis ? ' <em>mis</em>' : '') + '</li>';
+                    }) + '</section>' +
+                    '<section><h4>Dernières notes</h4>' +
+                    recentList(notes, 'Aucune note personnelle.', function (n) {
+                        return '<li>' + escapeFicheHtml(formatDateFiche(n.date)) + ' · ' + escapeFicheHtml((n.texte || '').slice(0, 80)) + '</li>';
+                    }) + '</section>' +
+                '</div>' +
+                '<div class="synthese-actions">' +
+                    '<button type="button" id="synthese-fiche-courte-btn" class="btn-primary">📄 Fiche courte (1 page)</button>' +
+                    '<button type="button" id="synthese-fiche-complete-btn" class="btn-secondary">📄 Fiche complète</button>' +
+                '</div>';
+
+            const courte = box.querySelector('#synthese-fiche-courte-btn');
+            if (courte) courte.addEventListener('click', function () {
+                imprimerFichesSuivi([eleve], { oublis: true, mots: true, notes: true, moyennes: true, courte: true });
+            });
+            const complete = box.querySelector('#synthese-fiche-complete-btn');
+            if (complete) complete.addEventListener('click', function () {
+                ouvrirModaleFiche('eleve');
+            });
         }
         
         function rendreMoyennes(periodeSelectionnee, matiereSelectionnee) {
@@ -1469,6 +1570,9 @@
                 if (tab === 'moyennes') {
                     afficherMoyennes();
                 }
+                if (tab === 'synthese') {
+                    afficherSynthese();
+                }
                 if (tab === 'remarques') {
                     afficherNotesPerso();
                 }
@@ -1570,12 +1674,18 @@
         }
 
         function htmlFicheEleve(eleve, options) {
+            options = options || {};
             const data = suiviData[eleve.nomComplet] || {};
             const oublis = data.oublis || [];
             const mots = data.motsAMettre || [];
-            let html = '<article class="fiche">' +
+            const recent = function (items, n) {
+                return items.slice().sort(function (a, b) {
+                    return String(b.date || '').localeCompare(String(a.date || ''));
+                }).slice(0, n);
+            };
+            let html = '<article class="fiche' + (options.courte ? ' fiche-courte' : '') + '">' +
                 '<header class="fiche-head">' +
-                '<p class="fiche-kicker">eProf · Suivi des élèves</p>' +
+                '<p class="fiche-kicker">eProf · ' + (options.courte ? 'Fiche courte' : 'Suivi des élèves') + '</p>' +
                 '<h2>' + escapeFicheHtml(eleve.nomComplet) + '</h2>' +
                 '<p class="fiche-meta">' + escapeFicheHtml(classeActuelle || '') +
                 (eleve.sexe ? ' · ' + escapeFicheHtml(eleve.sexe) : '') +
@@ -1588,7 +1698,7 @@
                     html += '<p class="vide">Aucun oubli enregistré.</p>';
                 } else {
                     html += '<table><thead><tr><th>Date</th><th>Matériel</th><th>Statut</th></tr></thead><tbody>' +
-                        oublis.map(function (o) {
+                        (options.courte ? recent(oublis, 5) : oublis).map(function (o) {
                             const ok = !!o.motMis;
                             return '<tr><td>' + escapeFicheHtml(formatDateFiche(o.date)) + '</td><td>' +
                                 escapeFicheHtml(o.materiel || '') + '</td><td><span class="pill ' +
@@ -1606,7 +1716,7 @@
                     html += '<p class="vide">Aucun mot enregistré.</p>';
                 } else {
                     html += '<table><thead><tr><th>Date</th><th>Motif</th><th>Statut</th></tr></thead><tbody>' +
-                        mots.map(function (m) {
+                        (options.courte ? recent(mots, 5) : mots).map(function (m) {
                             const ok = !!m.mis;
                             return '<tr><td>' + escapeFicheHtml(formatDateFiche(m.date)) + '</td><td>' +
                                 escapeFicheHtml(m.motif || '') + '</td><td><span class="pill ' +
@@ -1628,7 +1738,7 @@
                     html += '<table><thead><tr><th>Date</th><th>Note</th></tr></thead><tbody>' +
                         notesPerso.slice().sort(function (a, b) {
                             return String(b.date || '').localeCompare(String(a.date || ''));
-                        }).map(function (n) {
+                        }).slice(0, options.courte ? 5 : notesPerso.length).map(function (n) {
                             return '<tr><td>' + escapeFicheHtml(formatDateFiche(n.date)) +
                                 '</td><td>' + escapeFicheHtml(n.texte || '').replace(/\n/g, '<br>') +
                                 '</td></tr>';
@@ -1654,7 +1764,9 @@
                         html += '<div class="periode"><h4>' + escapeFicheHtml(p.label) +
                             '<b>' + (p.moyenne !== null ? p.moyenne.toFixed(2) + ' / 20' : 'sans note') +
                             '</b></h4>';
-                        if (p.matieres.length) {
+                        if (options.courte) {
+                            html += '';
+                        } else if (p.matieres.length) {
                             html += '<ul>' + p.matieres.map(function (mat) {
                                 const cls = mat.moyenne >= 10 ? 'ok' : 'warn';
                                 return '<li><span>' + escapeFicheHtml(mat.nom) +
@@ -1679,7 +1791,7 @@
             const pourClasse = eleves.length > 1;
             const titre = pourClasse
                 ? 'Fiches de suivi — ' + (classeActuelle || '')
-                : 'Fiche de suivi — ' + (eleves[0] && eleves[0].nomComplet || '');
+                : ((options && options.courte ? 'Fiche courte — ' : 'Fiche de suivi — ') + (eleves[0] && eleves[0].nomComplet || ''));
             const corps = eleves.map(function (eleve) {
                 return htmlFicheEleve(eleve, options);
             }).join('');
@@ -1717,7 +1829,8 @@
                 '.periode h4{margin:0 0 8px;display:flex;justify-content:space-between;gap:8px;font-size:.95rem;}' +
                 '.periode ul{list-style:none;margin:0;padding:0;} .periode li{display:flex;justify-content:space-between;padding:4px 0;border-top:1px dashed #e2e8f0;}' +
                 '.periode li span:last-child{font-weight:700;}' +
-                '@media print{body{background:#fff;} .page{padding:0;max-width:none;} .doc-top{border-radius:0;} .fiche{box-shadow:none;}}' +
+                '.fiche-courte{font-size:.88rem;} .fiche-courte .bloc{padding:10px 16px;} .fiche-courte .moy-hero strong{font-size:1.35rem;}' +
+                '@media print{body{background:#fff;} .page{padding:0;max-width:none;} .doc-top{border-radius:0;display:none;} .fiche{box-shadow:none;} .fiche-courte{page-break-after:auto;page-break-inside:avoid;}}' +
                 '</style></head><body><div class="page"><div class="doc-top"><h1>' + escapeFicheHtml(titre) +
                 '</h1><p>' + escapeFicheHtml(classeActuelle || '') + ' · ' +
                 escapeFicheHtml(new Date().toLocaleDateString('fr-FR')) +

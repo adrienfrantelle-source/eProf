@@ -1,5 +1,21 @@
 # Nouvelles fonctionnalités eProf
 
+## V2.5.19 — Fiche élève, recherche, calendrier → classe, modules retirés
+
+### Fiche élève
+L’ouverture d’un élève affiche d’abord l’onglet **Synthèse** : compteurs (oublis à traiter, mots à mettre, notes, moyenne), 3 derniers faits, boutons **Fiche courte (1 page)** et **Fiche complète**.
+
+### Recherche élève
+Champ en en-tête (raccourci `/`) : recherche dans toutes les classes enseignées. Un clic ouvre la fiche. Dans le suivi, un filtre affine la grille de la classe.
+
+### Calendrier → classe
+Le détail d’un cours avec une classe propose **Suivi** et, s’il existe un plan lié, **Plan de classe**.
+
+### Modules retirés
+Le générateur de quiz, les pages quiz élève / résultats, les séjours et le conseil de classe ne sont plus dans l’application. Le carnet de notes, la messagerie, les archives et les jeux pédagogiques restent. Pas de module d’appel.
+
+---
+
 ## V2.5.18 — Quotidien prof, photos d’identité, modules extraits, RGPD
 
 ### Liaison plan de classe par nom
@@ -45,128 +61,9 @@ Les trombinoscopes affichent les portraits lorsqu’ils sont disponibles (fichie
 
 ---
 
-## ❓ Générateur de Quiz - Version manuelle
+## Archive — Générateur de Quiz (module retiré en V2.5.19)
 
-### Description
-Créez des quiz interactifs personnalisés en saisissant manuellement vos questions une par une. Contrôle total sur le contenu, partage facile via QR code et lien de partage.
-
-### Utilisation
-
-#### Création d'un nouveau quiz
-1. Ouvrez le module **Générateur de Quiz** depuis le dashboard
-2. Cliquez sur **🚀 Créer un nouveau quiz**
-3. Le générateur s'ouvre dans un nouvel onglet
-
-#### Étape 1 : Informations générales
-Remplissez les champs :
-- **Titre** : Nom du quiz (ex: "Révisions Seconde Guerre Mondiale")
-- **Matière** : Discipline concernée
-- **Classe** : Sélectionnez dans la liste (listes d'élèves)
-- **Durée** : Temps estimé en minutes
-- **Description** : Notes optionnelles
-
-#### Étape 2 : Création des questions
-1. Cliquez sur **➕ Ajouter une question**
-2. Saisissez le texte de la question
-3. Choisissez le type de question :
-
-**📊 QCM (Choix multiple)**
-- 4 réponses par défaut (modifiable de 2 à 6)
-- Bouton **➕** pour ajouter des options
-- Bouton **✕** pour supprimer une option
-- Cochez la radio button de la bonne réponse
-
-**✅ Vrai / Faux**
-- Exactement 2 options (Vrai/Faux)
-- Cochez la bonne réponse
-
-**✍️ Réponse courte (texte libre)**
-- Saisissez la réponse attendue (référence pour correction)
-- L'élève saisira sa réponse librement
-
-4. Définissez le nombre de **points** pour la question
-5. Répétez pour toutes vos questions
-6. Utilisez le bouton **🗑️** pour supprimer une question
-
-#### Étape 3 : Prévisualisation et sauvegarde
-1. Cliquez sur **Valider et prévisualiser**
-2. Vérifiez toutes les questions
-3. Les bonnes réponses sont affichées en **vert**
-4. Actions disponibles :
-   - **💾 Enregistrer le quiz** : Sauvegarde dans localStorage
-   - **🔗 Générer un lien de partage** : Crée un lien + QR code pour les élèves
-   - **📄 Exporter en PDF** : Version imprimable avec toutes les questions et réponses
-   - **🔄 Nouveau quiz** : Recommencer (demande confirmation)
-
-### Gestion des quiz créés
-Dans le module principal, tous vos quiz sont listés avec :
-- Titre, matière, classe, durée
-- Nombre de questions
-- Date de création
-
-**Actions disponibles :**
-- **👁️ Voir** : Affiche le quiz complet
-- **📋 Dupliquer** : Crée une copie modifiable
-- **🗑️ Supprimer** : Suppression définitive (avec confirmation)
-
-### Sauvegarde et portabilité
-- **💾 Sauvegarder la liste** : Exporte tous vos quiz dans un fichier `.js`
-- **📂 Restaurer la liste** : Importe des quiz depuis un fichier `.js`
-- Format JSON dans localStorage (clé : `QUIZ_DATA`)
-
-### Partage avec les élèves
-1. Après création, cliquez sur **🔗 Générer un lien de partage**
-2. Une modale s'affiche avec :
-   - Lien de partage complet (copiable)
-   - QR code généré automatiquement (200x200px)
-3. Les élèves scannent le QR code ou cliquent sur le lien
-4. Le quiz s'ouvre dans `quiz-eleve.html`
-5. Les réponses sont enregistrées et consultables dans `quiz-resultats.js`
-
-### Types de questions
-
-| Type | Icône | Description | Réponses | Utilisation |
-|------|-------|-------------|----------|-------------|
-| **QCM** | 📊 | Choix multiple | 2 à 6 options | Connaissances factuelles, concepts |
-| **Vrai/Faux** | ✅ | Question binaire | Exactement 2 | Révisions rapides, validation |
-| **Texte** | ✍️ | Réponse libre | Réponse attendue en référence | Définitions, calculs, expressions |
-
-### Exemples d'utilisation
-
-**Quiz d'Histoire (QCM)**
-- Titre : "La Révolution française"
-- 10 questions QCM, 4 réponses chacune
-- 1 point par question
-- Durée : 15 minutes
-
-**Quiz de Mathématiques (mixte)**
-- Titre : "Fractions et calculs"
-- 5 questions texte (calculs) - 2 points
-- 5 questions QCM (concepts) - 1 point
-- Durée : 20 minutes
-
-**Quiz de SVT (Vrai/Faux)**
-- Titre : "La photosynthèse - Révisions rapides"
-- 15 questions Vrai/Faux
-- 1 point par question
-- Durée : 10 minutes
-
-### Avantages de la version manuelle
-- ✅ **Contrôle total** sur chaque question et réponse
-- ✅ **Qualité garantie** - questions parfaitement adaptées à votre enseignement
-- ✅ **Flexibilité** - 3 types de questions, points personnalisables
-- ✅ **Simplicité** - pas de dépendance à des services externes ou IA
-- ✅ **Portabilité** - fonctionne 100% hors ligne
-- ✅ **Partage facile** - lien + QR code pour accès instantané
-- ✅ **Pas de limite** - créez autant de questions que nécessaire
-
-### Conseils pédagogiques
-- **Variez les types** : mélangez QCM, V/F et texte pour maintenir l'attention
-- **Progression** : commencez facile, augmentez la difficulté progressivement
-- **Durée** : environ 1 minute par question simple, 2-3 min pour réflexion
-- **Points** : questions faciles 1pt, moyennes 2-3pts, difficiles 4-5pts
-- **Formulation** : questions courtes, claires, sans ambiguïté
-- **Évitez** : double-négations, questions pièges, trop de détails techniques
+Le générateur de quiz et les pages associées ne font plus partie d’eProf. L’ancien guide est conservé dans `docs/GUIDE_QUIZ_COPILOT.txt` à titre d’archive uniquement.
 
 ---
 

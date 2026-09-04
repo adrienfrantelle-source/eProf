@@ -2013,16 +2013,10 @@ function rollDice() {
 }
 
 // ===== QR =====
-function absoluteUrl(path) {
-    try { return new URL(path, window.location.href).href; }
-    catch (e) { return path; }
-}
-
-function fillQrPreset(kind) {
+function fillQrPreset() {
     const input = document.getElementById('qrcode-text');
-    if (kind === 'quiz') input.value = absoluteUrl('quiz-eleve.html');
-    else if (kind === 'generateur') input.value = absoluteUrl('generateur-quiz.html');
-    else input.value = window.location.href;
+    if (!input) return;
+    input.value = window.location.href;
     generateQRCode();
 }
 
