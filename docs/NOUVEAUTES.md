@@ -1,5 +1,33 @@
 # Nouvelles fonctionnalités eProf
 
+## V2.5.18 — Quotidien prof, photos d’identité, modules extraits, RGPD
+
+### Liaison plan de classe par nom
+Le plan se lie à une **classe enseignée** (nom, sans tenir compte des accents ni de la casse). Un champ **titre du plan** remplace les invites à chaque enregistrement. Le suivi propose toujours le plan le plus récent pour cette classe.
+
+### Homonymes (import PDF)
+Si deux élèves ont le même nom et prénom, l’aperçu admin n’associe plus automatiquement la photo. Un bandeau orange demande un choix manuel. Deux photos qui pointent vers le même élève sont signalées.
+
+### Photos partout et trombinoscope
+Les portraits apparaissent dans le **suivi** (cartes et fiche), le **plan de classe** (liste des élèves) et le **trombinoscope**. Un clic sur une carte du trombi ouvre la fiche suivi. Une **recherche** filtre la grille. **Imprimer** n’affiche que le trombinoscope.
+
+### Photos qui suivent l’élève
+Le fichier n’est plus rangé par dossier de classe : `{année}/{Nom}_{Prenom}.jpg`. Un registre d’identité restaure `photo_path` après un import CSV (changement de classe). Les homonymes de la même année gardent un suffixe d’identifiant. Migration : `0028_photos_identite_rgpd.sql`.
+
+### Cours 55 min / 1 h 50
+Sous les horaires d’un **Cours**, deux boutons : 55 minutes (défaut) et 1 h 50 (double séance). Modifier la fin à la main conserve la durée saisie.
+
+### Thème
+Les bleus, verts et rouges « en dur » du fichier de style principal passent par les variables du thème (`--eprof-accent`, `--eprof-success`, `--eprof-danger`…).
+
+### Modules extraits
+Plan de classe, suivi des élèves et trombinoscopes ne vivent plus dans `app.js` (`js/plan-classe.js`, `js/suivi-eleves.js`, `js/trombinoscopes.js`, helpers `js/eleves-shared.js`).
+
+### RGPD photos
+Un consentement « photo / trombi » **retiré** masque le portrait (sans ligne, la photo reste visible). Les enseignants peuvent **lire** les consentements. La purge de rétention peut supprimer les fichiers du bucket `student-photos`.
+
+---
+
 ## V2.5.17 — Calendrier, plans de classe et trombinoscopes
 
 ### Cours de 55 minutes (calendrier et agenda)

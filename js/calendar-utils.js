@@ -84,7 +84,9 @@
 
     var formBound = false;
     var COURSE_DURATION_MIN = 55;
+    var COURSE_DOUBLE_MIN = 110;
     var courseEndManual = false;
+    var courseDurationChoice = COURSE_DURATION_MIN;
     var fillingCourseEnd = false;
     var formCallbacks = { onSaved: null, onDeleted: null, occurrenceEdit: null };
     var notificationTimer = null;
@@ -932,17 +934,34 @@
     }
 
     function applyCoursDuration(form) {
-        if (!form) return;
+        if (!form) {
+            return;
+        }
         var typeEl = form.querySelector('#event-type');
         var allDayEl = form.querySelector('#event-all-day');
         var startInput = form.querySelector('#event-start');
         var endInput = form.querySelector('#event-end');
-        if (!typeEl || !allDayEl || !startInput || !endInput) return;
-        if (typeEl.value !== 'cours' || allDayEl.checked || !startInput.value) return;
-        if (courseEndManual) return;
-        fillingCourseEnd = true;
-        endInput.value = addMinutesToLocalInput(startInput.value, COURSE_DURATION_MIN);
-        fillingCourseEnd = false;
+        if (typeEl && allDayEl && startInput && endInput
+            && typeEl.value === 'cours' && !allDayEl.checked && startInput.value && !courseEndManual) {
+            fillingCourseEnd = true;
+            endInput.value = addMinutesToLocalInput(startInput.value, courseDurationChoice);
+            fillingCourseEnd = false;
+        }
+        syncDurationPresets(form);
+    }
+
+    function syncDurationPresets(form) {
+        var wrap = form.querySelector('#event-duration-presets');
+        if (!wrap) return;
+        var typeEl = form.querySelector('#event-type');
+        var allDayEl = form.querySelector('#event-all-day');
+        var show = typeEl && typeEl.value === 'cours' && allDayEl && !allDayEl.checked;
+        wrap.hidden = !show;
+        wrap.querySelectorAll('[data-mins]').forEach(function (btn) {
+            var on = !courseEndManual && Number(btn.getAttribute('data-mins')) === courseDurationChoice;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
     }
 
     function applyRecurringMode(form) {
@@ -1006,12 +1025,15 @@
 
         form.querySelector('#event-all-day').addEventListener('change', function () {
             applyAllDayMode(form);
-            if (!this.checked) applyCoursDuration(form);
+            applyCoursDuration(form);
         });
         form.querySelector('#event-type').addEventListener('change', function () {
             if (this.value === 'cours') {
                 courseEndManual = false;
+                courseDurationChoice = COURSE_DURATION_MIN;
                 applyCoursDuration(form);
+            } else {
+                syncDurationPresets(form);
             }
         });
         form.querySelector('#event-start').addEventListener('input', function () { applyCoursDuration(form); });
@@ -1019,9 +1041,18 @@
         function markEndManual() {
             if (fillingCourseEnd) return;
             courseEndManual = true;
+            syncDurationPresets(form);
         }
         form.querySelector('#event-end').addEventListener('input', markEndManual);
         form.querySelector('#event-end').addEventListener('change', markEndManual);
+        form.querySelectorAll('.event-duration-chip').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                courseDurationChoice = Number(btn.getAttribute('data-mins')) || COURSE_DURATION_MIN;
+                courseEndManual = false;
+                applyCoursDuration(form);
+            });
+        });
+        syncDurationPresets(form);
         form.querySelector('#event-recurring').addEventListener('change', function () { applyRecurringMode(form); });
         form.querySelector('#event-class').addEventListener('change', function () {
             var nom = form.querySelector('#event-class').value;
@@ -1055,6 +1086,7 @@
             modal.style.display = 'none';
             form.reset();
             courseEndManual = false;
+            courseDurationChoice = COURSE_DURATION_MIN;
             fillingCourseEnd = false;
             formCallbacks.onSaved = null;
             formCallbacks.onDeleted = null;
@@ -1234,14 +1266,21 @@
         selectInGroup(form, '.agenda-emoji', function (el) { return el.dataset.emoji === emoji; });
 
         courseEndManual = false;
+        courseDurationChoice = COURSE_DURATION_MIN;
         var typeVal = form.querySelector('#event-type').value;
         if (typeVal === 'cours' && !allDay) {
             var dur = durationMinutesBetween(startInput.value, endInput.value);
-            if (item && endInput.value && dur != null && Math.abs(dur - COURSE_DURATION_MIN) > 1) {
+            if (dur != null && Math.abs(dur - COURSE_DOUBLE_MIN) <= 1) {
+                courseDurationChoice = COURSE_DOUBLE_MIN;
+                applyCoursDuration(form);
+            } else if (item && endInput.value && dur != null && Math.abs(dur - COURSE_DURATION_MIN) > 1) {
                 courseEndManual = true;
+                syncDurationPresets(form);
             } else {
                 applyCoursDuration(form);
             }
+        } else {
+            syncDurationPresets(form);
         }
 
         modal.style.display = 'flex';

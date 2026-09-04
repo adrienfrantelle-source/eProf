@@ -81,7 +81,8 @@ Légende : ■ = table active   □ = cellule vide
 
 🔗 LIER UN PLAN À UNE CLASSE
 ────────────────────────────────────────────────────────────────
-► En haut du module, choisissez « Lier à une classe »
+► En haut du module, saisissez un titre (utilisé à l’enregistrement, sans invite)
+► Choisissez « Lier à une classe » : le nom de classe suffit (accents ignorés)
 ► Le plan devient accessible depuis le suivi des élèves de cette classe
 ► Charger une liste officielle sélectionne automatiquement cette classe
 ► Si plusieurs plans sont liés à la même classe, le plus récent s’ouvre

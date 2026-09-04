@@ -333,28 +333,48 @@
         return students;
     }
 
-    function matchStudent(nom, prenom, liste) {
+    function matchStudents(nom, prenom, liste) {
         var list = liste || [];
         var key = makeKey(nom, prenom);
-        var i;
         var nNom = fold(nom);
         var nPrenom = fold(prenom);
+        var exact = [];
+        var fuzzy = [];
+        var sameNom = [];
+        var i;
         for (i = 0; i < list.length; i++) {
-            if (makeKey(list[i].nom, list[i].prenom) === key) return list[i];
+            if (makeKey(list[i].nom, list[i].prenom) === key) exact.push(list[i]);
         }
-        var hits = [];
+        if (exact.length) return { hits: exact, mode: 'exact' };
         for (i = 0; i < list.length; i++) {
             if (fold(list[i].nom) === nNom && (
                 fold(list[i].prenom).indexOf(nPrenom) !== -1 ||
                 nPrenom.indexOf(fold(list[i].prenom)) !== -1
-            )) hits.push(list[i]);
+            )) fuzzy.push(list[i]);
         }
-        if (hits.length === 1) return hits[0];
-        hits = [];
+        if (fuzzy.length) return { hits: fuzzy, mode: 'fuzzy' };
         for (i = 0; i < list.length; i++) {
-            if (fold(list[i].nom) === nNom) hits.push(list[i]);
+            if (fold(list[i].nom) === nNom) sameNom.push(list[i]);
         }
-        return hits.length === 1 ? hits[0] : null;
+        if (sameNom.length) return { hits: sameNom, mode: 'nom' };
+        return { hits: [], mode: '' };
+    }
+
+    function matchStudent(nom, prenom, liste) {
+        var result = matchStudents(nom, prenom, liste);
+        return result.hits.length === 1 ? result.hits[0] : null;
+    }
+
+    function findHomonyms(liste) {
+        var map = {};
+        (liste || []).forEach(function (e) {
+            var key = makeKey(e.nom, e.prenom);
+            if (!map[key]) map[key] = [];
+            map[key].push(e);
+        });
+        return Object.keys(map)
+            .filter(function (k) { return map[k].length > 1; })
+            .map(function (k) { return map[k]; });
     }
 
     function dataUrlToBlob(dataUrl) {
@@ -403,6 +423,8 @@
         makeKey: makeKey,
         guessClasse: guessClasse,
         matchStudent: matchStudent,
+        matchStudents: matchStudents,
+        findHomonyms: findHomonyms,
         dataUrlToBlob: dataUrlToBlob,
         parseFile: parseFile
     };

@@ -89,6 +89,9 @@ HTML/CSS/JS (pas de framework, pas de build), avec :
    - `0027_student_photos.sql` : colonne `school_students.photo_path` et bucket
      Storage `student-photos`. Lecture enseignants connectés, import PDF
      Pronote réservé à l’administrateur (Admin → Élèves).
+   - `0028_photos_identite_rgpd.sql` : les photos suivent l’élève (registre
+     `school_student_photos` par nom/prénom/année, hors classe). Consentements
+     photo lisibles par les enseignants. Purge Storage `student-photos` (24 mois).
    (ou utiliser la CLI, voir section 4 : `supabase db push` applique tous les
    fichiers en une fois, dans l'ordre.)
 4. Dans **Authentication → Providers → Email**, laisser **"Allow new users to

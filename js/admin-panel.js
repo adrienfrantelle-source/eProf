@@ -444,6 +444,7 @@
                 }
                 const rows = result.data || [];
                 sections.consentements.innerHTML = `
+                    <p class="admin-hint">Pour masquer une photo (trombinoscope, suivi, plan de classe), enregistrez un consentement dont la finalité contient « photo » ou « trombi », puis décochez l’accord. <strong>Sans ligne de consentement, la photo reste affichée</strong> — les listes officielles n’ont pas toutes un recueil saisi. Le retrait s’applique à tous les enseignants.</p>
                     <form class="admin-add-form consent-add-form">
                         <select class="consent-type">
                             <option value="eleve">Élève</option>
@@ -1997,7 +1998,7 @@
         html: `
             <div class="admin-card">
                 <h4>📥 Importer une liste (CSV)</h4>
-                <p class="admin-hint">Colonnes attendues : <code>nom ; prenom ; sexe ; classe</code> (séparateur <code>;</code> ou <code>,</code>, entête facultative). Si le fichier ne contient pas de colonne classe, celle sélectionnée ci-dessous est utilisée. <strong>L'import remplace intégralement la liste de la classe.</strong></p>
+                <p class="admin-hint">Colonnes attendues : <code>nom ; prenom ; sexe ; classe</code> (séparateur <code>;</code> ou <code>,</code>, entête facultative). Si le fichier ne contient pas de colonne classe, celle sélectionnée ci-dessous est utilisée. <strong>L'import remplace intégralement la liste de la classe.</strong> Les photos déjà enregistrées suivent l’élève (même nom et prénom, même année) s’il change de classe — pensez à appliquer la migration <code>0028</code>.</p>
                 <div class="admin-inline-form">
                     <select class="eleves-classe-import"></select>
                     <input type="file" class="eleves-csv" accept=".csv,.txt">
@@ -2008,7 +2009,7 @@
 
             <div class="admin-card">
                 <h4>📸 Importer un trombinoscope (PDF)</h4>
-                <p class="admin-hint">Fichier Pronote (photo au-dessus du nom). Les photos sont associées aux élèves <strong>déjà présents</strong> dans la classe : aucune fiche n’est créée. Vérifiez l’aperçu, corrigez un nom ou choisissez l’élève à la main, puis validez.</p>
+                    <p class="admin-hint">Fichier Pronote (photo au-dessus du nom). Les photos sont associées aux élèves <strong>déjà présents</strong> dans la classe : aucune fiche n’est créée. Vérifiez l’aperçu, corrigez un nom ou choisissez l’élève à la main, puis validez. Un <strong>homonyme</strong> (même nom et prénom) n’est jamais associé automatiquement. N’importez une photo que si le consentement (trombinoscope) le permet ; un retrait de consentement masque la photo côté enseignant.</p>
                 <div class="admin-inline-form">
                     <select class="eleves-trombi-classe"></select>
                     <input type="file" class="eleves-trombi-pdf" accept="application/pdf,.pdf">
@@ -2211,9 +2212,23 @@
                     .replace(/^-+|-+$/g, '') || 'eleve';
             }
 
-            function photoStoragePath(classe, nom, prenom, eleveId) {
-                const idBit = eleveId ? '-' + String(eleveId).slice(0, 8) : '';
-                return ANNEE_COURANTE + '/' + slugPhoto(classe) + '/' + slugPhoto(nom) + '_' + slugPhoto(prenom) + idBit + '.jpg';
+            function photoStoragePath(nom, prenom, eleveId, homonyme) {
+                const idBit = homonyme && eleveId ? '-' + String(eleveId).slice(0, 8) : '';
+                return ANNEE_COURANTE + '/' + slugPhoto(nom) + '_' + slugPhoto(prenom) + idBit + '.jpg';
+            }
+
+            function identiteKey(nom, prenom) {
+                if (window.EprofTrombiPdf && window.EprofTrombiPdf.makeKey) {
+                    return window.EprofTrombiPdf.makeKey(nom, prenom);
+                }
+                return String(nom || '').toUpperCase() + '|' + String(prenom || '').toUpperCase();
+            }
+
+            function homonymesAnnee(nom, prenom) {
+                const key = identiteKey(nom, prenom);
+                return eleves.filter(function (e) {
+                    return e.annee_scolaire === ANNEE_COURANTE && identiteKey(e.nom, e.prenom) === key;
+                });
             }
 
             function elevesDeClasse(classe) {
@@ -2231,30 +2246,50 @@
                 const parser = window.EprofTrombiPdf;
                 if (!parser) return;
                 trombiRows.forEach(function (row) {
-                    const matched = parser.matchStudent(row.nom, row.prenom, liste);
-                    if (matched) {
-                        row.matchId = matched.id;
+                    const matched = parser.matchStudents
+                        ? parser.matchStudents(row.nom, row.prenom, liste)
+                        : { hits: parser.matchStudent(row.nom, row.prenom, liste) ? [parser.matchStudent(row.nom, row.prenom, liste)] : [] };
+                    row.ambiguous = matched.hits.length > 1;
+                    if (matched.hits.length === 1) {
+                        row.matchId = matched.hits[0].id;
                         if (row.keep !== false) row.keep = true;
                     } else if (!liste.some(function (e) { return e.id === row.matchId; })) {
                         row.matchId = '';
                         row.keep = false;
                     }
                 });
-                const associes = trombiRows.filter(function (r) { return r.matchId; }).length;
+                const usedIds = {};
+                trombiRows.forEach(function (row) {
+                    if (!row.matchId) return;
+                    usedIds[row.matchId] = (usedIds[row.matchId] || 0) + 1;
+                });
+                const associes = trombiRows.filter(function (r) { return r.matchId && !r.ambiguous; }).length;
+                const homonymesClasse = parser.findHomonyms ? parser.findHomonyms(liste) : [];
+                const warnHomonymes = homonymesClasse.length
+                    ? '<p class="admin-hint admin-warn">Homonymes dans cette classe : ' + homonymesClasse.map(function (g) {
+                        return escapeHtml(g[0].prenom + ' ' + g[0].nom);
+                    }).join(', ') + '. Associez chaque photo à la main.</p>'
+                    : '';
                 apercu.innerHTML = `
-                    <p class="admin-hint">${trombiRows.length} photo(s) lue(s) — ${associes} associée(s) à un élève de « ${escapeHtml(classe || '—')} ». Décochez pour ignorer. Les photos sans élève correspondant ne sont pas importées.</p>
+                    <p class="admin-hint">${trombiRows.length} photo(s) lue(s) — ${associes} associée(s) à un élève de « ${escapeHtml(classe || '—')} ». Décochez pour ignorer. Les photos sans élève correspondant ne sont pas importées. Vérifiez le consentement photo avant import.</p>
+                    ${warnHomonymes}
                     <div class="admin-trombi-grid">
                         ${trombiRows.map(function (row, idx) {
                             const options = '<option value="">— Non trouvé —</option>' + liste.map(function (e) {
                                 return `<option value="${escapeHtml(e.id)}"${e.id === row.matchId ? ' selected' : ''}>${escapeHtml(e.prenom + ' ' + e.nom)}</option>`;
                             }).join('');
-                            const checked = row.keep !== false && row.matchId ? ' checked' : '';
-                            const disabled = row.matchId ? '' : ' disabled';
-                            return `<article class="admin-trombi-card" data-idx="${idx}">
+                            const collision = row.matchId && usedIds[row.matchId] > 1;
+                            const warn = row.ambiguous
+                                ? '<p class="trombi-homonyme">Plusieurs élèves correspondent — choisissez à la main.</p>'
+                                : (collision ? '<p class="trombi-homonyme">Deux photos pointent vers le même élève.</p>' : '');
+                            const checked = row.keep !== false && row.matchId && !row.ambiguous ? ' checked' : '';
+                            const disabled = row.matchId && !row.ambiguous ? '' : ' disabled';
+                            return `<article class="admin-trombi-card${row.ambiguous || collision ? ' admin-trombi-card-warn' : ''}" data-idx="${idx}">
                                 <img src="${row.dataUrl}" alt="">
                                 <input type="text" class="trombi-nom" value="${escapeHtml(row.nom)}" aria-label="Nom">
                                 <input type="text" class="trombi-prenom" value="${escapeHtml(row.prenom)}" aria-label="Prénom">
                                 <select class="trombi-match" aria-label="Élève associé">${options}</select>
+                                ${warn}
                                 <label class="trombi-keep"><input type="checkbox" class="trombi-keep-box"${checked}${disabled}> Importer</label>
                             </article>`;
                         }).join('')}
@@ -2282,24 +2317,31 @@
                     nomInput.addEventListener('change', function () {
                         row.nom = nomInput.value.trim().toUpperCase();
                         nomInput.value = row.nom;
-                        const hit = parser.matchStudent(row.nom, row.prenom, liste);
-                        row.matchId = hit ? hit.id : '';
+                        const found = parser.matchStudents
+                            ? parser.matchStudents(row.nom, row.prenom, liste)
+                            : { hits: parser.matchStudent(row.nom, row.prenom, liste) ? [parser.matchStudent(row.nom, row.prenom, liste)] : [] };
+                        row.ambiguous = found.hits.length > 1;
+                        row.matchId = found.hits.length === 1 ? found.hits[0].id : '';
                         matchSel.value = row.matchId;
-                        row.keep = !!row.matchId;
+                        row.keep = !!row.matchId && !row.ambiguous;
                         keepBox.checked = row.keep;
                         syncKeep();
                     });
                     prenomInput.addEventListener('change', function () {
                         row.prenom = prenomInput.value.trim();
-                        const hit = parser.matchStudent(row.nom, row.prenom, liste);
-                        row.matchId = hit ? hit.id : '';
+                        const found = parser.matchStudents
+                            ? parser.matchStudents(row.nom, row.prenom, liste)
+                            : { hits: parser.matchStudent(row.nom, row.prenom, liste) ? [parser.matchStudent(row.nom, row.prenom, liste)] : [] };
+                        row.ambiguous = found.hits.length > 1;
+                        row.matchId = found.hits.length === 1 ? found.hits[0].id : '';
                         matchSel.value = row.matchId;
-                        row.keep = !!row.matchId;
+                        row.keep = !!row.matchId && !row.ambiguous;
                         keepBox.checked = row.keep;
                         syncKeep();
                     });
                     matchSel.addEventListener('change', function () {
                         row.matchId = matchSel.value;
+                        row.ambiguous = false;
                         row.keep = !!row.matchId;
                         keepBox.checked = row.keep;
                         syncKeep();
@@ -2330,7 +2372,8 @@
                     const eleve = eleves.find(function (e) { return e.id === row.matchId; });
                     if (!eleve) continue;
                     const blob = parser.dataUrlToBlob(row.dataUrl);
-                    const path = photoStoragePath(classe, eleve.nom, eleve.prenom, eleve.id);
+                    const homonyme = homonymesAnnee(eleve.nom, eleve.prenom).length > 1;
+                    const path = photoStoragePath(eleve.nom, eleve.prenom, eleve.id, homonyme);
                     const file = new File([blob], slugPhoto(eleve.nom) + '.jpg', { type: 'image/jpeg' });
                     if (eleve.photo_path && eleve.photo_path !== path) {
                         await window.EprofStore.removeFile(TROMBI_BUCKET, eleve.photo_path);
@@ -2343,10 +2386,14 @@
                         lastError = up.error.message || 'upload';
                         continue;
                     }
-                    const saved = await window.EprofStore.update('school_students', eleve.id, { photo_path: path });
-                    if (saved.error) {
-                        lastError = saved.error.message || 'mise à jour';
-                        continue;
+                    try {
+                        await rpc('admin_set_student_photo', { p_student_id: eleve.id, p_photo_path: path });
+                    } catch (err) {
+                        const saved = await window.EprofStore.update('school_students', eleve.id, { photo_path: path });
+                        if (saved.error) {
+                            lastError = (err && err.message) || saved.error.message || 'mise à jour';
+                            continue;
+                        }
                     }
                     ok += 1;
                 }

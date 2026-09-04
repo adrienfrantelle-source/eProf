@@ -684,9 +684,19 @@ body.theme-sombre .admin-trombi-card {
     border-color: #334155;
 }
 
-body.theme-sombre .admin-trombi-card input,
-body.theme-sombre .admin-trombi-card select {
-    background: #0f172a;
-    color: #e2e8f0;
-    border-color: #475569;
+.admin-trombi-card-warn {
+    border-color: var(--eprof-warning, #f59e0b);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+.trombi-homonyme,
+.admin-warn {
+    color: #92400e;
+    font-size: 0.82rem;
+    margin: 0.2em 0 0;
+}
+
+body.theme-sombre .trombi-homonyme,
+body.theme-sombre .admin-warn {
+    color: #fbbf24;
 }

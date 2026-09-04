@@ -114,7 +114,7 @@
             <div class="footer-info">
                 <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
                 <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
-                <p class="footer-version" id="footer-version">Version V2.5.17</p>
+                <p class="footer-version" id="footer-version">Version V2.5.18</p>
                 <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
             </div>
             <button type="button" class="footer-docs-btn" id="docs-trigger" title="Tutoriels pour prendre eProf en main">📖 Documentation</button>
@@ -168,6 +168,11 @@
                     <label for="event-end">Fin
                         <input type="datetime-local" id="event-end" name="event-end">
                     </label>
+                </div>
+                <div id="event-duration-presets" class="event-duration-presets" hidden>
+                    <span class="event-duration-label">Durée du cours</span>
+                    <button type="button" class="event-duration-chip selected" data-mins="55">55 min</button>
+                    <button type="button" class="event-duration-chip" data-mins="110">1 h 50</button>
                 </div>
                 <label class="event-inline-check">
                     <input type="checkbox" id="event-recurring"> Répéter chaque semaine (emploi du temps)
@@ -284,6 +289,7 @@
     <!-- Listes d'élèves embarquées (évite le problème CORS) -->
     <script src="js/listes-eleves.js"></script>
     <script src="js/trombi-photos.js"></script>
+    <script src="js/eleves-shared.js"></script>
     <!-- Données du carnet de notes -->
     <script src="js/carnet-notes-data.js"></script>
     <!-- Gestionnaire d'enseignants (doit être chargé en premier) -->
@@ -291,6 +297,9 @@
     <!-- Jeux pédagogiques embarqués (portabilité complète) -->
     <script src="js/jeux-pedagogiques.js"></script>
     <script src="js/suivi-tableau.js"></script>
+    <script src="js/trombinoscopes.js"></script>
+    <script src="js/suivi-eleves.js"></script>
+    <script src="js/plan-classe.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

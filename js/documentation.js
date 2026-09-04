@@ -43,7 +43,7 @@
             steps: [
                 'Ouvrez <strong>Calendrier</strong> dans le menu ou depuis l’accueil.',
                 'Cliquez-glissez sur le planning pour créer un événement aux bons horaires, ou le bouton <strong>Nouvel événement</strong>.',
-                'Renseignez l’intitulé, la nature (cours, tâche, rendez-vous…), éventuellement la classe, la couleur et un rappel. Pour un <strong>cours</strong>, l’heure de fin se cale automatiquement <strong>55 min</strong> après le début et suit si vous changez l’heure de début. Si vous réglez la fin à la main, elle n’est plus forcée.',
+                'Renseignez l’intitulé, la nature (cours, tâche, rendez-vous…), éventuellement la classe, la couleur et un rappel. Pour un <strong>cours</strong>, l’heure de fin se cale automatiquement <strong>55 min</strong> après le début (bouton 1 h 50 pour une double séance). Elle suit si vous changez le début. Si vous réglez la fin à la main, elle n’est plus forcée.',
                 'Pour un cours d’emploi du temps, cochez <strong>Répéter chaque semaine</strong>, les jours (ils passent en bleu) et éventuellement <strong>semaine A</strong> (n° pair) ou <strong>B</strong> (n° impair). La série s’arrête aux vacances d’été et saute les vacances et jours fériés.',
                 'Cliquez un cours récurrent : vous pouvez modifier ou supprimer <strong>cette séance</strong> seulement, ou toute la série. Un glisser-déposer ne change que la séance déplacée.',
                 'Le bouton <strong>Emploi du temps</strong> affiche votre EDT personnel : importez une <strong>image</strong> (PNG ou JPEG). Chaque enseignant a le sien, enregistré en ligne.',
@@ -61,7 +61,7 @@
             steps: [
                 'Ouvrez <strong>Agenda</strong> dans le menu de gauche.',
                 'Vous y voyez d’abord <strong>aujourd’hui</strong>, puis les jours qui viennent. Les retards sont repliés en bas pour ne pas masquer la suite.',
-                'Ajoutez une entrée : même formulaire que le calendrier (horaire ou journée, répétition hebdomadaire, classe, couleur). Un <strong>cours</strong> dure 55 min par défaut, sauf si vous imposez une autre heure de fin.',
+                'Ajoutez une entrée : même formulaire que le calendrier (horaire ou journée, répétition hebdomadaire, classe, couleur). Un <strong>cours</strong> dure 55 min par défaut, ou 1 h 50 via le bouton dédié, sauf si vous imposez une autre heure de fin.',
                 'Cochez « journée ou période » pour un événement sans horaire. La date de fin est le dernier jour inclus.',
                 'Activez un rappel si vous voulez une notification (l’application doit rester ouverte).',
                 'Les tâches peuvent être marquées comme terminées. Les cours et rendez-vous restent dans le planning.'
@@ -91,7 +91,7 @@
             tool: 'eleves',
             steps: [
                 'Ouvrez <strong>Suivi des élèves</strong> et cliquez la classe concernée.',
-                'Cliquez un élève pour ouvrir sa fiche.',
+                'Cliquez un élève pour ouvrir sa fiche (photo, oublis, mots, notes, moyennes).',
                 'Onglet <strong>Oublis</strong> : cochez le matériel manquant (manuel, cours, travail non fait…), choisissez la date, puis Ajouter.',
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
                 'Onglet <strong>Notes</strong> : ajoutez des observations personnelles. Elles se synchronisent en ligne pour votre compte uniquement.',
@@ -110,11 +110,11 @@
             lead: 'Placez les élèves dans la salle, en organisation par défaut ou personnalisée.',
             tool: 'plan-classe',
             steps: [
-                'Ouvrez <strong>Plan de classe</strong>. En haut, vous pouvez <strong>lier le plan à une classe</strong> : il sera ensuite proposé dans le suivi des élèves de cette classe.',
+                'Ouvrez <strong>Plan de classe</strong>. Saisissez un <strong>titre</strong> et liez le plan à une classe : le nom de classe suffit (accents et casse ignorés). Il sera ensuite proposé dans le suivi.',
                 'Déployez <strong>Configuration de la classe</strong>. Choisissez une organisation par défaut, ou une organisation personnalisée (nombre de places, clic pour poser les tables).',
                 'Importez les élèves : liste enregistrée de vos classes (cela lie aussi le plan à la classe), import brut (un nom par ligne) ou fichier Excel.',
                 'Glissez un élève sur une table. Cliquez une table pour la griser (place inactive).',
-                'Enregistrez le plan en fichier, en ligne, ou les deux. Le lien vers la classe est conservé : si plusieurs plans sont liés à la même classe, le plus récent s’ouvre en premier.'
+                'Enregistrez le plan (fichier ou en ligne) : le titre saisi en haut est utilisé, sans fenêtre supplémentaire. Si plusieurs plans sont liés à la même classe, le plus récent s’ouvre en premier.'
             ],
             tip: 'Les listes officielles sont importées par l’administrateur. Si une classe manque, vérifiez vos classes dans Paramètres.'
         },
@@ -126,9 +126,10 @@
             tool: 'trombinoscopes',
             steps: [
                 'Ouvrez <strong>Trombinoscopes</strong> dans le menu.',
-                'Sélectionnez une de vos classes pour afficher la grille (photo, prénom, nom).',
-                'Les photos viennent des trombinoscopes PDF importés par l’administrateur, associées aux listes officielles. Sans photo, une pastille reste affichée.',
-                'Utilisez le trombinoscope pour mémoriser les prénoms ou préparer un appel visuel. Le bouton Imprimer sert pour une copie papier.',
+                'Sélectionnez une de vos classes pour afficher la grille (photo, prénom, nom). Filtrez avec la recherche.',
+                'Cliquez une carte pour ouvrir la fiche de suivi de l’élève.',
+                'Les photos viennent des trombinoscopes PDF importés par l’administrateur. Elles suivent l’élève s’il change de classe. Sans photo, une pastille reste affichée. Un consentement photo retiré masque le portrait.',
+                'Le bouton Imprimer n’imprime que la grille (pas le menu).',
                 'Les archives (anciennes années) sont réservées à l’administrateur.'
             ],
             tip: 'Si une classe n’apparaît pas, elle n’est probablement pas cochée dans Paramètres. Les listes et photos sont gérées par l’administrateur (CSV + PDF Pronote).'
