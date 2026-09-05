@@ -1223,6 +1223,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.EprofSuiviEleves && typeof window.EprofSuiviEleves.hydrate === 'function') {
             window.EprofSuiviEleves.hydrate({ updateNotifications: updateNotifications });
         }
+        if (window.EprofConseilClasse && typeof window.EprofConseilClasse.hydrate === 'function') {
+            window.EprofConseilClasse.hydrate();
+        }
     });
 
     function updateNotifications() {
@@ -1259,6 +1262,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     lienEleves.appendChild(badge);
                 }
             }
+
+            const nConseil = (window.EprofConseilClasse && typeof window.EprofConseilClasse.nbAlertes === 'function')
+                ? window.EprofConseilClasse.nbAlertes()
+                : 0;
+            const lienConseil = document.querySelector('a[data-tool="conseil-classe"]');
+            if (lienConseil) {
+                const ancienConseil = lienConseil.querySelector('.notif-badge');
+                if (ancienConseil) ancienConseil.remove();
+                if (nConseil > 0) {
+                    const badgeC = document.createElement('span');
+                    badgeC.className = 'notif-badge';
+                    badgeC.textContent = ` ${nConseil}`;
+                    lienConseil.appendChild(badgeC);
+                }
+            }
         } catch (error) {
             console.error('Erreur dans updateNotifications:', error);
         }
@@ -1268,6 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.EprofAppHooks.updateNotifications = updateNotifications;
     if (window.EprofSuiviEleves && typeof window.EprofSuiviEleves.hydrate === 'function') {
         window.EprofSuiviEleves.hydrate({ updateNotifications: updateNotifications });
+    }
+    if (window.EprofConseilClasse && typeof window.EprofConseilClasse.hydrate === 'function') {
+        window.EprofConseilClasse.hydrate();
     }
 
     // ========================================

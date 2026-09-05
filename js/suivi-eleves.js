@@ -1,6 +1,7 @@
 /* Suivi des élèves — extraits de app.js */
 (function (global) {
     var E = function () { return global.EprofEleves || {}; };
+    var suiviNav = { from: '', conseil: null };
     function getAnneeScolaire() { return E().getAnneeScolaire(); }
     function getAlertesSeuils() { return E().getAlertesSeuils(); }
     function getVisibleTeacherClasses() { return E().getVisibleTeacherClasses(); }
@@ -24,7 +25,17 @@
     }
     function rememberSuiviContext(classe, eleve) {
         if (global.EprofAppHooks && typeof global.EprofAppHooks.setOutilExtra === 'function') {
-            global.EprofAppHooks.setOutilExtra(classe ? { classe: classe, eleve: eleve || undefined } : null);
+            var extra = null;
+            if (classe || suiviNav.from) {
+                extra = {};
+                if (classe) {
+                    extra.classe = classe;
+                    extra.eleve = eleve || undefined;
+                }
+                if (suiviNav.from) extra.from = suiviNav.from;
+                if (suiviNav.conseil) extra.conseil = suiviNav.conseil;
+            }
+            global.EprofAppHooks.setOutilExtra(extra);
         }
     }
 
@@ -251,8 +262,9 @@
 
         container.innerHTML = `
             <div id="suivi-eleves-module">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; flex-wrap: wrap;">
                     <h2>👨‍🎓 Suivi des élèves</h2>
+                    ${suiviNav.from === 'conseil-classe' ? '<button type="button" id="retour-conseil-classe" class="btn-primary">← Retour au conseil de classe</button>' : ''}
                 </div>
                 
                 ${classes.length === 0 ? emptyTeacherClassesHtml() : `
@@ -299,6 +311,7 @@
                         <div class="modale-eleve-title-row">
                             <div id="photo-eleve-modale" class="modale-eleve-photo"></div>
                             <h3 id="nom-eleve-modale"></h3>
+                            <button type="button" id="retour-conseil-depuis-fiche" class="btn-primary" hidden>← Conseil de classe</button>
                             <button type="button" id="generer-fiche-eleve-btn" class="btn-secondary">📄 Fiche</button>
                         </div>
                         
@@ -642,6 +655,24 @@
         }
 
         // Event listeners sur les boutons de classe
+        function retourConseilClasse() {
+            var ctx = suiviNav.conseil || {};
+            handleDashboardTool('conseil-classe', {
+                classe: ctx.classe || classeActuelle,
+                periode: ctx.periode,
+                tab: ctx.tab,
+                search: ctx.search,
+                sort: ctx.sort,
+                filter: ctx.filter
+            });
+        }
+        var backConseil = container.querySelector('#retour-conseil-classe');
+        if (backConseil) backConseil.addEventListener('click', retourConseilClasse);
+        var backConseilFiche = container.querySelector('#retour-conseil-depuis-fiche');
+        if (backConseilFiche) {
+            if (suiviNav.from === 'conseil-classe') backConseilFiche.hidden = false;
+            backConseilFiche.addEventListener('click', retourConseilClasse);
+        }
         container.querySelectorAll('.classe-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const classe = this.getAttribute('data-classe');
@@ -2635,6 +2666,8 @@
     global.EprofSuiviEleves = {
         render: function (container, extra) {
             extra = extra || {};
+            suiviNav.from = extra.from || '';
+            suiviNav.conseil = extra.conseil || null;
             renderSuiviEleves(container, extra.classe, extra.eleve);
         },
         hydrate: hydrateSuivi,

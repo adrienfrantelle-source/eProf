@@ -92,15 +92,16 @@
             steps: [
                 'L’entrée <strong>Conseil de classe</strong> n’apparaît que si vous êtes <strong>professeur principal</strong>. Cochez <strong>PP</strong> dans <em>Gérer mes classes et matières</em>, ou faites-vous désigner dans les affectations (admin). Un badge <strong>PP</strong> s’affiche alors sur les boutons de votre classe partout dans eProf.',
                 'Ouvrez l’outil depuis le menu (sous le carnet de notes) ou <strong>Gestion de classe</strong> sur l’accueil.',
-                'Choisissez la période : trimestres ou semestres selon la configuration de la classe, plus un récapitulatif <strong>Année</strong>.',
-                'Dans <strong>Matières de la classe</strong>, définissez la liste et les coefficients pour l’année. Glissez les poignées pour réordonner. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
-                'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La moyenne générale tient compte des coefficients. L’onglet <strong>Année</strong> calcule le récapitulatif.',
-                'Onglet <strong>Sanctions</strong> : ajoutez une ou plusieurs mesures (mot, retenue, avertissements, fiche d’accompagnement, contrat, exclusions, conseils). Pour les mots, retenues et avertissements, choisissez le collègue dans la liste blanche. Les objectifs se renseignent pour les fiches et contrats ; la durée pour une exclusion temporaire. L’ordre n’est pas imposé.',
-                'Onglet <strong>Retour des profs</strong> : appréciation générale de chaque enseignant, associé à une ou plusieurs matières de la classe. Elle figure sur le PDF classe.',
-                'Onglet <strong>Appréciations</strong> : texte pour la classe et pour chaque élève, avec un compteur de caractères.',
-                'Onglets <strong>Vue d’ensemble</strong> et <strong>Synthèse</strong> : statistiques, répartition des moyennes, suivi sur l’année. Exportez un <strong>PDF classe</strong> ou une <strong>fiche élève</strong>.'
+                'Choisissez la période : trimestres ou semestres selon la configuration de la classe, plus un récapitulatif <strong>Année</strong>. Renseignez la <strong>date et l’heure</strong> du conseil : un rappel apparaît dans le menu deux semaines avant.',
+                'Dans <strong>Matières</strong>, définissez la liste et les coefficients pour l’année. Glissez les poignées pour réordonner. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
+                'Filtrez et triez les élèves (moyenne, rang, sanctions, sans appréciation, PAP, en baisse). Un clic sur le <strong>nom</strong> ouvre la fiche de suivi ; <strong>Retour au conseil</strong> ramène au même onglet.',
+                'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La colonne Moy. se met à jour tout de suite. L’onglet <strong>Année</strong> calcule le récapitulatif. Le <strong>rang</strong> est indiqué parmi les élèves qui ont une moyenne.',
+                'Onglet <strong>Sanctions</strong> : ajoutez ou <strong>modifiez</strong> une mesure (mot, retenue, avertissements, fiche d’accompagnement, contrat, exclusions, conseils). Pour les mots, retenues et avertissements, choisissez le collègue dans la liste blanche.',
+                'Onglet <strong>Retour des profs</strong> : ajoutez chaque enseignant depuis la liste blanche et associez-le à une ou plusieurs matières. <strong>Préparer</strong> la période suivante recopie la liste des enseignants (sans les textes).',
+                'Onglet <strong>Appréciations</strong> : c’est le seul endroit où rédiger l’appréciation de classe et celles des élèves (compteur de caractères).',
+                'Onglets <strong>Vue d’ensemble</strong> et <strong>Synthèse</strong> : statistiques, checklist de préparation, suivi sur l’année. Exportez un <strong>PDF classe</strong>, un <strong>PDF séance</strong> (une page par élève) ou la <strong>grille des moyennes</strong>. L’<strong>historique</strong> archive un instantané de l’année.'
             ],
-            tip: 'Tout est enregistré en ligne sur votre compte, pour vos classes PP uniquement.'
+            tip: 'Un badge sur le menu rappelle le conseil dans les deux semaines. Tout est enregistré en ligne, pour vos classes PP uniquement. La synchro compare chaque classe : la version la plus récente l’emporte, sans écraser les autres.'
         },
         {
             id: 'eleves',
@@ -119,7 +120,8 @@
                 'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes, informations PP et moyennes).',
                 'Le bouton <strong>EDT</strong> affiche l’emploi du temps de la classe (image importée par l’administrateur), comme les dates de stage du calendrier.',
                 'Le bouton <strong>Plan de classe</strong> ouvre le plan le plus récemment lié à cette classe. S’il y en a plusieurs, un petit menu permet d’en choisir un autre.',
-                'Le bouton <strong>Tableau de suivi</strong> ouvre un tableau personnalisable (cases à cocher, notes, textes, dates).'
+                'Le bouton <strong>Tableau de suivi</strong> ouvre un tableau personnalisable (cases à cocher, notes, textes, dates).',
+                'Depuis le <strong>conseil de classe</strong>, un clic sur le nom d’un élève ouvre sa fiche. Le bouton <strong>Retour au conseil de classe</strong> ramène à l’onglet et aux filtres d’où vous veniez.'
             ],
             tip: 'Les badges rouges apparaissent quand le nombre d’oublis ou de mots dépasse le seuil fixé dans Paramètres.'
         },

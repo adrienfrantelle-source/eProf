@@ -6,7 +6,7 @@ Outil réservé aux **professeurs principaux**. Désignation par une case **PP**
 
 Le menu place **Conseil de classe** sous le carnet de notes ; l’accueil l’affiche dans **Gestion de classe**.
 
-Le PP configure les **matières et coefficients** de sa classe pour l’année (ordre par glisser-déposer), saisit des **moyennes coefficientées** (indépendantes du carnet), suit les **sanctions** du lycée, rédige le **retour des professeurs** et les **appréciations** (classe + élèves), consulte stats et évolution (y compris un récapitulatif **Année**), et exporte des **PDF**. Onglets trimestre ou semestre selon la classe. Données personnelles, enregistrées en ligne (`teacher_documents` / `class_principals`). Migrations : `0029_conseil_classe.sql`, `0030_conseil_class_teachers.sql`.
+Le PP configure les **matières et coefficients** de sa classe pour l’année (ordre par glisser-déposer), saisit des **moyennes coefficientées** (indépendantes du carnet), suit les **sanctions** du lycée (ajout et modification), rédige le **retour des professeurs** (ajout manuel depuis la liste blanche) et les **appréciations** (un seul éditeur, onglet Appréciations), consulte stats, **rangs**, filtres et checklist, et exporte des **PDF** (classe, séance une page/élève, grille des moyennes paysage). Date et heure du conseil, **alerte J-14** dans le menu, **historique d’année** (archive / restauration). Clic sur le nom → fiche de suivi, retour vers le conseil. Synchronisation **par classe** (la plus récente l’emporte, sans écraser l’autre classe). Onglets trimestre ou semestre. Données personnelles, enregistrées en ligne (`teacher_documents` / `class_principals`). Migrations : `0029_conseil_classe.sql`, `0030_conseil_class_teachers.sql`.
 
 ---
 

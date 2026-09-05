@@ -23,11 +23,12 @@
         { id: 'conseil_discipline', label: 'Conseil de discipline' }
     ];
 
-    var cache = { classes: {} };
+    var cache = { classes: {}, updatedAt: '' };
     var syncTimer = null;
     var directory = [];
-    var view = { classe: '', periode: '', tab: 'vue', eleve: '', search: '' };
+    var view = { classe: '', periode: '', tab: 'vue', eleve: '', search: '', sort: 'nom', filter: 'all' };
     var ready = false;
+    var rangsCache = null;
 
     function E() { return global.EprofEleves || {}; }
     function esc(str) {
@@ -102,7 +103,7 @@
         if (!cache.classes) cache.classes = {};
         var created = false;
         if (!cache.classes[classe]) {
-            cache.classes[classe] = { matieres: defaultMatieres(), periodes: {}, profs: [] };
+            cache.classes[classe] = { matieres: defaultMatieres(), periodes: {}, profs: [], archives: [], conseilAt: '', updatedAt: '' };
             created = true;
         }
         if (!cache.classes[classe].matieres || !cache.classes[classe].matieres.length) {
@@ -110,6 +111,8 @@
             created = true;
         }
         if (!Array.isArray(cache.classes[classe].profs)) cache.classes[classe].profs = [];
+        if (!Array.isArray(cache.classes[classe].archives)) cache.classes[classe].archives = [];
+        if (typeof cache.classes[classe].conseilAt !== 'string') cache.classes[classe].conseilAt = '';
         if (normalizeProfs(cache.classes[classe]) && ready) created = true;
         if (ready && created) planifierSync();
         return cache.classes[classe];
@@ -163,10 +166,49 @@
         if (res.error) console.error('❌ Conseil de classe : sauvegarde en ligne échouée', res.error);
         return !res.error;
     }
+    function stampOf(obj) {
+        return Date.parse((obj && obj.updatedAt) || '') || 0;
+    }
+    function touchClass(classe) {
+        var now = new Date().toISOString();
+        cache.updatedAt = now;
+        if (classe && cache.classes && cache.classes[classe]) {
+            cache.classes[classe].updatedAt = now;
+        }
+    }
+    function mergeDocs(local, distant) {
+        if (!distant || !distant.classes) return local && local.classes ? local : { classes: {} };
+        if (!local || !local.classes) return distant;
+        var out = { classes: {}, updatedAt: '' };
+        var names = {};
+        Object.keys(local.classes).forEach(function (k) { names[k] = true; });
+        Object.keys(distant.classes).forEach(function (k) { names[k] = true; });
+        Object.keys(names).forEach(function (k) {
+            var L = local.classes[k];
+            var D = distant.classes[k];
+            if (!L) out.classes[k] = D;
+            else if (!D) out.classes[k] = L;
+            else {
+                var ls = stampOf(L);
+                var ds = stampOf(D);
+                if (!ls && !ds) out.classes[k] = D;
+                else out.classes[k] = ls >= ds ? L : D;
+            }
+        });
+        var lsDoc = stampOf(local);
+        var dsDoc = stampOf(distant);
+        out.updatedAt = (lsDoc >= dsDoc ? local.updatedAt : distant.updatedAt) || local.updatedAt || distant.updatedAt || '';
+        return out;
+    }
     function planifierSync() {
+        if (view.classe) touchClass(view.classe);
+        else cache.updatedAt = new Date().toISOString();
         ecrireLocal(cache);
         clearTimeout(syncTimer);
         syncTimer = setTimeout(function () { sauverEnLigne(cache); }, 900);
+        if (global.EprofAppHooks && typeof global.EprofAppHooks.updateNotifications === 'function') {
+            global.EprofAppHooks.updateNotifications();
+        }
     }
     async function hydrater() {
         try {
@@ -174,12 +216,15 @@
             if (local && local.classes) cache = local;
             var distant = await chargerEnLigne();
             if (distant && distant.classes) {
-                cache = distant;
+                cache = mergeDocs(cache, distant);
                 ecrireLocal(cache);
             }
             await chargerDirectory();
         } finally {
             ready = true;
+            if (global.EprofAppHooks && typeof global.EprofAppHooks.updateNotifications === 'function') {
+                global.EprofAppHooks.updateNotifications();
+            }
         }
     }
     async function chargerDirectory() {
@@ -392,30 +437,6 @@
             };
         });
     }
-    function mapRpcProf(row) {
-        return {
-            identifiant: row.identifiant || '',
-            nom: row.nom || '',
-            prenom: row.prenom || '',
-            matiere: row.matiere || ''
-        };
-    }
-    async function chargerProfsClasse(classe) {
-        var loaded = [];
-        if (!global.EprofStore || !(await global.EprofStore.isOnlineReady())) return loaded;
-        try {
-            var client = await global.EprofStore.getClient();
-            if (!client) return loaded;
-            var res = await client.rpc('list_class_teachers', {
-                p_classe: classe,
-                p_annee: annee()
-            });
-            if (!res.error && Array.isArray(res.data)) {
-                loaded = res.data.map(mapRpcProf);
-            }
-        } catch (e) { /* hors ligne / RPC absente */ }
-        return loaded;
-    }
     function mergeProfs(classe, incoming) {
         var c = classData(classe);
         var mats = c.matieres || [];
@@ -452,15 +473,6 @@
         });
         c.profs = list;
         return added;
-    }
-    async function ensureProfs(classe, force) {
-        var c = classData(classe);
-        if (!force && c.profs && c.profs.length) return false;
-        var loaded = await chargerProfsClasse(classe);
-        if (!loaded.length) return false;
-        mergeProfs(classe, loaded);
-        planifierSync();
-        return true;
     }
     function fmtMoy(v) {
         if (v == null || isNaN(v)) return '—';
@@ -519,9 +531,174 @@
         };
     }
 
+    function periodePrecedente(classe, periode) {
+        var pers = periodesReelles(classe);
+        var i = -1;
+        pers.forEach(function (p, idx) { if (p.id === periode) i = idx; });
+        return i > 0 ? pers[i - 1] : null;
+    }
+    function periodeSuivante(classe, periode) {
+        var pers = periodesReelles(classe);
+        var i = -1;
+        pers.forEach(function (p, idx) { if (p.id === periode) i = idx; });
+        return (i >= 0 && i < pers.length - 1) ? pers[i + 1] : null;
+    }
+    function rangsMap(classe, periode) {
+        var list = eleves(classe).map(function (e) {
+            return { nom: e.nomComplet, m: moyenneEleve(classe, periode, e.nomComplet) };
+        }).filter(function (x) { return x.m != null; }).sort(function (a, b) { return b.m - a.m; });
+        var map = {};
+        list.forEach(function (x, i) {
+            var rang = i + 1;
+            if (i > 0 && Math.abs(list[i - 1].m - x.m) < 0.05) rang = map[list[i - 1].nom].rang;
+            map[x.nom] = { rang: rang, n: list.length };
+        });
+        return map;
+    }
+    function rangsCourants() {
+        if (!rangsCache) rangsCache = rangsMap(view.classe, view.periode);
+        return rangsCache;
+    }
+    function fmtRang(nomComplet) {
+        var r = rangsCourants()[nomComplet];
+        return r ? (r.rang + ' / ' + r.n) : '—';
+    }
+    function elevesFiltres() {
+        var list = eleves(view.classe);
+        var q = String(view.search || '').trim().toLowerCase();
+        if (q) {
+            list = list.filter(function (e) {
+                return e.nomComplet.toLowerCase().indexOf(q) !== -1;
+            });
+        }
+        var prev = periodePrecedente(view.classe, view.periode);
+        if (view.filter === 'sans-app') {
+            list = list.filter(function (e) {
+                return !appreciationEleve(view.classe, view.periode, e.nomComplet);
+            });
+        } else if (view.filter === 'sans-moy') {
+            list = list.filter(function (e) {
+                return moyenneEleve(view.classe, view.periode, e.nomComplet) == null;
+            });
+        } else if (view.filter === 'pap') {
+            list = list.filter(function (e) {
+                return infoPpEleve(e.nomComplet).dispositifs.indexOf('PAP') !== -1;
+            });
+        } else if (view.filter === 'baisse') {
+            list = list.filter(function (e) {
+                if (!prev) return false;
+                var a = moyenneEleve(view.classe, view.periode, e.nomComplet);
+                var b = moyenneEleve(view.classe, prev.id, e.nomComplet);
+                return a != null && b != null && a < b - 0.05;
+            });
+        } else if (view.filter === 'sanctions') {
+            list = list.filter(function (e) {
+                return sanctionsEleve(view.classe, view.periode, e.nomComplet).length > 0;
+            });
+        }
+        var sort = view.sort || 'nom';
+        list = list.slice().sort(function (a, b) {
+            if (sort === 'moyenne' || sort === 'rang') {
+                var ma = moyenneEleve(view.classe, view.periode, a.nomComplet);
+                var mb = moyenneEleve(view.classe, view.periode, b.nomComplet);
+                if (ma == null && mb == null) return String(a.nom || '').localeCompare(String(b.nom || ''), 'fr');
+                if (ma == null) return 1;
+                if (mb == null) return -1;
+                if (mb !== ma) return mb - ma;
+            }
+            if (sort === 'sanctions') {
+                var d = sanctionsEleve(view.classe, view.periode, b.nomComplet).length
+                    - sanctionsEleve(view.classe, view.periode, a.nomComplet).length;
+                if (d) return d;
+            }
+            return String(a.nom || '').localeCompare(String(b.nom || ''), 'fr');
+        });
+        return list;
+    }
+    function checklist() {
+        var list = eleves(view.classe);
+        var sansApp = 0;
+        var sansMoy = 0;
+        list.forEach(function (e) {
+            if (!appreciationEleve(view.classe, view.periode, e.nomComplet)) sansApp += 1;
+            if (moyenneEleve(view.classe, view.periode, e.nomComplet) == null) sansMoy += 1;
+        });
+        var retours = retoursList(view.classe, view.periode);
+        var retoursVides = retours.filter(function (r) { return !(r.texte || '').trim(); }).length;
+        return {
+            sansApp: sansApp,
+            sansMoy: sansMoy,
+            retoursVides: retoursVides,
+            nbRetours: retours.length,
+            effectif: list.length
+        };
+    }
+    function toDatetimeLocal(iso) {
+        if (!iso) return '';
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(iso)) return iso;
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        function pad(n) { return String(n).padStart ? String(n).padStart(2, '0') : (n < 10 ? '0' + n : String(n)); }
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+            'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function formatDateTime(iso) {
+        if (!iso) return '';
+        try {
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return iso;
+            return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+        } catch (e) { return iso; }
+    }
+    function conseilDansDeuxSemaines(at) {
+        if (!at) return false;
+        var t = new Date(at).getTime();
+        if (isNaN(t)) return false;
+        var delta = t - Date.now();
+        return delta >= 0 && delta <= 14 * 24 * 60 * 60 * 1000;
+    }
+    function nbAlertes() {
+        var n = 0;
+        var classes = ppClasses();
+        var store = (cache && cache.classes && Object.keys(cache.classes).length)
+            ? cache.classes
+            : ((lireLocal() || {}).classes || {});
+        classes.forEach(function (nom) {
+            var c = store[nom];
+            if (c && conseilDansDeuxSemaines(c.conseilAt)) n += 1;
+        });
+        return n;
+    }
+    function eleveNomBtn(nomComplet) {
+        return '<button type="button" class="conseil-link-eleve" data-eleve="' + esc(nomComplet) +
+            '" title="Ouvrir la fiche de suivi">' + esc(nomComplet) + '</button>';
+    }
+    function openSuiviEleve(nomComplet) {
+        if (!E().openTool) return;
+        E().openTool('eleves', {
+            classe: view.classe,
+            eleve: nomComplet,
+            from: 'conseil-classe',
+            conseil: {
+                classe: view.classe,
+                periode: view.periode,
+                tab: view.tab,
+                search: view.search,
+                sort: view.sort,
+                filter: view.filter
+            }
+        });
+    }
+
     function render(container, extra) {
         extra = extra || {};
         ensureCss();
+        if (extra.classe) view.classe = extra.classe;
+        if (extra.periode) view.periode = extra.periode;
+        if (extra.tab) view.tab = extra.tab;
+        if (extra.search != null) view.search = extra.search;
+        if (extra.sort) view.sort = extra.sort;
+        if (extra.filter) view.filter = extra.filter;
         hydrater().then(function () {
             var classes = ppClasses();
             if (extra.classe && classes.some(function (c) { return E().classesMatch ? E().classesMatch(c, extra.classe) : c === extra.classe; })) {
@@ -556,20 +733,32 @@
             return;
         }
         if (!view.classe) view.classe = classes[0];
+        rangsCache = null;
         var pers = periodesFor(view.classe);
         if (!view.periode || !pers.some(function (p) { return p.id === view.periode; })) {
             view.periode = pers[0].id;
         }
+        var nextPer = periodeSuivante(view.classe, view.periode);
         var listes = E().getListsForTeacher ? E().getListsForTeacher() : {};
+        var conseilAt = toDatetimeLocal(classData(view.classe).conseilAt || '');
         container.innerHTML =
             '<div class="conseil-wrap" id="conseil-classe-module">' +
+            '<div id="conseil-alerte-slot"></div>' +
             '<div class="conseil-head">' +
             '<div><h2>🎓 Conseil de classe</h2>' +
             '<p class="conseil-kicker">Espace professeur principal · ' + esc(annee()) +
             ' · enregistré en ligne, indépendant du carnet de notes</p></div>' +
             '<div class="conseil-head-actions">' +
-            '<button type="button" class="btn-secondary" id="conseil-config-matieres">⚙️ Matières de la classe</button>' +
+            '<label class="conseil-datetime">Date du conseil' +
+            '<input type="datetime-local" id="conseil-at" value="' + esc(conseilAt) + '"></label>' +
+            '<button type="button" class="btn-secondary" id="conseil-config-matieres">⚙️ Matières</button>' +
+            '<button type="button" class="btn-secondary" id="conseil-prep-periode"' +
+            (nextPer && !isAnnee(view.periode) ? '' : ' hidden') + '>' +
+            (nextPer ? 'Préparer ' + esc(nextPer.label) : 'Préparer') + '</button>' +
+            '<button type="button" class="btn-secondary" id="conseil-archives">📁 Historique</button>' +
             '<button type="button" class="btn-secondary" id="conseil-pdf-classe">📄 PDF classe</button>' +
+            '<button type="button" class="btn-secondary" id="conseil-pdf-seance">📄 PDF séance</button>' +
+            '<button type="button" class="btn-secondary" id="conseil-pdf-moyennes">📄 PDF moyennes</button>' +
             '</div></div>' +
             (classes.length > 1
                 ? '<div class="selection-classe-suivi" style="padding:16px;margin-bottom:12px;"><div class="classes-grid">' +
@@ -587,10 +776,52 @@
                 return '<button type="button" class="conseil-tab' + (t.id === view.tab ? ' is-on' : '') +
                     '" data-tab="' + t.id + '">' + t.label + '</button>';
             }).join('') + '</div>' +
+            '<div class="conseil-toolbar-filtres">' +
+            '<input type="search" id="conseil-search" class="conseil-search" placeholder="Filtrer les élèves…" value="' + esc(view.search) + '" aria-label="Filtrer les élèves">' +
+            '<label>Trier <select id="conseil-sort" aria-label="Trier">' +
+            [['nom', 'Nom'], ['moyenne', 'Moyenne'], ['rang', 'Rang'], ['sanctions', 'Sanctions']].map(function (opt) {
+                return '<option value="' + opt[0] + '"' + (view.sort === opt[0] ? ' selected' : '') + '>' + opt[1] + '</option>';
+            }).join('') + '</select></label>' +
+            '<label>Filtre <select id="conseil-filter" aria-label="Filtrer">' +
+            [['all', 'Tous'], ['sans-app', 'Sans appréciation'], ['sans-moy', 'Sans moyenne'],
+             ['pap', 'PAP'], ['baisse', 'En baisse'], ['sanctions', 'Avec sanctions']].map(function (opt) {
+                return '<option value="' + opt[0] + '"' + (view.filter === opt[0] ? ' selected' : '') + '>' + opt[1] + '</option>';
+            }).join('') + '</select></label>' +
+            '</div>' +
             '<div id="conseil-body"></div>' +
             '</div>';
         bindShell(container);
+        syncShellChrome(container);
         paintBody(container);
+    }
+
+    function syncShellChrome(container) {
+        container.querySelectorAll('[data-periode]').forEach(function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-periode') === view.periode);
+        });
+        container.querySelectorAll('[data-tab]').forEach(function (btn) {
+            btn.classList.toggle('is-on', btn.getAttribute('data-tab') === view.tab);
+        });
+        var filtres = container.querySelector('.conseil-toolbar-filtres');
+        if (filtres) filtres.hidden = view.tab === 'retours';
+        var nextPer = periodeSuivante(view.classe, view.periode);
+        var prep = container.querySelector('#conseil-prep-periode');
+        if (prep) {
+            if (nextPer && !isAnnee(view.periode)) {
+                prep.hidden = false;
+                prep.textContent = 'Préparer ' + nextPer.label;
+            } else {
+                prep.hidden = true;
+            }
+        }
+        var slot = container.querySelector('#conseil-alerte-slot');
+        if (slot) {
+            var at = classData(view.classe).conseilAt || '';
+            slot.innerHTML = conseilDansDeuxSemaines(at)
+                ? '<div class="conseil-alerte-date" role="status">Conseil de classe le ' +
+                  esc(formatDateTime(at)) + ' — dans moins de deux semaines.</div>'
+                : '';
+        }
     }
 
     function bindShell(container) {
@@ -598,25 +829,82 @@
             btn.addEventListener('click', function () {
                 view.classe = btn.getAttribute('data-classe');
                 view.eleve = '';
+                rangsCache = null;
                 paint(container);
             });
         });
         container.querySelectorAll('[data-periode]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 view.periode = btn.getAttribute('data-periode');
-                paint(container);
+                rangsCache = null;
+                syncShellChrome(container);
+                paintBody(container);
             });
         });
         container.querySelectorAll('[data-tab]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 view.tab = btn.getAttribute('data-tab');
-                paint(container);
+                syncShellChrome(container);
+                paintBody(container);
             });
         });
+        var search = container.querySelector('#conseil-search');
+        if (search) {
+            search.addEventListener('input', function () {
+                view.search = search.value;
+                clearTimeout(search._t);
+                search._t = setTimeout(function () { paintBody(container); }, 120);
+            });
+        }
+        var sortSel = container.querySelector('#conseil-sort');
+        if (sortSel) {
+            sortSel.addEventListener('change', function () {
+                view.sort = sortSel.value;
+                paintBody(container);
+            });
+        }
+        var filterSel = container.querySelector('#conseil-filter');
+        if (filterSel) {
+            filterSel.addEventListener('change', function () {
+                view.filter = filterSel.value;
+                paintBody(container);
+            });
+        }
+        var atInp = container.querySelector('#conseil-at');
+        if (atInp) {
+            atInp.addEventListener('change', function () {
+                classData(view.classe).conseilAt = atInp.value || '';
+                planifierSync();
+                syncShellChrome(container);
+            });
+        }
         var cfg = container.querySelector('#conseil-config-matieres');
         if (cfg) cfg.addEventListener('click', function () { openMatieresModal(container); });
+        var prep = container.querySelector('#conseil-prep-periode');
+        if (prep) prep.addEventListener('click', function () { preparerPeriode(container); });
+        var arch = container.querySelector('#conseil-archives');
+        if (arch) arch.addEventListener('click', function () { openArchivesModal(container); });
         var pdf = container.querySelector('#conseil-pdf-classe');
         if (pdf) pdf.addEventListener('click', function () { exportPdfClasse(); });
+        var pdfS = container.querySelector('#conseil-pdf-seance');
+        if (pdfS) pdfS.addEventListener('click', function () { exportPdfSeance(); });
+        var pdfM = container.querySelector('#conseil-pdf-moyennes');
+        if (pdfM) pdfM.addEventListener('click', function () { exportPdfMoyennes(); });
+    }
+
+    function preparerPeriode(container) {
+        var next = periodeSuivante(view.classe, view.periode);
+        if (!next) return;
+        var src = periodeData(view.classe, view.periode);
+        var dest = periodeData(view.classe, next.id);
+        Object.keys(src.retoursProfs || {}).forEach(function (k) {
+            if (dest.retoursProfs[k] == null) dest.retoursProfs[k] = '';
+        });
+        planifierSync();
+        view.periode = next.id;
+        rangsCache = null;
+        syncShellChrome(container);
+        paintBody(container);
     }
 
     function paintBody(container) {
@@ -630,16 +918,6 @@
         else body.innerHTML = htmlSynthese();
         bindBody(container);
         bindCharCounters(container);
-        if (view.tab === 'retours') {
-            ensureProfs(view.classe, false).then(function (changed) {
-                if (!changed || view.tab !== 'retours') return;
-                var still = container.querySelector('#conseil-body');
-                if (!still) return;
-                still.innerHTML = htmlRetours();
-                bindBody(container);
-                bindCharCounters(container);
-            });
-        }
     }
 
     function htmlStats() {
@@ -656,6 +934,37 @@
             '</div>';
     }
 
+    function htmlChecklist() {
+        var c = checklist();
+        var items = [
+            { id: 'sans-moy', n: c.sansMoy, label: c.sansMoy + ' élève' + (c.sansMoy > 1 ? 's' : '') + ' sans moyenne' },
+            { id: 'sans-app', n: c.sansApp, label: c.sansApp + ' élève' + (c.sansApp > 1 ? 's' : '') + ' sans appréciation' },
+            { id: 'retours', n: c.retoursVides, label: c.retoursVides + ' retour' + (c.retoursVides > 1 ? 's' : '') + ' prof vide' + (c.nbRetours ? ' / ' + c.nbRetours : '') }
+        ];
+        var ok = !c.sansMoy && !c.sansApp && !c.retoursVides;
+        return '<div class="conseil-checklist">' +
+            '<h3>Préparation</h3>' +
+            (ok
+                ? '<p class="conseil-hint" style="margin:0">Tout est renseigné pour cette période.</p>'
+                : '<ul>' + items.map(function (it) {
+                    if (!it.n) return '';
+                    if (it.id === 'retours') {
+                        return '<li><button type="button" class="conseil-check-item" data-tab="retours">' +
+                            esc(it.label) + '</button></li>';
+                    }
+                    return '<li><button type="button" class="conseil-check-item" data-filter="' + it.id + '">' +
+                        esc(it.label) + '</button></li>';
+                }).join('') + '</ul>') +
+            '</div>';
+    }
+
+    function htmlAppClasseReadonly() {
+        var txt = (periodeData(view.classe, view.periode).appreciationClasse || '').trim();
+        return '<div class="conseil-panel"><h3>Appréciation de classe' + (isAnnee(view.periode) ? ' (année)' : '') + '</h3>' +
+            (txt ? '<p class="conseil-app-preview">' + esc(txt) + '</p>' : '<p class="conseil-hint">Pas encore rédigée.</p>') +
+            '<button type="button" class="btn-secondary conseil-goto-app">Éditer dans Appréciations</button></div>';
+    }
+
     function htmlVue() {
         var s = statsClasse(view.classe, view.periode);
         var maxBin = Math.max.apply(null, s.bins.map(function (b) { return b.n; }).concat([1]));
@@ -668,7 +977,7 @@
             if (!n) return '';
             return '<span class="conseil-chip' + (n ? ' warn' : '') + '">' + esc(t.label) + ' · ' + n + '</span>';
         }).join('');
-        var list = eleves(view.classe).map(function (e) {
+        var list = elevesFiltres().map(function (e) {
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
             var nSanc = sanctionsEleve(view.classe, view.periode, e.nomComplet).length;
             var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
@@ -676,8 +985,9 @@
             var infoHtml = info.dispositifs.length
                 ? info.dispositifs.map(function (id) { return '<span class="conseil-chip">' + esc(id) + '</span>'; }).join('')
                 : '—';
-            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+            return '<tr><td class="sticky-col">' + eleveNomBtn(e.nomComplet) + '</td>' +
                 '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td>' +
+                '<td>' + fmtRang(e.nomComplet) + '</td>' +
                 '<td>' + (nSanc ? '<span class="conseil-chip danger">' + nSanc + '</span>' : '—') + '</td>' +
                 '<td><div class="conseil-chips" style="justify-content:center">' + infoHtml + '</div></td>' +
                 '<td>' + (app ? '✓' : '—') + '</td></tr>';
@@ -690,32 +1000,34 @@
                 : '<p class="conseil-hint">' + (isAnnee(view.periode)
                     ? 'Les moyennes de l’année se calculent à partir des trimestres ou semestres renseignés.'
                     : 'Saisissez les moyennes dans l’onglet dédié.') + '</p>') +
-            '<h3>' + (isAnnee(view.periode) ? 'Sanctions de l’année' : 'Sanctions de la période') + '</h3><div class="conseil-chips">' + (types || '<span class="conseil-hint">Aucune</span>') + '</div></div>' +
-            '<div class="conseil-panel"><h3>Appréciation de classe' + (isAnnee(view.periode) ? ' (année)' : '') + '</h3>' +
-            '<textarea class="conseil-app-area" id="conseil-app-classe" rows="5" placeholder="Synthèse du conseil pour la classe…">' +
-            esc(periodeData(view.classe, view.periode).appreciationClasse) + '</textarea></div></div>' +
+            '<h3>' + (isAnnee(view.periode) ? 'Sanctions de l’année' : 'Sanctions de la période') + '</h3><div class="conseil-chips">' + (types || '<span class="conseil-hint">Aucune</span>') + '</div>' +
+            htmlChecklist() +
+            '</div>' +
+            htmlAppClasseReadonly() +
+            '</div>' +
             '<div class="conseil-panel" style="margin-top:14px;"><h3>Tableau de bord</h3>' +
             '<div class="conseil-table-wrap"><table class="conseil-table"><thead><tr>' +
-            '<th class="sticky-col">Élève</th><th>Moy.</th><th>Sanctions</th><th>Info</th><th>Appr.</th></tr></thead><tbody>' +
-            list + '</tbody></table></div></div>';
+            '<th class="sticky-col">Élève</th><th>Moy.</th><th>Rang</th><th>Sanctions</th><th>Info</th><th>Appr.</th></tr></thead><tbody>' +
+            (list || '<tr><td class="sticky-col">Aucun élève</td></tr>') + '</tbody></table></div></div>';
     }
 
     function htmlMoyennes() {
         if (isAnnee(view.periode)) return htmlMoyennesAnnee();
         var matieres = classData(view.classe).matieres || [];
-        var list = eleves(view.classe);
+        var list = elevesFiltres();
         var head = '<th class="sticky-col">Élève</th>' + matieres.map(function (m) {
             return '<th>' + esc(m.nom) + '<br><small>coef ' + esc(m.coef) + '</small></th>';
-        }).join('') + '<th>Moy.</th>';
+        }).join('') + '<th>Moy.</th><th>Rang</th>';
         var rows = list.map(function (e) {
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
-            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+            return '<tr><td class="sticky-col">' + eleveNomBtn(e.nomComplet) + '</td>' +
                 matieres.map(function (mat) {
                     var val = noteMatiere(view.classe, view.periode, e.nomComplet, mat.id);
-                    return '<td><input type="number" min="0" max="20" step="0.1" data-moy="' + esc(e.nomComplet) +
+                    return '<td><input type="number" min="0" max="20" step="0.1" inputmode="decimal" data-moy="' + esc(e.nomComplet) +
                         '" data-mat="' + esc(mat.id) + '" value="' + (val == null ? '' : esc(val)) + '"></td>';
                 }).join('') +
-                '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td></tr>';
+                '<td class="conseil-moy ' + moyClass(m) + '" data-moy-cell="' + esc(e.nomComplet) + '">' + fmtMoy(m) + '</td>' +
+                '<td data-rang-cell="' + esc(e.nomComplet) + '">' + fmtRang(e.nomComplet) + '</td></tr>';
         }).join('');
         return htmlStats() +
             '<div class="conseil-panel"><div class="conseil-toolbar"><p class="conseil-hint" style="margin:0">Moyennes coefficientées du conseil — elles ne sont <strong>pas</strong> reportées dans le carnet de notes.</p></div>' +
@@ -726,25 +1038,26 @@
     function htmlMoyennesAnnee() {
         var pers = periodesReelles(view.classe);
         var matieres = classData(view.classe).matieres || [];
-        var list = eleves(view.classe);
+        var list = elevesFiltres();
         var headPer = '<th class="sticky-col">Élève</th>' + pers.map(function (p) {
             return '<th>' + esc(p.label) + '</th>';
-        }).join('') + '<th>Année</th>';
+        }).join('') + '<th>Année</th><th>Rang</th>';
         var rowsPer = list.map(function (e) {
             var an = moyenneEleve(view.classe, AN_ID, e.nomComplet);
-            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+            return '<tr><td class="sticky-col">' + eleveNomBtn(e.nomComplet) + '</td>' +
                 pers.map(function (per) {
                     var m = moyenneEleve(view.classe, per.id, e.nomComplet);
                     return '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td>';
                 }).join('') +
-                '<td class="conseil-moy ' + moyClass(an) + '">' + fmtMoy(an) + '</td></tr>';
+                '<td class="conseil-moy ' + moyClass(an) + '">' + fmtMoy(an) + '</td>' +
+                '<td>' + fmtRang(e.nomComplet) + '</td></tr>';
         }).join('');
         var headMat = '<th class="sticky-col">Élève</th>' + matieres.map(function (m) {
             return '<th>' + esc(m.nom) + '<br><small>coef ' + esc(m.coef) + '</small></th>';
         }).join('') + '<th>Moy.</th>';
         var rowsMat = list.map(function (e) {
             var an = moyenneEleve(view.classe, AN_ID, e.nomComplet);
-            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+            return '<tr><td class="sticky-col">' + eleveNomBtn(e.nomComplet) + '</td>' +
                 matieres.map(function (mat) {
                     var val = noteMatiere(view.classe, AN_ID, e.nomComplet, mat.id);
                     return '<td class="conseil-moy ' + moyClass(val) + '">' + fmtMoy(val) + '</td>';
@@ -762,10 +1075,11 @@
     }
 
     function htmlSanctions() {
-        var list = eleves(view.classe);
+        var list = elevesFiltres();
         var year = isAnnee(view.periode);
         var cards = list.map(function (e) {
             var items = sanctionsEleve(view.classe, view.periode, e.nomComplet);
+            items.forEach(function (s) { if (!s.id) s.id = uid(); });
             var open = view.eleve === e.nomComplet ? ' is-open' : '';
             var body = view.eleve === e.nomComplet
                 ? '<div class="conseil-eleve-body">' + htmlSanctionList(e.nomComplet, items, year) +
@@ -774,7 +1088,7 @@
                 : '';
             return '<div class="conseil-eleve-card' + open + '">' +
                 '<div class="conseil-eleve-head" data-open="' + esc(e.nomComplet) + '">' +
-                '<strong>' + esc(e.nomComplet) + '</strong>' +
+                '<strong>' + eleveNomBtn(e.nomComplet) + '</strong>' +
                 '<span class="conseil-chips">' +
                 (items.length ? '<span class="conseil-chip danger">' + items.length + '</span>' : '<span class="conseil-chip">Aucune</span>') +
                 '</span></div>' + body + '</div>';
@@ -788,7 +1102,7 @@
 
     function htmlSanctionList(nomComplet, items, readOnly) {
         if (!items.length) return '<p class="conseil-hint">Aucune sanction pour cette période.</p>';
-        return '<div class="conseil-sanctions">' + items.map(function (s, i) {
+        return '<div class="conseil-sanctions">' + items.map(function (s) {
             var meta = sanctionMeta(s.type);
             var extra = [];
             if (s.periodeLabel) extra.push(s.periodeLabel);
@@ -799,8 +1113,11 @@
                 esc(formatDate(s.date)) +
                 (extra.length ? '<div class="conseil-sanction-meta">' + esc(extra.join(' · ')) + '</div>' : '') +
                 (s.motif ? '<div>' + esc(s.motif) + '</div>' : '') +
-                (readOnly ? '' : '<button type="button" class="btn-secondary conseil-del-sanc" data-eleve="' + esc(nomComplet) +
-                '" data-idx="' + i + '" style="margin-top:6px;">Supprimer</button>') + '</div>';
+                (readOnly ? '' : '<div class="conseil-sanction-actions">' +
+                '<button type="button" class="btn-secondary conseil-edit-sanc" data-eleve="' + esc(nomComplet) +
+                '" data-sid="' + esc(s.id) + '">Modifier</button>' +
+                '<button type="button" class="btn-secondary conseil-del-sanc" data-eleve="' + esc(nomComplet) +
+                '" data-sid="' + esc(s.id) + '">Supprimer</button></div>') + '</div>';
         }).join('') + '</div>';
     }
 
@@ -850,16 +1167,15 @@
             '<div class="conseil-add-prof-row">' +
             '<select id="conseil-pick-prof"><option value="">— Ajouter un enseignant —</option>' + opts + '</select>' +
             '<button type="button" class="btn-secondary" id="conseil-add-prof">Ajouter</button>' +
-            '<button type="button" class="btn-secondary" id="conseil-refresh-profs">Importer les affectations</button>' +
             '</div></div>' +
             (cards
                 ? '<div class="conseil-eleve-list">' + cards + '</div>'
-                : '<p class="conseil-hint">Aucun enseignant pour l’instant. Importez les affectations de la classe ou ajoutez un collègue depuis la liste blanche.</p>') +
+                : '<p class="conseil-hint">Aucun enseignant pour l’instant. Ajoutez un collègue depuis la liste blanche.</p>') +
             '</div>';
     }
 
     function htmlAppreciations() {
-        var list = eleves(view.classe);
+        var list = elevesFiltres();
         var p = periodeData(view.classe, view.periode);
         var rows = list.map(function (e) {
             var extra = '';
@@ -869,7 +1185,7 @@
                     return esc(per.label) + ' : ' + (t ? '✓' : '—');
                 }).join(' · ') + '</p>';
             }
-            return '<div class="conseil-eleve-card"><strong>' + esc(e.nomComplet) + '</strong>' + extra +
+            return '<div class="conseil-eleve-card">' + eleveNomBtn(e.nomComplet) + extra +
                 '<textarea class="conseil-app-area conseil-app-eleve" data-eleve="' + esc(e.nomComplet) +
                 '" rows="3" placeholder="' + (isAnnee(view.periode) ? 'Appréciation annuelle…' : 'Appréciation générale…') + '">' +
                 esc(p.appreciations[e.nomComplet] || '') +
@@ -884,7 +1200,7 @@
     }
 
     function htmlSynthese() {
-        var list = eleves(view.classe);
+        var list = elevesFiltres();
         var pers = periodesReelles(view.classe);
         var cards = list.map(function (e) {
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
@@ -907,8 +1223,9 @@
                         : '');
             }
             return '<div class="conseil-eleve-card">' +
-                '<div class="conseil-eleve-head"><strong>' + esc(e.nomComplet) + '</strong>' +
+                '<div class="conseil-eleve-head" style="cursor:default">' + eleveNomBtn(e.nomComplet) +
                 '<span class="conseil-chips"><span class="conseil-chip">Moy. ' + fmtMoy(m) + '</span>' +
+                '<span class="conseil-chip">Rang ' + fmtRang(e.nomComplet) + '</span>' +
                 (nSanc ? '<span class="conseil-chip danger">' + nSanc + ' sanction' + (nSanc > 1 ? 's' : '') + '</span>' : '') +
                 '</span></div>' +
                 '<p class="conseil-sanction-meta">' + esc(histo) + '</p>' +
@@ -972,14 +1289,48 @@
                 var raw = input.value.trim();
                 if (raw === '') delete p.moyennes[nom][mat];
                 else p.moyennes[nom][mat] = Number(raw);
+                rangsCache = null;
                 planifierSync();
-                paintBody(container);
+                var m = moyenneEleve(view.classe, view.periode, nom);
+                var row = input.closest('tr');
+                var cell = row && row.querySelector('[data-moy-cell]');
+                if (cell) {
+                    cell.textContent = fmtMoy(m);
+                    cell.className = 'conseil-moy ' + moyClass(m);
+                }
             });
         });
         container.querySelectorAll('.conseil-app-eleve').forEach(function (area) {
             area.addEventListener('input', function () {
                 periodeData(view.classe, view.periode).appreciations[area.getAttribute('data-eleve')] = area.value;
                 planifierSync();
+            });
+        });
+        container.querySelectorAll('.conseil-link-eleve').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openSuiviEleve(btn.getAttribute('data-eleve'));
+            });
+        });
+        container.querySelectorAll('.conseil-goto-app').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                view.tab = 'appreciations';
+                syncShellChrome(container);
+                paintBody(container);
+            });
+        });
+        container.querySelectorAll('.conseil-check-item').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tab = btn.getAttribute('data-tab');
+                var f = btn.getAttribute('data-filter');
+                if (tab) view.tab = tab;
+                if (f) {
+                    view.filter = f;
+                    var sel = container.querySelector('#conseil-filter');
+                    if (sel) sel.value = view.filter;
+                }
+                syncShellChrome(container);
+                paintBody(container);
             });
         });
         container.querySelectorAll('[data-open]').forEach(function (el) {
@@ -995,14 +1346,21 @@
                 openSanctionModal(container, btn.getAttribute('data-eleve'));
             });
         });
+        container.querySelectorAll('.conseil-edit-sanc').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                openSanctionModal(container, btn.getAttribute('data-eleve'), btn.getAttribute('data-sid'));
+            });
+        });
         container.querySelectorAll('.conseil-del-sanc').forEach(function (btn) {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 var nom = btn.getAttribute('data-eleve');
-                var idx = Number(btn.getAttribute('data-idx'));
+                var sid = btn.getAttribute('data-sid');
                 var arr = periodeData(view.classe, view.periode).sanctions[nom] || [];
-                arr.splice(idx, 1);
-                periodeData(view.classe, view.periode).sanctions[nom] = arr;
+                periodeData(view.classe, view.periode).sanctions[nom] = arr.filter(function (s) {
+                    return s.id !== sid;
+                });
                 planifierSync();
                 paintBody(container);
             });
@@ -1063,17 +1421,6 @@
                 mergeProfs(view.classe, [prof]);
                 planifierSync();
                 paintBody(container);
-            });
-        }
-        var refreshProfs = container.querySelector('#conseil-refresh-profs');
-        if (refreshProfs) {
-            refreshProfs.addEventListener('click', function () {
-                refreshProfs.disabled = true;
-                ensureProfs(view.classe, true).then(function () {
-                    paintBody(container);
-                }).finally(function () {
-                    refreshProfs.disabled = false;
-                });
             });
         }
         container.querySelectorAll('.conseil-del-prof').forEach(function (btn) {
@@ -1270,25 +1617,39 @@
         modal.onclick = function (e) { if (e.target === modal) closeOverlay(); };
     }
 
-    function openSanctionModal(container, nomComplet) {
+    function openSanctionModal(container, nomComplet, sid) {
         var modal = getOverlay();
         var today = new Date().toISOString().slice(0, 10);
+        var existing = null;
+        if (sid) {
+            var arr0 = periodeData(view.classe, view.periode).sanctions[nomComplet] || [];
+            existing = arr0.filter(function (s) { return s.id === sid; })[0] || null;
+        }
         var profOpts = '<option value="">— Choisir un enseignant —</option>' + directory.map(function (p) {
             var lab = profLabel(p);
-            return '<option value="' + esc(lab) + '">' + esc(lab) + (p.matiere ? ' · ' + esc(p.matiere) : '') + '</option>';
+            return '<option value="' + esc(lab) + '"' +
+                (existing && existing.prof === lab ? ' selected' : '') + '>' +
+                esc(lab) + (p.matiere ? ' · ' + esc(p.matiere) : '') + '</option>';
         }).join('');
         modal.className = 'conseil-modale is-open';
-        modal.innerHTML = '<div class="conseil-modale-card"><h3>Sanction · ' + esc(nomComplet) + '</h3>' +
+        modal.innerHTML = '<div class="conseil-modale-card"><h3>' + (existing ? 'Modifier' : 'Sanction') +
+            ' · ' + esc(nomComplet) + '</h3>' +
             '<div class="conseil-form-row"><label>Type</label><select id="s-type">' +
-            SANCTIONS.map(function (s) { return '<option value="' + s.id + '">' + esc(s.label) + '</option>'; }).join('') +
+            SANCTIONS.map(function (s) {
+                return '<option value="' + s.id + '"' + (existing && existing.type === s.id ? ' selected' : '') + '>' +
+                    esc(s.label) + '</option>';
+            }).join('') +
             '</select></div>' +
-            '<div class="conseil-form-row"><label>Date</label><input type="date" id="s-date" value="' + today + '"></div>' +
+            '<div class="conseil-form-row"><label>Date</label><input type="date" id="s-date" value="' +
+            esc((existing && existing.date) || today) + '"></div>' +
             '<div class="conseil-form-row" id="s-prof-row"><label>Enseignant à l’origine</label><select id="s-prof">' + profOpts + '</select></div>' +
-            '<div class="conseil-form-row" id="s-duree-row" hidden><label>Durée</label><input type="text" id="s-duree" placeholder="ex. 2 jours"></div>' +
+            '<div class="conseil-form-row" id="s-duree-row" hidden><label>Durée</label><input type="text" id="s-duree" placeholder="ex. 2 jours" value="' +
+            esc((existing && existing.duree) || '') + '"></div>' +
             '<div class="conseil-form-row" id="s-obj-row" hidden><label>Objectifs</label><div id="s-obj-list"></div>' +
             '<button type="button" class="btn-secondary" id="s-add-obj">➕ Objectif</button></div>' +
-            '<div class="conseil-form-row"><label>Motif / commentaire</label><textarea id="s-motif" rows="3"></textarea></div>' +
-            '<div style="display:flex;gap:8px;"><button type="button" class="btn-primary" id="s-save">Enregistrer</button>' +
+            '<div class="conseil-form-row"><label>Motif / commentaire</label><textarea id="s-motif" rows="3">' +
+            esc((existing && existing.motif) || '') + '</textarea></div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn-primary" id="s-save">Enregistrer</button>' +
             '<button type="button" class="btn-secondary" id="s-cancel">Annuler</button></div></div>';
 
         function refreshFields() {
@@ -1305,7 +1666,7 @@
                 }
             }
         }
-        function addObjectif() {
+        function addObjectif(val) {
             var box = modal.querySelector('#s-obj-list');
             var meta = sanctionMeta(modal.querySelector('#s-type').value);
             if (meta.objectifs && box.children.length >= meta.objectifs.max) return;
@@ -1314,17 +1675,24 @@
             input.className = 's-obj';
             input.placeholder = 'Objectif';
             input.style.marginBottom = '6px';
+            if (val) input.value = val;
             box.appendChild(input);
         }
-        modal.querySelector('#s-type').addEventListener('change', refreshFields);
-        modal.querySelector('#s-add-obj').addEventListener('click', addObjectif);
+        modal.querySelector('#s-type').addEventListener('change', function () {
+            modal.querySelector('#s-obj-list').innerHTML = '';
+            refreshFields();
+        });
+        modal.querySelector('#s-add-obj').addEventListener('click', function () { addObjectif(); });
+        if (existing && existing.objectifs && existing.objectifs.length) {
+            existing.objectifs.forEach(function (o) { addObjectif(o); });
+        }
         refreshFields();
         modal.querySelector('#s-cancel').addEventListener('click', function () { closeOverlay(); });
         modal.querySelector('#s-save').addEventListener('click', function () {
             var type = modal.querySelector('#s-type').value;
             var meta = sanctionMeta(type);
             var entry = {
-                id: uid(),
+                id: (existing && existing.id) || uid(),
                 type: type,
                 date: modal.querySelector('#s-date').value,
                 motif: modal.querySelector('#s-motif').value.trim(),
@@ -1340,12 +1708,106 @@
             }
             var p = periodeData(view.classe, view.periode);
             if (!p.sanctions[nomComplet]) p.sanctions[nomComplet] = [];
-            p.sanctions[nomComplet].push(entry);
+            if (existing) {
+                p.sanctions[nomComplet] = p.sanctions[nomComplet].map(function (s) {
+                    return s.id === existing.id ? entry : s;
+                });
+            } else {
+                p.sanctions[nomComplet].push(entry);
+            }
             planifierSync();
             closeOverlay();
             view.eleve = nomComplet;
             paintBody(container);
         });
+        modal.onclick = function (e) { if (e.target === modal) closeOverlay(); };
+    }
+
+    function openArchivesModal(container) {
+        var modal = getOverlay();
+        function draw() {
+            var c = classData(view.classe);
+            var list = (c.archives || []).slice();
+            modal.className = 'conseil-modale is-open';
+            modal.innerHTML = '<div class="conseil-modale-card">' +
+                '<h3>Historique · ' + esc(view.classe) + '</h3>' +
+                '<p class="conseil-hint">Archivez un instantané de l’année (matières, profs, saisies). Restaurer remplace les données actuelles, sans supprimer l’archive.</p>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
+                '<button type="button" class="btn-primary" id="conseil-arch-save">Archiver l’année</button>' +
+                '<button type="button" class="btn-secondary" id="conseil-arch-clear">Vider les saisies</button>' +
+                '<button type="button" class="btn-secondary" id="conseil-arch-close">Fermer</button>' +
+                '</div>' +
+                (list.length
+                    ? '<div class="conseil-eleve-list">' + list.map(function (a) {
+                        return '<div class="conseil-eleve-card"><strong>' + esc(a.label || a.annee || 'Archive') + '</strong>' +
+                            '<p class="conseil-sanction-meta">' + esc(a.annee || '') +
+                            (a.savedAt ? ' · ' + esc(formatDateTime(a.savedAt)) : '') + '</p>' +
+                            '<div class="conseil-sanction-actions">' +
+                            '<button type="button" class="btn-secondary" data-restore="' + esc(a.id) + '">Restaurer</button>' +
+                            '<button type="button" class="btn-secondary" data-adel="' + esc(a.id) + '">Supprimer</button>' +
+                            '</div></div>';
+                    }).join('') + '</div>'
+                    : '<p class="conseil-hint">Aucune archive pour l’instant.</p>') +
+                '</div>';
+            modal.querySelector('#conseil-arch-close').addEventListener('click', function () { closeOverlay(); });
+            modal.querySelector('#conseil-arch-save').addEventListener('click', function () {
+                var label = prompt('Libellé de l’archive', annee());
+                if (label === null) return;
+                var cur = classData(view.classe);
+                cur.archives = cur.archives || [];
+                cur.archives.unshift({
+                    id: uid(),
+                    annee: annee(),
+                    savedAt: new Date().toISOString(),
+                    label: String(label || annee()).trim(),
+                    snapshot: JSON.parse(JSON.stringify({
+                        matieres: cur.matieres,
+                        profs: cur.profs,
+                        periodes: cur.periodes,
+                        conseilAt: cur.conseilAt
+                    }))
+                });
+                planifierSync();
+                draw();
+            });
+            modal.querySelector('#conseil-arch-clear').addEventListener('click', function () {
+                if (!confirm('Vider les saisies (moyennes, appréciations, sanctions, retours) ? Les matières, professeurs et la date du conseil sont conservés.')) return;
+                classData(view.classe).periodes = {};
+                rangsCache = null;
+                planifierSync();
+                closeOverlay();
+                paintBody(container);
+            });
+            modal.querySelectorAll('[data-restore]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var id = btn.getAttribute('data-restore');
+                    var arch = (classData(view.classe).archives || []).filter(function (a) { return a.id === id; })[0];
+                    if (!arch || !arch.snapshot) return;
+                    if (!confirm('Remplacer les données actuelles par l’archive « ' + (arch.label || '') + ' » ?')) return;
+                    var cur = classData(view.classe);
+                    var snap = JSON.parse(JSON.stringify(arch.snapshot));
+                    cur.matieres = snap.matieres || cur.matieres;
+                    cur.profs = snap.profs || [];
+                    cur.periodes = snap.periodes || {};
+                    if (typeof snap.conseilAt === 'string') cur.conseilAt = snap.conseilAt;
+                    rangsCache = null;
+                    planifierSync();
+                    closeOverlay();
+                    paint(container);
+                });
+            });
+            modal.querySelectorAll('[data-adel]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var id = btn.getAttribute('data-adel');
+                    if (!confirm('Supprimer cette archive ?')) return;
+                    var cur = classData(view.classe);
+                    cur.archives = (cur.archives || []).filter(function (a) { return a.id !== id; });
+                    planifierSync();
+                    draw();
+                });
+            });
+        }
+        draw();
         modal.onclick = function (e) { if (e.target === modal) closeOverlay(); };
     }
 
@@ -1361,28 +1823,56 @@
     }
 
     function drawPdfHeader(doc, titre, sousTitre) {
+        var w = doc.internal.pageSize.getWidth();
         doc.setFillColor(30, 64, 175);
-        doc.rect(0, 0, 210, 28, 'F');
+        doc.rect(0, 0, w, 28, 'F');
         doc.setFillColor(251, 191, 36);
-        doc.rect(0, 28, 210, 3, 'F');
+        doc.rect(0, 28, w, 3, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
         doc.text('eProf  ·  Conseil de classe', 12, 12);
         doc.setFontSize(11);
-        doc.text(titre, 12, 20);
+        var titreLines = doc.splitTextToSize(titre, w - 24);
+        doc.text(titreLines[0] || '', 12, 20);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.text(sousTitre, 12, 26);
         doc.setTextColor(15, 23, 42);
     }
 
+    function pdfContentWidth(doc) {
+        return doc.internal.pageSize.getWidth() - 24;
+    }
+
     function pdfEnsure(doc, y, need) {
-        if (y + (need || 16) > 278) {
+        var limit = doc.internal.pageSize.getHeight() - 16;
+        if (y + (need || 16) > limit) {
             doc.addPage();
             return 18;
         }
         return y;
+    }
+
+    function stampPdfFooter(doc, text) {
+        var n = doc.getNumberOfPages();
+        var i;
+        for (i = 1; i <= n; i++) {
+            doc.setPage(i);
+            var w = doc.internal.pageSize.getWidth();
+            var h = doc.internal.pageSize.getHeight();
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(text, 12, h - 8);
+            doc.text(String(i) + ' / ' + n, w - 12, h - 8, { align: 'right' });
+        }
+        doc.setTextColor(15, 23, 42);
+    }
+
+    function pdfDateLine() {
+        var at = classData(view.classe).conseilAt;
+        return at ? 'Conseil le ' + formatDateTime(at) : '';
     }
 
     function exportPdfClasse() {
@@ -1392,20 +1882,33 @@
         var s = statsClasse(view.classe, view.periode);
         var list = eleves(view.classe);
         var p = periodeData(view.classe, view.periode);
-        drawPdfHeader(doc, view.classe + '  ·  ' + periodeLabel(), annee() + '  ·  professeur principal');
+        var cw = pdfContentWidth(doc);
+        var dateLine = pdfDateLine();
+        drawPdfHeader(doc, view.classe + '  ·  ' + periodeLabel(),
+            annee() + '  ·  professeur principal' + (dateLine ? '  ·  ' + dateLine : ''));
         var y = 40;
         doc.setFontSize(10);
-        doc.text('Effectif ' + s.effectif + '   ·   Moyenne de classe ' + fmtMoy(s.generale) +
-            '   ·   ' + s.nbSanctions + ' sanction(s)   ·   ' + s.avecApp + ' appréciation(s)', 12, y);
-        y += 8;
+        var statsLine = doc.splitTextToSize(
+            'Effectif ' + s.effectif + '   ·   Moyenne de classe ' + fmtMoy(s.generale) +
+            '   ·   ' + s.nbSanctions + ' sanction(s)   ·   ' + s.avecApp + ' appréciation(s)',
+            cw
+        );
+        doc.text(statsLine, 12, y);
+        y += statsLine.length * 5 + 3;
         if (p.appreciationClasse) {
+            y = pdfEnsure(doc, y, 16);
             doc.setFont('helvetica', 'bold');
             doc.text('Appréciation de classe', 12, y);
             y += 6;
             doc.setFont('helvetica', 'normal');
-            var lines = doc.splitTextToSize(p.appreciationClasse, 186);
-            doc.text(lines, 12, y);
-            y += lines.length * 5 + 4;
+            var lines = doc.splitTextToSize(p.appreciationClasse, cw);
+            var i;
+            for (i = 0; i < lines.length; i++) {
+                y = pdfEnsure(doc, y, 6);
+                doc.text(lines[i], 12, y);
+                y += 5;
+            }
+            y += 4;
         }
         var retours = retoursList(view.classe, view.periode).filter(function (r) {
             return (r.texte || '').trim();
@@ -1419,30 +1922,37 @@
             retours.forEach(function (r) {
                 var titre = (profLabel(r) || r.identifiant || 'Enseignant') +
                     (r.matieresLabel ? '  ·  ' + r.matieresLabel : '');
-                y = pdfEnsure(doc, y, 16);
+                y = pdfEnsure(doc, y, 12);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
-                doc.text(titre, 12, y);
+                doc.text(doc.splitTextToSize(titre, cw), 12, y);
                 y += 5;
                 doc.setFont('helvetica', 'normal');
-                var rl = doc.splitTextToSize(r.texte.trim(), 186);
-                y = pdfEnsure(doc, y, rl.length * 4.5 + 4);
-                doc.text(rl, 12, y);
-                y += rl.length * 4.5 + 4;
+                var rl = doc.splitTextToSize(r.texte.trim(), cw);
+                var ri;
+                for (ri = 0; ri < rl.length; ri++) {
+                    y = pdfEnsure(doc, y, 6);
+                    doc.text(rl[ri], 12, y);
+                    y += 4.5;
+                }
+                y += 4;
             });
         }
         if (doc.autoTable) {
             var persPdf = periodesReelles(view.classe);
             var head = isAnnee(view.periode)
                 ? [['Élève'].concat(persPdf.map(function (per) { return per.label; })).concat(['Année', 'Sanctions', 'Info', 'Appréciation'])]
-                : [['Élève', 'Moyenne', 'Sanctions', 'Info', 'Appréciation']];
+                : [['Élève', 'Moyenne', 'Rang', 'Sanctions', 'Info', 'Appréciation']];
+            var rangs = rangsMap(view.classe, view.periode);
             doc.autoTable({
                 startY: y,
+                margin: { left: 12, right: 12, bottom: 16 },
                 head: head,
                 body: list.map(function (e) {
-                    var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
-                    var short = app.length > 90 ? app.slice(0, 87) + '…' : app;
+                    var app = appreciationEleve(view.classe, view.periode, e.nomComplet) || '';
                     var info = infoPpEleve(e.nomComplet).dispositifs.join(', ') || '—';
+                    var rg = rangs[e.nomComplet];
+                    var rangTxt = rg ? (rg.rang + ' / ' + rg.n) : '—';
                     if (isAnnee(view.periode)) {
                         return [e.nomComplet]
                             .concat(persPdf.map(function (per) {
@@ -1452,63 +1962,71 @@
                                 fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet)),
                                 String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
                                 info,
-                                short
+                                app
                             ]);
                     }
                     return [
                         e.nomComplet,
                         fmtMoy(moyenneEleve(view.classe, view.periode, e.nomComplet)),
+                        rangTxt,
                         String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
                         info,
-                        short
+                        app
                     ];
                 }),
-                styles: { fontSize: 8, cellPadding: 2 },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
                 headStyles: { fillColor: [30, 64, 175] },
-                columnStyles: isAnnee(view.periode) ? {} : { 4: { cellWidth: 70 } }
+                columnStyles: isAnnee(view.periode)
+                    ? { 0: { cellWidth: 32 } }
+                    : { 0: { cellWidth: 36 }, 5: { cellWidth: 70 } }
             });
         }
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Document professeur principal — ne remplace pas le carnet de notes.', 12, 287);
+        stampPdfFooter(doc, 'Document professeur principal — ne remplace pas le carnet de notes.');
         doc.save('Conseil_' + view.classe.replace(/\s+/g, '_') + '_' + view.periode + '.pdf');
     }
 
-    function exportPdfEleve(nomComplet) {
-        var JsPDF = jsPdf();
-        if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
-        var doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    function drawElevePage(doc, nomComplet) {
         var mats = classData(view.classe).matieres || [];
-        drawPdfHeader(doc, nomComplet, view.classe + '  ·  ' + periodeLabel() + '  ·  ' + annee());
+        var cw = pdfContentWidth(doc);
+        var dateLine = pdfDateLine();
+        drawPdfHeader(doc, nomComplet, view.classe + '  ·  ' + periodeLabel() + '  ·  ' + annee() +
+            (dateLine ? '  ·  ' + dateLine : ''));
         var y = 40;
+        var rang = fmtRang(nomComplet);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
-        doc.text('Moyenne coefficientée : ' + fmtMoy(moyenneEleve(view.classe, view.periode, nomComplet)) + ' / 20', 12, y);
+        doc.text('Moyenne coefficientée : ' + fmtMoy(moyenneEleve(view.classe, view.periode, nomComplet)) +
+            ' / 20    ·    Rang ' + rang, 12, y);
         y += 8;
         if (doc.autoTable) {
             doc.autoTable({
                 startY: y,
+                margin: { left: 12, right: 12, bottom: 16 },
                 head: [['Matière', 'Coef.', 'Moyenne']],
                 body: mats.map(function (m) {
                     var v = noteMatiere(view.classe, view.periode, nomComplet, m.id);
                     return [m.nom, String(m.coef), v == null ? '—' : fmtMoy(v)];
                 }),
-                styles: { fontSize: 9 },
+                styles: { fontSize: 9, overflow: 'linebreak' },
                 headStyles: { fillColor: [30, 64, 175] }
             });
             y = doc.lastAutoTable.finalY + 10;
         }
         var pers = periodesReelles(view.classe);
+        y = pdfEnsure(doc, y, 16);
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
         doc.text('Évolution sur l’année', 12, y);
         y += 6;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(pers.map(function (per) {
+        var evo = pers.map(function (per) {
             return per.label + ' : ' + fmtMoy(moyenneEleve(view.classe, per.id, nomComplet));
-        }).join('     ') + '     Année : ' + fmtMoy(moyenneEleve(view.classe, AN_ID, nomComplet)), 12, y);
-        y += 10;
+        }).join('     ') + '     Année : ' + fmtMoy(moyenneEleve(view.classe, AN_ID, nomComplet));
+        var evoLines = doc.splitTextToSize(evo, cw);
+        doc.text(evoLines, 12, y);
+        y += evoLines.length * 5 + 6;
         var sanc = sanctionsEleve(view.classe, view.periode, nomComplet);
+        y = pdfEnsure(doc, y, 12);
         doc.setFont('helvetica', 'bold');
         doc.text('Sanctions (' + sanc.length + ')', 12, y);
         y += 6;
@@ -1522,21 +2040,31 @@
                 var line = (s.periodeLabel ? s.periodeLabel + ' — ' : '') + sanctionMeta(s.type).label + ' — ' + formatDate(s.date);
                 if (s.prof) line += ' — ' + s.prof;
                 if (s.duree) line += ' — ' + s.duree;
-                var wrapped = doc.splitTextToSize(line + (s.motif ? ' · ' + s.motif : ''), 186);
-                if (y > 270) { doc.addPage(); y = 20; }
-                doc.text(wrapped, 12, y);
-                y += wrapped.length * 4.5 + 2;
+                if (s.motif) line += ' · ' + s.motif;
+                var wrapped = doc.splitTextToSize(line, cw);
+                var wi;
+                for (wi = 0; wi < wrapped.length; wi++) {
+                    y = pdfEnsure(doc, y, 6);
+                    doc.text(wrapped[wi], 12, y);
+                    y += 4.5;
+                }
+                y += 2;
                 if (s.objectifs && s.objectifs.length) {
                     s.objectifs.forEach(function (o) {
-                        var ow = doc.splitTextToSize('• ' + o, 180);
-                        doc.text(ow, 16, y);
-                        y += ow.length * 4.5;
+                        var ow = doc.splitTextToSize('• ' + o, cw - 6);
+                        var oi;
+                        for (oi = 0; oi < ow.length; oi++) {
+                            y = pdfEnsure(doc, y, 6);
+                            doc.text(ow[oi], 16, y);
+                            y += 4.5;
+                        }
                     });
                 }
             });
         }
         y += 4;
         var infoPdf = infoPpEleve(nomComplet);
+        y = pdfEnsure(doc, y, 16);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.text('Information', 12, y);
@@ -1550,28 +2078,114 @@
                 return String(b.date || '').localeCompare(String(a.date || ''));
             }).forEach(function (n) {
                 var line = (n.date ? formatDate(n.date) + ' — ' : '') + (n.texte || '');
-                var wrapped = doc.splitTextToSize(line, 186);
-                y = pdfEnsure(doc, y, wrapped.length * 4.5 + 2);
-                doc.text(wrapped, 12, y);
-                y += wrapped.length * 4.5 + 2;
+                var wrapped = doc.splitTextToSize(line, cw);
+                var ii;
+                for (ii = 0; ii < wrapped.length; ii++) {
+                    y = pdfEnsure(doc, y, 6);
+                    doc.text(wrapped[ii], 12, y);
+                    y += 4.5;
+                }
+                y += 2;
             });
         } else {
+            y = pdfEnsure(doc, y, 8);
             doc.text('Aucune information personnelle.', 12, y);
             y += 6;
         }
         y += 4;
+        y = pdfEnsure(doc, y, 16);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.text('Appréciation générale', 12, y);
         y += 6;
         doc.setFont('helvetica', 'normal');
         var app = appreciationEleve(view.classe, view.periode, nomComplet) || '—';
-        var al = doc.splitTextToSize(app, 186);
-        doc.text(al, 12, y);
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Fiche conseil de classe — professeur principal', 12, 287);
+        var al = doc.splitTextToSize(app, cw);
+        var ai;
+        for (ai = 0; ai < al.length; ai++) {
+            y = pdfEnsure(doc, y, 6);
+            doc.text(al[ai], 12, y);
+            y += 5;
+        }
+    }
+
+    function exportPdfEleve(nomComplet) {
+        var JsPDF = jsPdf();
+        if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
+        var doc = new JsPDF({ unit: 'mm', format: 'a4' });
+        drawElevePage(doc, nomComplet);
+        stampPdfFooter(doc, 'Fiche conseil de classe — professeur principal');
         doc.save('Conseil_' + nomComplet.replace(/\s+/g, '_') + '_' + view.periode + '.pdf');
+    }
+
+    function exportPdfSeance() {
+        var JsPDF = jsPdf();
+        if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
+        var list = eleves(view.classe);
+        if (!list.length) { alert('Aucun élève dans cette classe.'); return; }
+        var doc = new JsPDF({ unit: 'mm', format: 'a4' });
+        list.forEach(function (e, i) {
+            if (i) doc.addPage();
+            drawElevePage(doc, e.nomComplet);
+        });
+        stampPdfFooter(doc, 'Séance conseil de classe — ' + view.classe + ' — ' + periodeLabel());
+        doc.save('Conseil_seance_' + view.classe.replace(/\s+/g, '_') + '_' + view.periode + '.pdf');
+    }
+
+    function exportPdfMoyennes() {
+        var JsPDF = jsPdf();
+        if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
+        var doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+        var mats = classData(view.classe).matieres || [];
+        var list = eleves(view.classe);
+        var dateLine = pdfDateLine();
+        drawPdfHeader(doc, view.classe + '  ·  ' + periodeLabel() + '  ·  Moyennes',
+            annee() + (dateLine ? '  ·  ' + dateLine : ''));
+        var rangs = rangsMap(view.classe, view.periode);
+        if (doc.autoTable) {
+            var head;
+            var body;
+            if (isAnnee(view.periode)) {
+                var pers = periodesReelles(view.classe);
+                head = [['Élève'].concat(pers.map(function (p) { return p.label; })).concat(['Année', 'Rang'])];
+                body = list.map(function (e) {
+                    var rg = rangs[e.nomComplet];
+                    return [e.nomComplet]
+                        .concat(pers.map(function (per) {
+                            return fmtMoy(moyenneEleve(view.classe, per.id, e.nomComplet));
+                        }))
+                        .concat([
+                            fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet)),
+                            rg ? (rg.rang + ' / ' + rg.n) : '—'
+                        ]);
+                });
+            } else {
+                head = [['Élève'].concat(mats.map(function (m) { return m.nom; })).concat(['Moy.', 'Rang'])];
+                body = list.map(function (e) {
+                    var rg = rangs[e.nomComplet];
+                    return [e.nomComplet]
+                        .concat(mats.map(function (m) {
+                            var v = noteMatiere(view.classe, view.periode, e.nomComplet, m.id);
+                            return v == null ? '—' : fmtMoy(v);
+                        }))
+                        .concat([
+                            fmtMoy(moyenneEleve(view.classe, view.periode, e.nomComplet)),
+                            rg ? (rg.rang + ' / ' + rg.n) : '—'
+                        ]);
+                });
+            }
+            doc.autoTable({
+                startY: 38,
+                margin: { left: 12, right: 12, bottom: 16 },
+                head: head,
+                body: body,
+                styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak', halign: 'center' },
+                columnStyles: { 0: { halign: 'left', cellWidth: 42 } },
+                headStyles: { fillColor: [30, 64, 175] }
+            });
+        }
+        stampPdfFooter(doc, 'Grille des moyennes — professeur principal');
+        doc.save('Conseil_moyennes_' + view.classe.replace(/\s+/g, '_') + '_' + view.periode + '.pdf');
     }
 
     document.addEventListener('keydown', function (e) {
@@ -1580,8 +2194,18 @@
         if (el && el.classList.contains('is-open')) closeOverlay();
     });
 
+    function hydraterPuisNotifier() {
+        return hydrater().then(function () {
+            if (global.EprofAppHooks && typeof global.EprofAppHooks.updateNotifications === 'function') {
+                global.EprofAppHooks.updateNotifications();
+            }
+        });
+    }
+
     global.EprofConseilClasse = {
         render: render,
+        hydrate: hydraterPuisNotifier,
+        nbAlertes: nbAlertes,
         isAvailable: function () { return ppClasses().length > 0; }
     };
 })(window);
