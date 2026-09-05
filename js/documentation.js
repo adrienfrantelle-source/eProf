@@ -92,10 +92,11 @@
             steps: [
                 'L’entrée <strong>Conseil de classe</strong> n’apparaît que si vous êtes <strong>professeur principal</strong>. Cochez <strong>PP</strong> dans <em>Gérer mes classes et matières</em>, ou faites-vous désigner dans les affectations (admin). Un badge <strong>PP</strong> s’affiche alors sur les boutons de votre classe partout dans eProf.',
                 'Ouvrez l’outil depuis le menu (sous le carnet de notes) ou <strong>Gestion de classe</strong> sur l’accueil.',
-                'Choisissez la période : trimestres ou semestres selon la configuration de la classe.',
-                'Dans <strong>Matières de la classe</strong>, définissez la liste et les coefficients pour l’année. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
-                'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La moyenne générale tient compte des coefficients.',
+                'Choisissez la période : trimestres ou semestres selon la configuration de la classe, plus un récapitulatif <strong>Année</strong>.',
+                'Dans <strong>Matières de la classe</strong>, définissez la liste et les coefficients pour l’année. Glissez les poignées pour réordonner. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
+                'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La moyenne générale tient compte des coefficients. L’onglet <strong>Année</strong> calcule le récapitulatif.',
                 'Onglet <strong>Sanctions</strong> : ajoutez une ou plusieurs mesures (mot, retenue, avertissements, fiche d’accompagnement, contrat, exclusions, conseils). Pour les mots, retenues et avertissements, choisissez le collègue dans la liste blanche. Les objectifs se renseignent pour les fiches et contrats ; la durée pour une exclusion temporaire. L’ordre n’est pas imposé.',
+                'Onglet <strong>Retour des profs</strong> : appréciation générale de chaque enseignant de la classe. Elle figure sur le PDF classe.',
                 'Onglet <strong>Appréciations</strong> : texte pour la classe et pour chaque élève.',
                 'Onglets <strong>Vue d’ensemble</strong> et <strong>Synthèse</strong> : statistiques, répartition des moyennes, suivi sur l’année. Exportez un <strong>PDF classe</strong> ou une <strong>fiche élève</strong>.'
             ],

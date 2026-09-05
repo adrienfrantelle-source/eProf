@@ -5,9 +5,11 @@
         { id: 'vue', label: 'Vue d’ensemble' },
         { id: 'moyennes', label: 'Moyennes' },
         { id: 'sanctions', label: 'Sanctions' },
+        { id: 'retours', label: 'Retour des profs' },
         { id: 'appreciations', label: 'Appréciations' },
         { id: 'synthese', label: 'Synthèse' }
     ];
+    var AN_ID = 'AN';
     var SANCTIONS = [
         { id: 'mots', label: 'Mot', needsProf: true },
         { id: 'retenue', label: 'Retenue', needsProf: true },
@@ -42,7 +44,7 @@
     function ppClasses() {
         return E().getPpClasses ? E().getPpClasses() : [];
     }
-    function periodesFor(classe) {
+    function periodesReelles(classe) {
         var type = (global.EprofReferentiel && global.EprofReferentiel.getPeriodType)
             ? global.EprofReferentiel.getPeriodType(classe)
             : 'trimestre';
@@ -57,6 +59,12 @@
             { id: 'T2', label: 'Trimestre 2' },
             { id: 'T3', label: 'Trimestre 3' }
         ];
+    }
+    function periodesFor(classe) {
+        return periodesReelles(classe).concat([{ id: AN_ID, label: 'Année' }]);
+    }
+    function isAnnee(periode) {
+        return periode === AN_ID;
     }
     function eleves(classe) {
         var list = (E().studentsForClass ? E().studentsForClass(classe) : []).slice();
@@ -94,13 +102,14 @@
         if (!cache.classes) cache.classes = {};
         var created = false;
         if (!cache.classes[classe]) {
-            cache.classes[classe] = { matieres: defaultMatieres(), periodes: {} };
+            cache.classes[classe] = { matieres: defaultMatieres(), periodes: {}, profs: [] };
             created = true;
         }
         if (!cache.classes[classe].matieres || !cache.classes[classe].matieres.length) {
             cache.classes[classe].matieres = defaultMatieres();
             created = true;
         }
+        if (!Array.isArray(cache.classes[classe].profs)) cache.classes[classe].profs = [];
         if (ready && created) planifierSync();
         return cache.classes[classe];
     }
@@ -108,12 +117,13 @@
         var c = classData(classe);
         if (!c.periodes) c.periodes = {};
         if (!c.periodes[periode]) {
-            c.periodes[periode] = { moyennes: {}, appreciations: {}, appreciationClasse: '', sanctions: {} };
+            c.periodes[periode] = { moyennes: {}, appreciations: {}, appreciationClasse: '', sanctions: {}, retoursProfs: {} };
         }
         var p = c.periodes[periode];
         if (!p.moyennes) p.moyennes = {};
         if (!p.appreciations) p.appreciations = {};
         if (!p.sanctions) p.sanctions = {};
+        if (!p.retoursProfs || typeof p.retoursProfs !== 'object') p.retoursProfs = {};
         if (typeof p.appreciationClasse !== 'string') p.appreciationClasse = '';
         return p;
     }
@@ -191,18 +201,147 @@
         var n = [p.prenom, p.nom].filter(Boolean).join(' ').trim();
         return n || p.identifiant || '';
     }
-    function moyenneEleve(classe, periode, nomComplet) {
+    function profKey(p) {
+        if (!p) return '';
+        return String(p.identifiant || profLabel(p)) + '::' + String(p.matiere || '');
+    }
+    function noteMatiere(classe, periode, nomComplet, matId) {
+        if (isAnnee(periode)) {
+            var vals = [];
+            periodesReelles(classe).forEach(function (per) {
+                var v = ((periodeData(classe, per.id).moyennes || {})[nomComplet] || {})[matId];
+                if (v === '' || v == null || isNaN(Number(v))) return;
+                vals.push(Number(v));
+            });
+            return vals.length
+                ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length
+                : null;
+        }
+        var v = ((periodeData(classe, periode).moyennes || {})[nomComplet] || {})[matId];
+        if (v === '' || v == null || isNaN(Number(v))) return null;
+        return Number(v);
+    }
+    function moyenneElevePeriode(classe, periode, nomComplet) {
         var matieres = classData(classe).matieres || [];
-        var notes = (periodeData(classe, periode).moyennes || {})[nomComplet] || {};
         var som = 0, coef = 0;
         matieres.forEach(function (m) {
-            var v = notes[m.id];
-            if (v === '' || v == null || isNaN(Number(v))) return;
+            var v = noteMatiere(classe, periode, nomComplet, m.id);
+            if (v == null) return;
             var c = Number(m.coef) > 0 ? Number(m.coef) : 1;
-            som += Number(v) * c;
+            som += v * c;
             coef += c;
         });
         return coef ? som / coef : null;
+    }
+    function moyenneEleve(classe, periode, nomComplet) {
+        if (isAnnee(periode)) {
+            var vals = [];
+            periodesReelles(classe).forEach(function (per) {
+                var m = moyenneElevePeriode(classe, per.id, nomComplet);
+                if (m != null) vals.push(m);
+            });
+            return vals.length
+                ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length
+                : null;
+        }
+        return moyenneElevePeriode(classe, periode, nomComplet);
+    }
+    function sanctionsEleve(classe, periode, nomComplet) {
+        if (isAnnee(periode)) {
+            var all = [];
+            periodesReelles(classe).forEach(function (per) {
+                (periodeData(classe, per.id).sanctions[nomComplet] || []).forEach(function (s) {
+                    all.push(Object.assign({}, s, { periode: per.id, periodeLabel: per.label }));
+                });
+            });
+            return all;
+        }
+        return (periodeData(classe, periode).sanctions[nomComplet] || []).slice();
+    }
+    function appreciationEleve(classe, periode, nomComplet) {
+        if (isAnnee(periode)) {
+            var an = (periodeData(classe, AN_ID).appreciations[nomComplet] || '').trim();
+            if (an) return an;
+            var found = '';
+            periodesReelles(classe).forEach(function (per) {
+                var t = (periodeData(classe, per.id).appreciations[nomComplet] || '').trim();
+                if (!found && t) found = t;
+            });
+            return found;
+        }
+        return (periodeData(classe, periode).appreciations[nomComplet] || '').trim();
+    }
+    function retoursList(classe, periode) {
+        var profs = classData(classe).profs || [];
+        var map = periodeData(classe, periode).retoursProfs || {};
+        return profs.map(function (p) {
+            return {
+                key: profKey(p),
+                identifiant: p.identifiant || '',
+                nom: p.nom || '',
+                prenom: p.prenom || '',
+                matiere: p.matiere || '',
+                texte: map[profKey(p)] || ''
+            };
+        });
+    }
+    function mapRpcProf(row) {
+        return {
+            identifiant: row.identifiant || '',
+            nom: row.nom || '',
+            prenom: row.prenom || '',
+            matiere: row.matiere || ''
+        };
+    }
+    async function chargerProfsClasse(classe) {
+        var loaded = [];
+        if (!global.EprofStore || !(await global.EprofStore.isOnlineReady())) return loaded;
+        try {
+            var client = await global.EprofStore.getClient();
+            if (!client) return loaded;
+            var res = await client.rpc('list_class_teachers', {
+                p_classe: classe,
+                p_annee: annee()
+            });
+            if (!res.error && Array.isArray(res.data)) {
+                loaded = res.data.map(mapRpcProf);
+            }
+        } catch (e) { /* hors ligne / RPC absente */ }
+        return loaded;
+    }
+    function mergeProfs(classe, incoming) {
+        var c = classData(classe);
+        var list = (c.profs || []).slice();
+        var seen = {};
+        list.forEach(function (p) { seen[profKey(p)] = true; });
+        var added = 0;
+        (incoming || []).forEach(function (p) {
+            var k = profKey(p);
+            if (!k || k === '::' || seen[k]) return;
+            list.push({
+                identifiant: p.identifiant || '',
+                nom: p.nom || '',
+                prenom: p.prenom || '',
+                matiere: p.matiere || ''
+            });
+            seen[k] = true;
+            added += 1;
+        });
+        c.profs = list;
+        return added;
+    }
+    async function ensureProfs(classe, force) {
+        var c = classData(classe);
+        if (!force && c.profs && c.profs.length) return false;
+        var loaded = await chargerProfsClasse(classe);
+        if (!loaded.length) return false;
+        if (force) {
+            mergeProfs(classe, loaded);
+        } else {
+            c.profs = loaded;
+        }
+        planifierSync();
+        return true;
     }
     function fmtMoy(v) {
         if (v == null || isNaN(v)) return '—';
@@ -220,12 +359,13 @@
         var avecApp = 0;
         var nbSanctions = 0;
         var parType = {};
+        var retours = retoursList(classe, periode);
+        var avecRetours = retours.filter(function (r) { return (r.texte || '').trim(); }).length;
         list.forEach(function (e) {
             var m = moyenneEleve(classe, periode, e.nomComplet);
             if (m != null) moyennes.push(m);
-            var p = periodeData(classe, periode);
-            if ((p.appreciations[e.nomComplet] || '').trim()) avecApp += 1;
-            (p.sanctions[e.nomComplet] || []).forEach(function (s) {
+            if (appreciationEleve(classe, periode, e.nomComplet)) avecApp += 1;
+            sanctionsEleve(classe, periode, e.nomComplet).forEach(function (s) {
                 nbSanctions += 1;
                 parType[s.type] = (parType[s.type] || 0) + 1;
             });
@@ -254,7 +394,9 @@
             sansApp: list.length - avecApp,
             nbSanctions: nbSanctions,
             parType: parType,
-            bins: bins
+            bins: bins,
+            avecRetours: avecRetours,
+            nbProfs: retours.length
         };
     }
 
@@ -282,6 +424,7 @@
     }
 
     function paint(container) {
+        closeOverlay();
         var classes = ppClasses();
         if (!classes.length) {
             container.innerHTML =
@@ -316,7 +459,9 @@
                 : '<p class="conseil-kicker" style="margin-bottom:10px;">Classe : <strong>' + esc(view.classe) + '</strong>' +
                   (E().ppBadgeHtml ? E().ppBadgeHtml(view.classe) : '') + '</p>') +
             '<div class="conseil-periodes">' + pers.map(function (p) {
-                return '<button type="button" class="conseil-periode-btn' + (p.id === view.periode ? ' is-on' : '') +
+                return '<button type="button" class="conseil-periode-btn' +
+                    (p.id === view.periode ? ' is-on' : '') +
+                    (p.id === AN_ID ? ' is-year' : '') +
                     '" data-periode="' + p.id + '">' + esc(p.label) + '</button>';
             }).join('') + '</div>' +
             '<div class="conseil-tabs">' + TABS.map(function (t) {
@@ -324,7 +469,6 @@
                     '" data-tab="' + t.id + '">' + t.label + '</button>';
             }).join('') + '</div>' +
             '<div id="conseil-body"></div>' +
-            '<div class="conseil-modale" id="conseil-modale"></div>' +
             '</div>';
         bindShell(container);
         paintBody(container);
@@ -362,18 +506,31 @@
         if (view.tab === 'vue') body.innerHTML = htmlVue();
         else if (view.tab === 'moyennes') body.innerHTML = htmlMoyennes();
         else if (view.tab === 'sanctions') body.innerHTML = htmlSanctions();
+        else if (view.tab === 'retours') body.innerHTML = htmlRetours();
         else if (view.tab === 'appreciations') body.innerHTML = htmlAppreciations();
         else body.innerHTML = htmlSynthese();
         bindBody(container);
+        if (view.tab === 'retours') {
+            ensureProfs(view.classe, false).then(function (changed) {
+                if (!changed || view.tab !== 'retours') return;
+                var still = container.querySelector('#conseil-body');
+                if (!still) return;
+                still.innerHTML = htmlRetours();
+                bindBody(container);
+            });
+        }
     }
 
     function htmlStats() {
         var s = statsClasse(view.classe, view.periode);
         return '<div class="conseil-stats">' +
             '<div class="conseil-stat"><strong>' + s.effectif + '</strong><span>Élèves</span></div>' +
-            '<div class="conseil-stat ' + moyClass(s.generale) + '"><strong>' + fmtMoy(s.generale) + '</strong><span>Moyenne de classe</span></div>' +
-            '<div class="conseil-stat"><strong>' + s.renseignees + '</strong><span>Moyennes renseignées</span></div>' +
+            '<div class="conseil-stat ' + moyClass(s.generale) + '"><strong>' + fmtMoy(s.generale) + '</strong><span>' +
+            (isAnnee(view.periode) ? 'Moyenne annuelle' : 'Moyenne de classe') + '</span></div>' +
+            '<div class="conseil-stat"><strong>' + s.renseignees + '</strong><span>' +
+            (isAnnee(view.periode) ? 'Élèves avec moyenne' : 'Moyennes renseignées') + '</span></div>' +
             '<div class="conseil-stat ' + (s.nbSanctions ? 'warn' : 'ok') + '"><strong>' + s.nbSanctions + '</strong><span>Sanctions</span></div>' +
+            '<div class="conseil-stat"><strong>' + s.avecRetours + '</strong><span>Retours profs</span></div>' +
             '<div class="conseil-stat"><strong>' + s.avecApp + '</strong><span>Appréciations</span></div>' +
             '</div>';
     }
@@ -392,8 +549,8 @@
         }).join('');
         var list = eleves(view.classe).map(function (e) {
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
-            var nSanc = ((periodeData(view.classe, view.periode).sanctions || {})[e.nomComplet] || []).length;
-            var app = ((periodeData(view.classe, view.periode).appreciations || {})[e.nomComplet] || '').trim();
+            var nSanc = sanctionsEleve(view.classe, view.periode, e.nomComplet).length;
+            var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
             return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
                 '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td>' +
                 '<td>' + (nSanc ? '<span class="conseil-chip danger">' + nSanc + '</span>' : '—') + '</td>' +
@@ -402,9 +559,13 @@
         return htmlStats() +
             '<div class="conseil-synth-grid">' +
             '<div class="conseil-panel"><h3>Répartition des moyennes</h3>' +
-            (s.renseignees ? '<div class="conseil-bars">' + bars + '</div>' : '<p class="conseil-hint">Saisissez les moyennes dans l’onglet dédié.</p>') +
-            '<h3>Sanctions de la période</h3><div class="conseil-chips">' + (types || '<span class="conseil-hint">Aucune</span>') + '</div></div>' +
-            '<div class="conseil-panel"><h3>Appréciation de classe</h3>' +
+            (s.renseignees
+                ? '<div class="conseil-bars">' + bars + '</div>'
+                : '<p class="conseil-hint">' + (isAnnee(view.periode)
+                    ? 'Les moyennes de l’année se calculent à partir des trimestres ou semestres renseignés.'
+                    : 'Saisissez les moyennes dans l’onglet dédié.') + '</p>') +
+            '<h3>' + (isAnnee(view.periode) ? 'Sanctions de l’année' : 'Sanctions de la période') + '</h3><div class="conseil-chips">' + (types || '<span class="conseil-hint">Aucune</span>') + '</div></div>' +
+            '<div class="conseil-panel"><h3>Appréciation de classe' + (isAnnee(view.periode) ? ' (année)' : '') + '</h3>' +
             '<textarea class="conseil-app-area" id="conseil-app-classe" rows="5" placeholder="Synthèse du conseil pour la classe…">' +
             esc(periodeData(view.classe, view.periode).appreciationClasse) + '</textarea></div></div>' +
             '<div class="conseil-panel" style="margin-top:14px;"><h3>Tableau de bord</h3>' +
@@ -414,19 +575,19 @@
     }
 
     function htmlMoyennes() {
+        if (isAnnee(view.periode)) return htmlMoyennesAnnee();
         var matieres = classData(view.classe).matieres || [];
         var list = eleves(view.classe);
         var head = '<th class="sticky-col">Élève</th>' + matieres.map(function (m) {
             return '<th>' + esc(m.nom) + '<br><small>coef ' + esc(m.coef) + '</small></th>';
         }).join('') + '<th>Moy.</th>';
         var rows = list.map(function (e) {
-            var notes = (periodeData(view.classe, view.periode).moyennes || {})[e.nomComplet] || {};
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
             return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
                 matieres.map(function (mat) {
-                    var val = notes[mat.id];
+                    var val = noteMatiere(view.classe, view.periode, e.nomComplet, mat.id);
                     return '<td><input type="number" min="0" max="20" step="0.1" data-moy="' + esc(e.nomComplet) +
-                        '" data-mat="' + esc(mat.id) + '" value="' + (val == null || val === '' ? '' : esc(val)) + '"></td>';
+                        '" data-mat="' + esc(mat.id) + '" value="' + (val == null ? '' : esc(val)) + '"></td>';
                 }).join('') +
                 '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td></tr>';
         }).join('');
@@ -436,15 +597,54 @@
             (rows || '<tr><td class="sticky-col">Aucun élève</td></tr>') + '</tbody></table></div></div>';
     }
 
+    function htmlMoyennesAnnee() {
+        var pers = periodesReelles(view.classe);
+        var matieres = classData(view.classe).matieres || [];
+        var list = eleves(view.classe);
+        var headPer = '<th class="sticky-col">Élève</th>' + pers.map(function (p) {
+            return '<th>' + esc(p.label) + '</th>';
+        }).join('') + '<th>Année</th>';
+        var rowsPer = list.map(function (e) {
+            var an = moyenneEleve(view.classe, AN_ID, e.nomComplet);
+            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+                pers.map(function (per) {
+                    var m = moyenneEleve(view.classe, per.id, e.nomComplet);
+                    return '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td>';
+                }).join('') +
+                '<td class="conseil-moy ' + moyClass(an) + '">' + fmtMoy(an) + '</td></tr>';
+        }).join('');
+        var headMat = '<th class="sticky-col">Élève</th>' + matieres.map(function (m) {
+            return '<th>' + esc(m.nom) + '<br><small>coef ' + esc(m.coef) + '</small></th>';
+        }).join('') + '<th>Moy.</th>';
+        var rowsMat = list.map(function (e) {
+            var an = moyenneEleve(view.classe, AN_ID, e.nomComplet);
+            return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
+                matieres.map(function (mat) {
+                    var val = noteMatiere(view.classe, AN_ID, e.nomComplet, mat.id);
+                    return '<td class="conseil-moy ' + moyClass(val) + '">' + fmtMoy(val) + '</td>';
+                }).join('') +
+                '<td class="conseil-moy ' + moyClass(an) + '">' + fmtMoy(an) + '</td></tr>';
+        }).join('');
+        return htmlStats() +
+            '<div class="conseil-panel"><p class="conseil-hint">Récapitulatif annuel en lecture seule : moyenne de chaque période, puis moyenne de l’année (périodes renseignées uniquement).</p>' +
+            '<div class="conseil-table-wrap"><table class="conseil-table"><thead><tr>' + headPer + '</tr></thead><tbody>' +
+            (rowsPer || '<tr><td class="sticky-col">Aucun élève</td></tr>') + '</tbody></table></div></div>' +
+            '<div class="conseil-panel" style="margin-top:14px;"><h3>Moyennes par matière (année)</h3>' +
+            '<p class="conseil-hint">Moyenne des notes saisies sur les trimestres ou semestres.</p>' +
+            '<div class="conseil-table-wrap"><table class="conseil-table"><thead><tr>' + headMat + '</tr></thead><tbody>' +
+            (rowsMat || '<tr><td class="sticky-col">Aucun élève</td></tr>') + '</tbody></table></div></div>';
+    }
+
     function htmlSanctions() {
         var list = eleves(view.classe);
-        var p = periodeData(view.classe, view.periode);
+        var year = isAnnee(view.periode);
         var cards = list.map(function (e) {
-            var items = p.sanctions[e.nomComplet] || [];
+            var items = sanctionsEleve(view.classe, view.periode, e.nomComplet);
             var open = view.eleve === e.nomComplet ? ' is-open' : '';
             var body = view.eleve === e.nomComplet
-                ? '<div class="conseil-eleve-body">' + htmlSanctionList(e.nomComplet, items) +
-                  '<button type="button" class="btn-primary conseil-add-sanc" data-eleve="' + esc(e.nomComplet) + '">➕ Ajouter une sanction</button></div>'
+                ? '<div class="conseil-eleve-body">' + htmlSanctionList(e.nomComplet, items, year) +
+                  (year ? '' : '<button type="button" class="btn-primary conseil-add-sanc" data-eleve="' + esc(e.nomComplet) + '">➕ Ajouter une sanction</button>') +
+                  '</div>'
                 : '';
             return '<div class="conseil-eleve-card' + open + '">' +
                 '<div class="conseil-eleve-head" data-open="' + esc(e.nomComplet) + '">' +
@@ -453,15 +653,19 @@
                 (items.length ? '<span class="conseil-chip danger">' + items.length + '</span>' : '<span class="conseil-chip">Aucune</span>') +
                 '</span></div>' + body + '</div>';
         }).join('');
-        return htmlStats() + '<div class="conseil-panel"><p class="conseil-hint">Hiérarchie libre : attribuez une ou plusieurs mesures, selon la situation. Pour les mots, retenues et avertissements, indiquez le collègue (liste blanche).</p>' +
-            '<div class="conseil-eleve-list">' + cards + '</div></div>';
+        return htmlStats() + '<div class="conseil-panel"><p class="conseil-hint">' +
+            (year
+                ? 'Récapitulatif des sanctions de l’année (lecture seule). Pour en ajouter, ouvrez le trimestre ou le semestre concerné.'
+                : 'Hiérarchie libre : attribuez une ou plusieurs mesures, selon la situation. Pour les mots, retenues et avertissements, indiquez le collègue (liste blanche).') +
+            '</p><div class="conseil-eleve-list">' + cards + '</div></div>';
     }
 
-    function htmlSanctionList(nomComplet, items) {
+    function htmlSanctionList(nomComplet, items, readOnly) {
         if (!items.length) return '<p class="conseil-hint">Aucune sanction pour cette période.</p>';
         return '<div class="conseil-sanctions">' + items.map(function (s, i) {
             var meta = sanctionMeta(s.type);
             var extra = [];
+            if (s.periodeLabel) extra.push(s.periodeLabel);
             if (s.prof) extra.push('par ' + s.prof);
             if (s.duree) extra.push(s.duree);
             if (s.objectifs && s.objectifs.length) extra.push(s.objectifs.filter(Boolean).join(' · '));
@@ -469,22 +673,66 @@
                 esc(formatDate(s.date)) +
                 (extra.length ? '<div class="conseil-sanction-meta">' + esc(extra.join(' · ')) + '</div>' : '') +
                 (s.motif ? '<div>' + esc(s.motif) + '</div>' : '') +
-                '<button type="button" class="btn-secondary conseil-del-sanc" data-eleve="' + esc(nomComplet) +
-                '" data-idx="' + i + '" style="margin-top:6px;">Supprimer</button></div>';
+                (readOnly ? '' : '<button type="button" class="btn-secondary conseil-del-sanc" data-eleve="' + esc(nomComplet) +
+                '" data-idx="' + i + '" style="margin-top:6px;">Supprimer</button>') + '</div>';
         }).join('') + '</div>';
+    }
+
+    function htmlRetours() {
+        var profs = retoursList(view.classe, view.periode);
+        var opts = directory.map(function (p) {
+            var lab = profLabel(p);
+            var val = (p.identifiant || lab) + '::' + (p.matiere || '');
+            return '<option value="' + esc(val) + '">' + esc(lab) + (p.matiere ? ' · ' + esc(p.matiere) : '') + '</option>';
+        }).join('');
+        var cards = profs.map(function (p) {
+            var titre = profLabel(p) || p.identifiant || 'Enseignant';
+            return '<div class="conseil-eleve-card conseil-retour-card">' +
+                '<div class="conseil-eleve-head" style="cursor:default">' +
+                '<div><strong>' + esc(titre) + '</strong>' +
+                (p.matiere ? '<div class="conseil-sanction-meta">' + esc(p.matiere) + '</div>' : '') +
+                '</div>' +
+                '<button type="button" class="btn-secondary conseil-del-prof" data-pkey="' + esc(p.key) + '">Retirer</button>' +
+                '</div>' +
+                '<textarea class="conseil-app-area conseil-retour-texte" data-pkey="' + esc(p.key) +
+                '" rows="4" placeholder="Appréciation générale de l’enseignant pour la classe…">' +
+                esc(p.texte) + '</textarea></div>';
+        }).join('');
+        return htmlStats() +
+            '<div class="conseil-panel"><h3>Retour des professeurs</h3>' +
+            '<p class="conseil-hint">Appréciation générale de chaque enseignant de la classe, à présenter au conseil. Elle figure sur le <strong>PDF classe</strong>' +
+            (isAnnee(view.periode) ? ' (récapitulatif annuel).' : '.') + '</p>' +
+            '<div class="conseil-toolbar">' +
+            '<div class="conseil-add-prof-row">' +
+            '<select id="conseil-pick-prof"><option value="">— Ajouter un enseignant —</option>' + opts + '</select>' +
+            '<button type="button" class="btn-secondary" id="conseil-add-prof">Ajouter</button>' +
+            '<button type="button" class="btn-secondary" id="conseil-refresh-profs">Importer les affectations</button>' +
+            '</div></div>' +
+            (cards
+                ? '<div class="conseil-eleve-list">' + cards + '</div>'
+                : '<p class="conseil-hint">Aucun enseignant pour l’instant. Importez les affectations de la classe ou ajoutez un collègue depuis la liste blanche.</p>') +
+            '</div>';
     }
 
     function htmlAppreciations() {
         var list = eleves(view.classe);
         var p = periodeData(view.classe, view.periode);
         var rows = list.map(function (e) {
-            return '<div class="conseil-eleve-card"><strong>' + esc(e.nomComplet) + '</strong>' +
+            var extra = '';
+            if (isAnnee(view.periode)) {
+                extra = '<p class="conseil-sanction-meta">' + periodesReelles(view.classe).map(function (per) {
+                    var t = (periodeData(view.classe, per.id).appreciations[e.nomComplet] || '').trim();
+                    return esc(per.label) + ' : ' + (t ? '✓' : '—');
+                }).join(' · ') + '</p>';
+            }
+            return '<div class="conseil-eleve-card"><strong>' + esc(e.nomComplet) + '</strong>' + extra +
                 '<textarea class="conseil-app-area conseil-app-eleve" data-eleve="' + esc(e.nomComplet) +
-                '" rows="3" placeholder="Appréciation générale…">' + esc(p.appreciations[e.nomComplet] || '') +
+                '" rows="3" placeholder="' + (isAnnee(view.periode) ? 'Appréciation annuelle…' : 'Appréciation générale…') + '">' +
+                esc(p.appreciations[e.nomComplet] || '') +
                 '</textarea></div>';
         }).join('');
         return htmlStats() +
-            '<div class="conseil-panel"><h3>Appréciation de classe</h3>' +
+            '<div class="conseil-panel"><h3>Appréciation de classe' + (isAnnee(view.periode) ? ' (année)' : '') + '</h3>' +
             '<textarea class="conseil-app-area" id="conseil-app-classe" rows="4" placeholder="Synthèse collective…">' +
             esc(p.appreciationClasse) + '</textarea></div>' +
             '<div class="conseil-panel" style="margin-top:14px;"><h3>Appréciations individuelles</h3>' +
@@ -493,15 +741,14 @@
 
     function htmlSynthese() {
         var list = eleves(view.classe);
-        var p = periodeData(view.classe, view.periode);
-        var pers = periodesFor(view.classe);
+        var pers = periodesReelles(view.classe);
         var cards = list.map(function (e) {
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
-            var nSanc = (p.sanctions[e.nomComplet] || []).length;
-            var app = (p.appreciations[e.nomComplet] || '').trim();
+            var nSanc = sanctionsEleve(view.classe, view.periode, e.nomComplet).length;
+            var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
             var histo = pers.map(function (per) {
                 return per.label.replace(/Semestre |Trimestre /, '') + ': ' + fmtMoy(moyenneEleve(view.classe, per.id, e.nomComplet));
-            }).join(' · ');
+            }).join(' · ') + ' · Année : ' + fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet));
             return '<div class="conseil-eleve-card">' +
                 '<div class="conseil-eleve-head"><strong>' + esc(e.nomComplet) + '</strong>' +
                 '<span class="conseil-chips"><span class="conseil-chip">Moy. ' + fmtMoy(m) + '</span>' +
@@ -572,6 +819,55 @@
         container.querySelectorAll('.conseil-pdf-eleve').forEach(function (btn) {
             btn.addEventListener('click', function () { exportPdfEleve(btn.getAttribute('data-eleve')); });
         });
+        container.querySelectorAll('.conseil-retour-texte').forEach(function (area) {
+            area.addEventListener('input', function () {
+                periodeData(view.classe, view.periode).retoursProfs[area.getAttribute('data-pkey')] = area.value;
+                planifierSync();
+            });
+        });
+        var addProf = container.querySelector('#conseil-add-prof');
+        if (addProf) {
+            addProf.addEventListener('click', function () {
+                var sel = container.querySelector('#conseil-pick-prof');
+                var raw = sel && sel.value;
+                if (!raw) return;
+                var parts = raw.split('::');
+                var ident = parts[0] || '';
+                var matiere = parts.slice(1).join('::');
+                var src = directory.find(function (p) {
+                    return (p.identifiant || profLabel(p)) === ident && String(p.matiere || '') === matiere;
+                }) || directory.find(function (p) {
+                    return (p.identifiant || profLabel(p)) === ident;
+                });
+                var prof = src
+                    ? { identifiant: src.identifiant || ident, nom: src.nom || '', prenom: src.prenom || '', matiere: src.matiere || matiere }
+                    : { identifiant: ident, nom: '', prenom: ident, matiere: matiere };
+                mergeProfs(view.classe, [prof]);
+                planifierSync();
+                paintBody(container);
+            });
+        }
+        var refreshProfs = container.querySelector('#conseil-refresh-profs');
+        if (refreshProfs) {
+            refreshProfs.addEventListener('click', function () {
+                refreshProfs.disabled = true;
+                ensureProfs(view.classe, true).then(function () {
+                    paintBody(container);
+                }).finally(function () {
+                    refreshProfs.disabled = false;
+                });
+            });
+        }
+        container.querySelectorAll('.conseil-del-prof').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var key = btn.getAttribute('data-pkey');
+                classData(view.classe).profs = (classData(view.classe).profs || []).filter(function (p) {
+                    return profKey(p) !== key;
+                });
+                planifierSync();
+                paintBody(container);
+            });
+        });
     }
 
     function formatDate(iso) {
@@ -581,22 +877,150 @@
         } catch (e) { return iso; }
     }
 
+    function getOverlay() {
+        var el = document.getElementById('conseil-modale');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'conseil-modale';
+            el.className = 'conseil-modale';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+    function closeOverlay() {
+        var el = document.getElementById('conseil-modale');
+        if (!el) return;
+        if (el._conseilResizeCleanup) el._conseilResizeCleanup();
+        el.classList.remove('is-open');
+        el.innerHTML = '';
+        el.onclick = null;
+        document.body.classList.remove('conseil-modale-resizing');
+    }
+    function applyModalSize(card) {
+        try {
+            var stored = JSON.parse(localStorage.getItem('conseilMatieresModalSize') || 'null');
+            if (stored && stored.w && stored.h) {
+                var maxW = window.innerWidth - 48;
+                var maxH = window.innerHeight - 48;
+                card.style.width = Math.min(maxW, Math.max(360, stored.w)) + 'px';
+                card.style.height = Math.min(maxH, Math.max(280, stored.h)) + 'px';
+            }
+        } catch (e) { /* ignore */ }
+    }
+    function bindModalResize(overlay, card) {
+        if (overlay._conseilResizeCleanup) overlay._conseilResizeCleanup();
+        var handle = overlay.querySelector('.conseil-modale-resize');
+        if (!handle || !card) return;
+        var drag = null;
+        handle.addEventListener('mousedown', function (e) {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var rect = card.getBoundingClientRect();
+            drag = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+            document.body.classList.add('conseil-modale-resizing');
+        });
+        handle.addEventListener('dblclick', function (e) {
+            e.preventDefault();
+            card.style.width = '';
+            card.style.height = '';
+            try { localStorage.removeItem('conseilMatieresModalSize'); } catch (err) { /* ignore */ }
+        });
+        function onMove(e) {
+            if (!drag) return;
+            var maxW = window.innerWidth - 48;
+            var maxH = window.innerHeight - 48;
+            var w = Math.min(maxW, Math.max(360, drag.w + 2 * (e.clientX - drag.x)));
+            var h = Math.min(maxH, Math.max(280, drag.h + 2 * (e.clientY - drag.y)));
+            card.style.width = w + 'px';
+            card.style.height = h + 'px';
+        }
+        function onUp() {
+            if (!drag) return;
+            drag = null;
+            document.body.classList.remove('conseil-modale-resizing');
+            var rect = card.getBoundingClientRect();
+            try {
+                localStorage.setItem('conseilMatieresModalSize', JSON.stringify({
+                    w: Math.round(rect.width),
+                    h: Math.round(rect.height)
+                }));
+            } catch (err) { /* ignore */ }
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        overlay._conseilResizeCleanup = function () {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            overlay._conseilResizeCleanup = null;
+        };
+    }
+    function bindMatieresDnD(listEl, mats, redraw) {
+        var dragIdx = -1;
+        listEl.querySelectorAll('.conseil-matiere-row').forEach(function (row) {
+            var handle = row.querySelector('.conseil-drag-handle');
+            if (handle) {
+                handle.addEventListener('mousedown', function () { row.setAttribute('draggable', 'true'); });
+            }
+            row.addEventListener('dragstart', function (e) {
+                if (e.target.closest('input, button')) {
+                    e.preventDefault();
+                    return;
+                }
+                dragIdx = Number(row.getAttribute('data-idx'));
+                row.classList.add('is-dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', String(dragIdx));
+            });
+            row.addEventListener('dragend', function () {
+                row.classList.remove('is-dragging');
+                row.removeAttribute('draggable');
+                listEl.querySelectorAll('.is-drop').forEach(function (el) { el.classList.remove('is-drop'); });
+            });
+            row.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                row.classList.add('is-drop');
+            });
+            row.addEventListener('dragleave', function () { row.classList.remove('is-drop'); });
+            row.addEventListener('drop', function (e) {
+                e.preventDefault();
+                var to = Number(row.getAttribute('data-idx'));
+                var from = dragIdx;
+                row.classList.remove('is-drop');
+                if (from < 0 || from === to || from >= mats.length || to >= mats.length) return;
+                var item = mats.splice(from, 1)[0];
+                mats.splice(to, 0, item);
+                redraw();
+            });
+        });
+    }
+
     function openMatieresModal(container) {
-        var modal = container.querySelector('#conseil-modale');
+        var modal = getOverlay();
         var mats = classData(view.classe).matieres.slice();
         function draw() {
             modal.className = 'conseil-modale is-open';
-            modal.innerHTML = '<div class="conseil-modale-card"><h3>Matières du conseil · ' + esc(view.classe) + '</h3>' +
-                '<p class="conseil-hint">Liste et coefficients pour l’année. Indépendants du carnet de notes.</p>' +
+            modal.innerHTML = '<div class="conseil-modale-card conseil-modale-resizable">' +
+                '<div class="conseil-modale-inner">' +
+                '<h3>Matières du conseil · ' + esc(view.classe) + '</h3>' +
+                '<p class="conseil-hint">Liste et coefficients pour l’année. Glissez les poignées pour réordonner. Indépendants du carnet de notes.</p>' +
                 '<div class="conseil-matieres-list">' + mats.map(function (m, i) {
-                    return '<div class="conseil-matiere-row">' +
+                    return '<div class="conseil-matiere-row" data-idx="' + i + '">' +
+                        '<span class="conseil-drag-handle" title="Glisser pour réordonner" aria-label="Réordonner" role="button">⋮⋮</span>' +
                         '<input type="text" data-mn="' + i + '" value="' + esc(m.nom) + '">' +
                         '<label>Coef. <input type="number" min="0.5" step="0.5" data-mc="' + i + '" value="' + esc(m.coef) + '"></label>' +
                         '<button type="button" class="btn-secondary" data-mdel="' + i + '">Retirer</button></div>';
                 }).join('') + '</div>' +
                 '<p><button type="button" class="btn-secondary" id="conseil-add-mat">➕ Matière</button></p>' +
-                '<div style="display:flex;gap:8px;"><button type="button" class="btn-primary" id="conseil-save-mat">Enregistrer</button>' +
-                '<button type="button" class="btn-secondary" id="conseil-close-mat">Annuler</button></div></div>';
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn-primary" id="conseil-save-mat">Enregistrer</button>' +
+                '<button type="button" class="btn-secondary" id="conseil-close-mat">Annuler</button></div>' +
+                '</div>' +
+                '<div class="conseil-modale-resize" title="Redimensionner" aria-label="Redimensionner la fenêtre"></div>' +
+                '</div>';
+            var card = modal.querySelector('.conseil-modale-card');
+            applyModalSize(card);
+            bindModalResize(modal, card);
             modal.querySelectorAll('[data-mn]').forEach(function (inp) {
                 inp.addEventListener('input', function () { mats[Number(inp.getAttribute('data-mn'))].nom = inp.value; });
             });
@@ -609,6 +1033,7 @@
                     draw();
                 });
             });
+            bindMatieresDnD(modal.querySelector('.conseil-matieres-list'), mats, draw);
             modal.querySelector('#conseil-add-mat').addEventListener('click', function () {
                 mats.push({ id: uid(), nom: 'Nouvelle matière', coef: 1 });
                 draw();
@@ -616,19 +1041,19 @@
             modal.querySelector('#conseil-save-mat').addEventListener('click', function () {
                 classData(view.classe).matieres = mats.filter(function (m) { return (m.nom || '').trim(); });
                 planifierSync();
-                modal.classList.remove('is-open');
+                closeOverlay();
                 paint(container);
             });
             modal.querySelector('#conseil-close-mat').addEventListener('click', function () {
-                modal.classList.remove('is-open');
+                closeOverlay();
             });
         }
         draw();
-        modal.onclick = function (e) { if (e.target === modal) modal.classList.remove('is-open'); };
+        modal.onclick = function (e) { if (e.target === modal) closeOverlay(); };
     }
 
     function openSanctionModal(container, nomComplet) {
-        var modal = container.querySelector('#conseil-modale');
+        var modal = getOverlay();
         var today = new Date().toISOString().slice(0, 10);
         var profOpts = '<option value="">— Choisir un enseignant —</option>' + directory.map(function (p) {
             var lab = profLabel(p);
@@ -676,7 +1101,7 @@
         modal.querySelector('#s-type').addEventListener('change', refreshFields);
         modal.querySelector('#s-add-obj').addEventListener('click', addObjectif);
         refreshFields();
-        modal.querySelector('#s-cancel').addEventListener('click', function () { modal.classList.remove('is-open'); });
+        modal.querySelector('#s-cancel').addEventListener('click', function () { closeOverlay(); });
         modal.querySelector('#s-save').addEventListener('click', function () {
             var type = modal.querySelector('#s-type').value;
             var meta = sanctionMeta(type);
@@ -699,11 +1124,11 @@
             if (!p.sanctions[nomComplet]) p.sanctions[nomComplet] = [];
             p.sanctions[nomComplet].push(entry);
             planifierSync();
-            modal.classList.remove('is-open');
+            closeOverlay();
             view.eleve = nomComplet;
             paintBody(container);
         });
-        modal.onclick = function (e) { if (e.target === modal) modal.classList.remove('is-open'); };
+        modal.onclick = function (e) { if (e.target === modal) closeOverlay(); };
     }
 
     function periodeLabel() {
@@ -734,6 +1159,14 @@
         doc.setTextColor(15, 23, 42);
     }
 
+    function pdfEnsure(doc, y, need) {
+        if (y + (need || 16) > 278) {
+            doc.addPage();
+            return 18;
+        }
+        return y;
+    }
+
     function exportPdfClasse() {
         var JsPDF = jsPdf();
         if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
@@ -756,22 +1189,61 @@
             doc.text(lines, 12, y);
             y += lines.length * 5 + 4;
         }
+        var retours = retoursList(view.classe, view.periode).filter(function (r) {
+            return (r.texte || '').trim();
+        });
+        if (retours.length) {
+            y = pdfEnsure(doc, y, 18);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('Retour des professeurs', 12, y);
+            y += 6;
+            retours.forEach(function (r) {
+                var titre = (profLabel(r) || r.identifiant || 'Enseignant') + (r.matiere ? '  ·  ' + r.matiere : '');
+                y = pdfEnsure(doc, y, 16);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.text(titre, 12, y);
+                y += 5;
+                doc.setFont('helvetica', 'normal');
+                var rl = doc.splitTextToSize(r.texte.trim(), 186);
+                y = pdfEnsure(doc, y, rl.length * 4.5 + 4);
+                doc.text(rl, 12, y);
+                y += rl.length * 4.5 + 4;
+            });
+        }
         if (doc.autoTable) {
+            var persPdf = periodesReelles(view.classe);
+            var head = isAnnee(view.periode)
+                ? [['Élève'].concat(persPdf.map(function (per) { return per.label; })).concat(['Année', 'Sanctions', 'Appréciation'])]
+                : [['Élève', 'Moyenne', 'Sanctions', 'Appréciation']];
             doc.autoTable({
                 startY: y,
-                head: [['Élève', 'Moyenne', 'Sanctions', 'Appréciation']],
+                head: head,
                 body: list.map(function (e) {
-                    var app = (p.appreciations[e.nomComplet] || '').trim();
+                    var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
+                    var short = app.length > 90 ? app.slice(0, 87) + '…' : app;
+                    if (isAnnee(view.periode)) {
+                        return [e.nomComplet]
+                            .concat(persPdf.map(function (per) {
+                                return fmtMoy(moyenneEleve(view.classe, per.id, e.nomComplet));
+                            }))
+                            .concat([
+                                fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet)),
+                                String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
+                                short
+                            ]);
+                    }
                     return [
                         e.nomComplet,
                         fmtMoy(moyenneEleve(view.classe, view.periode, e.nomComplet)),
-                        String((p.sanctions[e.nomComplet] || []).length),
-                        app.length > 90 ? app.slice(0, 87) + '…' : app
+                        String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
+                        short
                     ];
                 }),
                 styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [30, 64, 175] },
-                columnStyles: { 3: { cellWidth: 80 } }
+                columnStyles: isAnnee(view.periode) ? {} : { 3: { cellWidth: 80 } }
             });
         }
         doc.setFontSize(8);
@@ -784,9 +1256,7 @@
         var JsPDF = jsPdf();
         if (!JsPDF) { alert('jsPDF n’est pas chargé.'); return; }
         var doc = new JsPDF({ unit: 'mm', format: 'a4' });
-        var p = periodeData(view.classe, view.periode);
         var mats = classData(view.classe).matieres || [];
-        var notes = (p.moyennes || {})[nomComplet] || {};
         drawPdfHeader(doc, nomComplet, view.classe + '  ·  ' + periodeLabel() + '  ·  ' + annee());
         var y = 40;
         doc.setFont('helvetica', 'bold');
@@ -798,14 +1268,15 @@
                 startY: y,
                 head: [['Matière', 'Coef.', 'Moyenne']],
                 body: mats.map(function (m) {
-                    return [m.nom, String(m.coef), notes[m.id] == null || notes[m.id] === '' ? '—' : String(notes[m.id]).replace('.', ',')];
+                    var v = noteMatiere(view.classe, view.periode, nomComplet, m.id);
+                    return [m.nom, String(m.coef), v == null ? '—' : fmtMoy(v)];
                 }),
                 styles: { fontSize: 9 },
                 headStyles: { fillColor: [30, 64, 175] }
             });
             y = doc.lastAutoTable.finalY + 10;
         }
-        var pers = periodesFor(view.classe);
+        var pers = periodesReelles(view.classe);
         doc.setFont('helvetica', 'bold');
         doc.text('Évolution sur l’année', 12, y);
         y += 6;
@@ -813,9 +1284,9 @@
         doc.setFontSize(10);
         doc.text(pers.map(function (per) {
             return per.label + ' : ' + fmtMoy(moyenneEleve(view.classe, per.id, nomComplet));
-        }).join('     '), 12, y);
+        }).join('     ') + '     Année : ' + fmtMoy(moyenneEleve(view.classe, AN_ID, nomComplet)), 12, y);
         y += 10;
-        var sanc = p.sanctions[nomComplet] || [];
+        var sanc = sanctionsEleve(view.classe, view.periode, nomComplet);
         doc.setFont('helvetica', 'bold');
         doc.text('Sanctions (' + sanc.length + ')', 12, y);
         y += 6;
@@ -826,7 +1297,7 @@
             y += 8;
         } else {
             sanc.forEach(function (s) {
-                var line = sanctionMeta(s.type).label + ' — ' + formatDate(s.date);
+                var line = (s.periodeLabel ? s.periodeLabel + ' — ' : '') + sanctionMeta(s.type).label + ' — ' + formatDate(s.date);
                 if (s.prof) line += ' — ' + s.prof;
                 if (s.duree) line += ' — ' + s.duree;
                 var wrapped = doc.splitTextToSize(line + (s.motif ? ' · ' + s.motif : ''), 186);
@@ -848,7 +1319,7 @@
         doc.text('Appréciation générale', 12, y);
         y += 6;
         doc.setFont('helvetica', 'normal');
-        var app = (p.appreciations[nomComplet] || '').trim() || '—';
+        var app = appreciationEleve(view.classe, view.periode, nomComplet) || '—';
         var al = doc.splitTextToSize(app, 186);
         doc.text(al, 12, y);
         doc.setFontSize(8);
@@ -856,6 +1327,12 @@
         doc.text('Fiche conseil de classe — professeur principal', 12, 287);
         doc.save('Conseil_' + nomComplet.replace(/\s+/g, '_') + '_' + view.periode + '.pdf');
     }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        var el = document.getElementById('conseil-modale');
+        if (el && el.classList.contains('is-open')) closeOverlay();
+    });
 
     global.EprofConseilClasse = {
         render: render,
