@@ -5842,13 +5842,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):not(.conseil-periode-btn):not(.conseil-tab) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):not(.conseil-periode-btn):not(.conseil-tab):hover {
     background: #5f6f85;
 }
 
@@ -6064,13 +6064,13 @@ body.theme-sombre select option {
 }
 
 /* Boutons en mode sombre */
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn) {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):not(.conseil-periode-btn):not(.conseil-tab) {
     background: #475569;
     color: #e2e8f0;
     border-color: #64748b;
 }
 
-body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):hover {
+body.theme-sombre button:not(.btn-primary):not(.btn-success):not(.btn-danger):not(.btn-action):not(.classe-btn):not(.home-class-card):not(.home-upcoming-arrow):not(.home-upcoming-item):not(.home-brief-link):not(.home-recent-btn):not(.msg-btn-primary):not(.msg-btn-ghost):not(.msg-btn-danger):not(.msg-channel-item):not(.msg-dialog-close):not(.msg-chip-remove):not(.admin-tab):not(.admin-subtab):not(.admin-close):not(.suggest-close):not(.calendar-image-close):not(.footer-about-btn):not(.archive-year-btn):not(.ts-feuille-btn):not(.conseil-periode-btn):not(.conseil-tab):hover {
     background: #5f6f85;
 }
 

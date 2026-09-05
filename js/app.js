@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
 
     function getAppVersionInfo() {
-        return { version: 'V2.5.19' };
+        return { version: 'V2.6.0' };
     }
 
     function readAppParametres() {
@@ -312,6 +312,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const cible = el.tagName === 'A' ? (el.closest('li') || el) : el;
             cible.style.display = estAdministrateur ? '' : 'none';
         });
+        appliquerVisibilitePp();
+    }
+
+    function appliquerVisibilitePp() {
+        const isPp = !!(window.teacherManager && typeof window.teacherManager.getPpClasses === 'function'
+            && window.teacherManager.getPpClasses().length);
+        document.body.classList.toggle('eprof-is-pp', isPp);
+        document.querySelectorAll('[data-tool="conseil-classe"]').forEach(function (el) {
+            const cible = el.tagName === 'A' ? (el.closest('li') || el) : el;
+            cible.style.display = isPp ? '' : 'none';
+        });
     }
 
     async function rafraichirRoleAdmin() {
@@ -338,6 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calendar: '📅 Calendrier',
         agenda: '🗓️ Agenda',
         notes: '📒 Carnet',
+        'conseil-classe': '🎓 Conseil',
         eleves: '👨‍🎓 Suivi',
         'plan-classe': '🪑 Plan de classe',
         trombinoscopes: '📸 Trombinoscopes',
@@ -367,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function startAppShell() {
         if (appShellReady) return;
         appShellReady = true;
+        appliquerVisibilitePp();
         showDashboard();
         highlightSidebar('dashboard-link');
     }
@@ -393,7 +406,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '<div class="home-class-cards">' + classes.map(function (nom) {
                 const color = window.getClassColor ? window.getClassColor(nom) : 'var(--eprof-accent, #2563eb)';
                 const n = (listes[nom] || []).length;
-                return '<button type="button" class="home-class-card" data-classe="' + escapeDashboardHtml(nom) + '" style="background:' + color + '"><span class="home-class-card-name">' + escapeDashboardHtml(nom) + '</span><span class="home-class-card-count">' + n + ' élève' + (n > 1 ? 's' : '') + '</span></button>';
+                const pp = (window.EprofEleves && window.EprofEleves.ppBadgeHtml) ? window.EprofEleves.ppBadgeHtml(nom) : '';
+                return '<button type="button" class="home-class-card" data-classe="' + escapeDashboardHtml(nom) + '" style="background:' + color + '"><span class="home-class-card-name">' + escapeDashboardHtml(nom) + pp + '</span><span class="home-class-card-count">' + n + ' élève' + (n > 1 ? 's' : '') + '</span></button>';
             }).join('') + '</div>'
             : '<p class="home-brief-empty">Aucune classe. Ouvrez <button type="button" class="home-brief-link" data-tool="parametres">Paramètres</button> pour les choisir.</p>';
         const recentHtml = lastTools.length
@@ -452,6 +466,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="tool-content">
                             <div class="tool-title">Plan de classe</div>
                             <div class="tool-description">Créez et gérez vos plans de classe interactifs</div>
+                        </div>
+                    </button>
+                    <button class="tool-card" data-tool="conseil-classe">
+                        <span class="tool-icon">🎓</span>
+                        <div class="tool-content">
+                            <div class="tool-title">Conseil de classe</div>
+                            <div class="tool-description">Moyennes, sanctions et appréciations — professeur principal</div>
                         </div>
                     </button>
                     <button class="tool-card" data-tool="trombinoscopes">
@@ -648,9 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.getElementById('home-upcoming')) showDashboard();
             return;
         }
-        if (['eleves', 'trombinoscopes', 'plan-classe'].includes(outilCourant)) {
+        if (['eleves', 'trombinoscopes', 'plan-classe', 'conseil-classe'].includes(outilCourant)) {
             handleDashboardTool(outilCourant, outilExtra);
         }
+    });
+    document.addEventListener('eprof-pp-maj', function () {
+        appliquerVisibilitePp();
+        if (!outilCourant && document.getElementById('home-upcoming')) showDashboard();
+        else if (outilCourant === 'conseil-classe') handleDashboardTool('conseil-classe', outilExtra);
     });
 
     function handleDashboardTool(tool, extra) {
@@ -700,6 +726,11 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'notes':
                 window.open('carnet-notes.html', '_blank');
                 highlightSidebar('notes');
+                break;
+            case 'conseil-classe':
+                if (window.EprofConseilClasse) window.EprofConseilClasse.render(mainContent, extra);
+                else mainContent.innerHTML = '<h2>Conseil de classe indisponible</h2>';
+                highlightSidebar('conseil-classe');
                 break;
             case 'agenda':
                 if (window.EprofAgenda) window.EprofAgenda.render(mainContent);

@@ -27,7 +27,7 @@
             steps: [
                 'Ouvrez <strong>Paramètres</strong> dans le menu ou depuis l’accueil. Le sommaire en haut permet d’aller directement à une section ; chaque bloc se replie.',
                 'Renseignez nom, prénom, matière et e-mail. En ligne, le profil de l’établissement est utilisé en priorité.',
-                'Cliquez <strong>Gérer mes classes et matières</strong> : cochez vos classes à gauche (groupées par niveau), puis leurs matières à droite.',
+                'Cliquez <strong>Gérer mes classes et matières</strong> : cochez vos classes à gauche (groupées par niveau), puis leurs matières à droite. Cochez <strong>PP</strong> si vous êtes professeur principal de la classe (conseil de classe).',
                 'Choisissez l’année scolaire (trombinoscopes, vacances du calendrier) puis le thème, la taille de police et le mode mobile — l’aperçu est immédiat.',
                 'Dans Calendrier, réglez la plage horaire, les lignes de début/fin de journée, les récréations et l’éventuel samedi. Dans Notation, choisissez le barème (sur 20 ou sur 10) et les seuils d’alertes (oublis, mots) utilisés dans le suivi.',
                 'La section « Mon compte » permet de changer l’identifiant ou le mot de passe. Le bouton Enregistrer, toujours visible en bas, sauvegarde le reste.'
@@ -82,6 +82,24 @@
                 'Vous pouvez exporter ou imprimer une fiche, et revenir à eProf sans perdre le carnet (sauvegarde en ligne si vous êtes connecté).'
             ],
             tip: 'Les moyennes d’un élève sont aussi visibles dans le suivi des élèves, onglet « Moyennes ».'
+        },
+        {
+            id: 'conseil-classe',
+            icon: '🎓',
+            title: 'Conseil de classe',
+            lead: 'Outil du professeur principal : moyennes coefficientées, sanctions, appréciations et synthèses PDF.',
+            tool: 'conseil-classe',
+            steps: [
+                'L’entrée <strong>Conseil de classe</strong> n’apparaît que si vous êtes <strong>professeur principal</strong>. Cochez <strong>PP</strong> dans <em>Gérer mes classes et matières</em>, ou faites-vous désigner dans les affectations (admin). Un badge <strong>PP</strong> s’affiche alors sur les boutons de votre classe partout dans eProf.',
+                'Ouvrez l’outil depuis le menu (sous le carnet de notes) ou <strong>Gestion de classe</strong> sur l’accueil.',
+                'Choisissez la période : trimestres ou semestres selon la configuration de la classe.',
+                'Dans <strong>Matières de la classe</strong>, définissez la liste et les coefficients pour l’année. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
+                'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La moyenne générale tient compte des coefficients.',
+                'Onglet <strong>Sanctions</strong> : ajoutez une ou plusieurs mesures (mot, retenue, avertissements, fiche d’accompagnement, contrat, exclusions, conseils). Pour les mots, retenues et avertissements, choisissez le collègue dans la liste blanche. Les objectifs se renseignent pour les fiches et contrats ; la durée pour une exclusion temporaire. L’ordre n’est pas imposé.',
+                'Onglet <strong>Appréciations</strong> : texte pour la classe et pour chaque élève.',
+                'Onglets <strong>Vue d’ensemble</strong> et <strong>Synthèse</strong> : statistiques, répartition des moyennes, suivi sur l’année. Exportez un <strong>PDF classe</strong> ou une <strong>fiche élève</strong>.'
+            ],
+            tip: 'Tout est enregistré en ligne sur votre compte, pour vos classes PP uniquement.'
         },
         {
             id: 'eleves',

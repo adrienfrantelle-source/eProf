@@ -1478,11 +1478,17 @@
 
             // ----- Affectations -----
             async function renderAffectations() {
-                const [assignRes, classesRes, matieresRes, whitelistRes] = await Promise.all([
+                const anneePp = (function () {
+                    try {
+                        return (JSON.parse(localStorage.getItem('parametres') || '{}').anneeScolaire) || '2026-2027';
+                    } catch (e) { return '2026-2027'; }
+                })();
+                const [assignRes, classesRes, matieresRes, whitelistRes, ppRes] = await Promise.all([
                     window.EprofStore.list('teacher_assignments', { orderBy: 'identifiant' }),
                     window.EprofStore.list('school_classes', { orderBy: 'ordre' }),
                     window.EprofStore.list('school_subjects', { orderBy: 'ordre' }),
-                    window.EprofStore.list('allowed_teachers', { orderBy: 'identifiant' })
+                    window.EprofStore.list('allowed_teachers', { orderBy: 'identifiant' }),
+                    window.EprofStore.list('class_principals', { orderBy: 'classe' })
                 ]);
                 if (assignRes.error) {
                     sections.affectations.innerHTML = '<p class="admin-error">Erreur : ' + escapeHtml(assignRes.error.message) + '</p>';
@@ -1492,6 +1498,10 @@
                 const classes = (classesRes.data || []).filter(function (c) { return c.actif; });
                 const matieres = (matieresRes.data || []).filter(function (m) { return m.actif; });
                 const profs = whitelistRes.data || [];
+                const ppRows = (ppRes.data || []).filter(function (p) { return !p.annee_scolaire || p.annee_scolaire === anneePp; });
+                function isPp(identifiant, classe) {
+                    return ppRows.some(function (p) { return p.identifiant === identifiant && p.classe === classe; });
+                }
 
                 sections.affectations.innerHTML = `
                     <form class="admin-add-form affect-add-form">
@@ -1507,8 +1517,10 @@
                             <option value="">— Matière —</option>
                             ${matieres.map(function (m) { return `<option value="${escapeHtml(m.nom)}">${escapeHtml(m.nom)}</option>`; }).join('')}
                         </select>
+                        <label class="admin-inline-check"><input type="checkbox" class="affect-pp"> Professeur principal</label>
                         <button type="submit" class="btn-primary">➕ Affecter</button>
                     </form>
+                    <p class="admin-hint">Cochez <strong>PP</strong> pour désigner le professeur principal de la classe (conseil de classe). Un enseignant peut être PP de plusieurs classes.</p>
                     <div class="admin-toolbar">
                         <input type="search" class="affect-search" placeholder="Filtrer par enseignant, classe, matière…">
                         <button type="button" class="btn-secondary affect-export-btn">📤 Exporter « qui enseigne quoi »</button>
@@ -1516,7 +1528,7 @@
                     </div>
                     <div class="admin-table-wrap">
                         <table class="admin-table">
-                            <thead><tr><th>Enseignant</th><th>Classe</th><th>Matière</th><th></th></tr></thead>
+                            <thead><tr><th>Enseignant</th><th>Classe</th><th>Matière</th><th>PP</th><th></th></tr></thead>
                             <tbody class="affect-tbody"></tbody>
                         </table>
                     </div>`;
@@ -1528,13 +1540,15 @@
                         return !term || [a.identifiant, a.classe, a.matiere].join(' ').toLowerCase().includes(term);
                     });
                     tbody.innerHTML = visible.map(function (a) {
-                        return `<tr data-id="${escapeHtml(a.id)}">
+                        const pp = isPp(a.identifiant, a.classe);
+                        return `<tr data-id="${escapeHtml(a.id)}" data-identifiant="${escapeHtml(a.identifiant)}" data-classe="${escapeHtml(a.classe)}">
                             <td><code>${escapeHtml(a.identifiant)}</code></td>
                             <td>${escapeHtml(a.classe)}</td>
                             <td>${escapeHtml(a.matiere)}</td>
+                            <td><label class="admin-inline-check"><input type="checkbox" class="affect-pp-toggle" ${pp ? 'checked' : ''}> PP</label></td>
                             <td class="admin-actions"><button type="button" class="affect-delete-btn" title="Retirer">🗑️</button></td>
                         </tr>`;
-                    }).join('') || '<tr><td colspan="4">Aucune affectation.</td></tr>';
+                    }).join('') || '<tr><td colspan="5">Aucune affectation.</td></tr>';
                 }
                 draw();
                 sections.affectations.querySelector('.affect-search').addEventListener('input', draw);
@@ -1550,13 +1564,23 @@
 
                 sections.affectations.querySelector('.affect-add-form').addEventListener('submit', async function (e) {
                     e.preventDefault();
+                    const identifiant = sections.affectations.querySelector('.affect-prof').value;
+                    const classe = sections.affectations.querySelector('.affect-classe').value;
                     const res = await window.EprofStore.upsert('teacher_assignments', [{
-                        identifiant: sections.affectations.querySelector('.affect-prof').value,
-                        classe: sections.affectations.querySelector('.affect-classe').value,
+                        identifiant: identifiant,
+                        classe: classe,
                         matiere: sections.affectations.querySelector('.affect-matiere').value
                     }], { onConflict: 'identifiant,classe,matiere,annee_scolaire' });
                     if (res.error) return ctx.notify('❌ ' + res.error.message, true);
-                    await logAction('affectation_ajoutee', sections.affectations.querySelector('.affect-prof').value, {});
+                    if (sections.affectations.querySelector('.affect-pp').checked) {
+                        const ppSave = await window.EprofStore.upsert('class_principals', [{
+                            identifiant: identifiant,
+                            classe: classe,
+                            annee_scolaire: anneePp
+                        }], { onConflict: 'identifiant,classe,annee_scolaire' });
+                        if (ppSave.error) return ctx.notify('❌ Affectation OK, PP : ' + ppSave.error.message, true);
+                    }
+                    await logAction('affectation_ajoutee', identifiant, {});
                     renderAffectations();
                 });
 
@@ -1566,6 +1590,36 @@
                     const res = await window.EprofStore.remove('teacher_assignments', id);
                     if (res.error) return ctx.notify('❌ ' + res.error.message, true);
                     await logAction('affectation_supprimee', id, {});
+                    renderAffectations();
+                });
+
+                tbody.addEventListener('change', async function (e) {
+                    if (!e.target.classList.contains('affect-pp-toggle')) return;
+                    const tr = e.target.closest('tr');
+                    const identifiant = tr.dataset.identifiant;
+                    const classe = tr.dataset.classe;
+                    if (e.target.checked) {
+                        const res = await window.EprofStore.upsert('class_principals', [{
+                            identifiant: identifiant,
+                            classe: classe,
+                            annee_scolaire: anneePp
+                        }], { onConflict: 'identifiant,classe,annee_scolaire' });
+                        if (res.error) {
+                            e.target.checked = false;
+                            return ctx.notify('❌ ' + res.error.message, true);
+                        }
+                        ctx.notify('✅ ' + identifiant + ' est PP de ' + classe + '.');
+                    } else {
+                        const hit = ppRows.find(function (p) { return p.identifiant === identifiant && p.classe === classe; });
+                        if (hit) {
+                            const res = await window.EprofStore.remove('class_principals', hit.id);
+                            if (res.error) {
+                                e.target.checked = true;
+                                return ctx.notify('❌ ' + res.error.message, true);
+                            }
+                        }
+                        ctx.notify('PP retiré pour ' + identifiant + ' / ' + classe + '.');
+                    }
                     renderAffectations();
                 });
             }

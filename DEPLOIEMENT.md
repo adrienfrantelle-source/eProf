@@ -180,7 +180,7 @@ configuré ou si l'enseignant n'est pas connecté :
 | Plan de classe | Export/import fichier **+** enregistrement en ligne (`class_plans`) ; liaison optionnelle à une classe, ouverture depuis le suivi |
 | Jeu pédagogique | Synchronisé (`pedagogical_games`) |
 | Trombinoscopes | Photos locales et/ou Storage (`student-photos` / `photo_path`) ; listes `school_students` |
-| Suivi des élèves | Fonctionnalité en pause (listes 2026-2027 non importées) ; prêt à suivre le même schéma que le carnet de notes (`teacher_documents`) une fois réactivé |
+| Conseil de classe | PP uniquement (`class_principals`) ; document JSON (`teacher_documents`, doc_type `conseil_classe`) |
 | Carnet de notes (`carnet-notes.html`) | Sauvegarde/chargement en ligne (`teacher_documents`, doc_type `carnet_notes`) + correction d'un bug bloquant (`allowedClasses`) |
 | Conversion de fichier | Aucune donnée persistée |
 | Archives | Lecture seule (données historiques statiques) |

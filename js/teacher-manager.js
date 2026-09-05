@@ -233,9 +233,13 @@ class TeacherManager {
                     subjectsByClass: profile.subjects_by_class || {},
                     customSubjects: (Array.isArray(profile.custom_subjects) && profile.custom_subjects.length > 0)
                         ? profile.custom_subjects
-                        : [...DEFAULT_SUBJECT_CATALOG]
+                        : [...DEFAULT_SUBJECT_CATALOG],
+                    ppClasses: Array.isArray(this.teacherConfig && this.teacherConfig.ppClasses)
+                        ? this.teacherConfig.ppClasses
+                        : []
                 };
                 localStorage.setItem(configKey, JSON.stringify(this.teacherConfig));
+                await this.loadPpClassesOnline();
                 return;
             }
         }
@@ -243,13 +247,15 @@ class TeacherManager {
         const saved = localStorage.getItem(configKey);
         if (saved) {
             this.teacherConfig = JSON.parse(saved);
+            if (!Array.isArray(this.teacherConfig.ppClasses)) this.teacherConfig.ppClasses = [];
         } else {
             // Configuration par défaut pour adfrantelle
             if (this.currentTeacher === 'adfrantelle') {
                 const currentClasses = window.getCurrentClassNames ? window.getCurrentClassNames() : [];
                 this.teacherConfig = {
                     classes: currentClasses,
-                    subjectsByClass: {}
+                    subjectsByClass: {},
+                    ppClasses: []
                 };
                 currentClasses.forEach(className => {
                     this.teacherConfig.subjectsByClass[className] = this.getDefaultSubjectsForClass(className);
@@ -258,10 +264,91 @@ class TeacherManager {
             } else {
                 this.teacherConfig = {
                     classes: [],
-                    subjectsByClass: {}
+                    subjectsByClass: {},
+                    ppClasses: []
                 };
             }
         }
+        await this.loadPpClassesOnline();
+    }
+
+    anneeScolaireCourante() {
+        try {
+            const p = JSON.parse(localStorage.getItem('parametres') || '{}');
+            return p.anneeScolaire || '2026-2027';
+        } catch (e) {
+            return '2026-2027';
+        }
+    }
+
+    async loadPpClassesOnline() {
+        if (!this.teacherConfig) this.teacherConfig = { classes: [], subjectsByClass: {}, ppClasses: [] };
+        if (!Array.isArray(this.teacherConfig.ppClasses)) this.teacherConfig.ppClasses = [];
+        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady()) || !this.currentTeacher) {
+            this.emitPpChange();
+            return;
+        }
+        const { data, error } = await window.EprofStore.list('class_principals', {
+            filters: { identifiant: this.currentTeacher, annee_scolaire: this.anneeScolaireCourante() }
+        });
+        if (!error && Array.isArray(data)) {
+            this.teacherConfig.ppClasses = data.map(function (row) { return row.classe; }).filter(Boolean);
+            try {
+                localStorage.setItem(`eprof_teacherConfig_${this.currentTeacher}`, JSON.stringify(this.teacherConfig));
+            } catch (e) { /* quota */ }
+        }
+        this.emitPpChange();
+    }
+
+    async savePpClassesOnline(classes) {
+        const list = (classes || []).filter(Boolean);
+        this.teacherConfig.ppClasses = list;
+        if (!window.EprofStore || !(await window.EprofStore.isOnlineReady()) || !this.currentTeacher) {
+            this.emitPpChange();
+            return;
+        }
+        const annee = this.anneeScolaireCourante();
+        const identifiant = this.currentTeacher;
+        const { data } = await window.EprofStore.list('class_principals', {
+            filters: { identifiant: identifiant, annee_scolaire: annee }
+        });
+        const existing = data || [];
+        const wanted = {};
+        list.forEach(function (c) { wanted[c] = true; });
+        for (let i = 0; i < existing.length; i++) {
+            if (!wanted[existing[i].classe]) {
+                await window.EprofStore.remove('class_principals', existing[i].id);
+            }
+        }
+        const have = {};
+        existing.forEach(function (row) { have[row.classe] = true; });
+        const toAdd = list.filter(function (c) { return !have[c]; }).map(function (classe) {
+            return { identifiant: identifiant, classe: classe, annee_scolaire: annee };
+        });
+        if (toAdd.length) {
+            await window.EprofStore.upsert('class_principals', toAdd, {
+                onConflict: 'identifiant,classe,annee_scolaire'
+            });
+        }
+        this.emitPpChange();
+    }
+
+    emitPpChange() {
+        document.dispatchEvent(new CustomEvent('eprof-pp-maj', {
+            detail: { classes: this.getPpClasses() }
+        }));
+    }
+
+    getPpClasses() {
+        return (this.teacherConfig && this.teacherConfig.ppClasses) ? this.teacherConfig.ppClasses.slice() : [];
+    }
+
+    isPpOf(classe) {
+        if (!classe) return false;
+        const match = window.EprofEleves && window.EprofEleves.classesMatch;
+        return this.getPpClasses().some(function (n) {
+            return match ? window.EprofEleves.classesMatch(n, classe) : n === classe;
+        });
     }
 
     syncEnseignantNomPrenom(profile) {
@@ -474,6 +561,7 @@ class TeacherManager {
         this._configDraft = {
             selected: new Set(alreadySelected),
             subjectsByClass,
+            ppClasses: new Set((this.teacherConfig && this.teacherConfig.ppClasses) || []),
             activeClass: alreadySelected[0] || null,
             query: '',
             renaming: null,
@@ -563,7 +651,7 @@ class TeacherManager {
             const row = e.target.closest('[data-class-focus]');
             if (!row) return;
             const name = row.getAttribute('data-class-focus');
-            if (e.target.closest('[data-class-check]')) return;
+            if (e.target.closest('[data-class-check]') || e.target.closest('[data-pp-check]') || e.target.closest('.eprof-config-pp')) return;
             this.focusClass(name, true);
         });
 
@@ -576,6 +664,19 @@ class TeacherManager {
         });
 
         overlay.querySelector('#eprof-config-class-list').addEventListener('change', (e) => {
+            const ppBox = e.target.closest('[data-pp-check]');
+            if (ppBox && this._configDraft) {
+                const name = ppBox.getAttribute('data-pp-check');
+                if (!this._configDraft.ppClasses) this._configDraft.ppClasses = new Set();
+                if (ppBox.checked) {
+                    this.setClassSelected(name, true, true);
+                    this._configDraft.ppClasses.add(name);
+                } else {
+                    this._configDraft.ppClasses.delete(name);
+                }
+                this.renderClassList();
+                return;
+            }
             const checkbox = e.target.closest('[data-class-check]');
             if (!checkbox || !this._configDraft) return;
             this.setClassSelected(checkbox.getAttribute('data-class-check'), checkbox.checked);
@@ -725,6 +826,7 @@ class TeacherManager {
             this._configDraft.activeClass = name;
         } else {
             this._configDraft.selected.delete(name);
+            if (this._configDraft.ppClasses) this._configDraft.ppClasses.delete(name);
             if (this._configDraft.activeClass === name) {
                 this._configDraft.activeClass = Array.from(this._configDraft.selected)[0] || null;
             }
@@ -872,6 +974,7 @@ class TeacherManager {
                 const selected = this._configDraft.selected.has(name);
                 const active = this._configDraft.activeClass === name;
                 const count = (this._configDraft.subjectsByClass[name] || []).length;
+                const isPp = this._configDraft.ppClasses && this._configDraft.ppClasses.has(name);
                 const color = window.getClassColor ? window.getClassColor(name) : '#059669';
                 const classes = ['eprof-config-class'];
                 if (selected) classes.push('is-selected');
@@ -880,6 +983,10 @@ class TeacherManager {
                     <div class="${classes.join(' ')}" data-class-focus="${this.escapeConfigHtml(name)}" style="border-left-color:${color}" role="button" tabindex="0">
                         <input type="checkbox" data-class-check="${this.escapeConfigHtml(name)}" ${selected ? 'checked' : ''} aria-label="Enseigner ${this.escapeConfigHtml(name)}">
                         <span class="eprof-config-class-name">${this.escapeConfigHtml(name)}</span>
+                        <label class="eprof-config-pp" title="Je suis professeur principal de cette classe">
+                            <input type="checkbox" data-pp-check="${this.escapeConfigHtml(name)}" ${isPp ? 'checked' : ''} ${selected ? '' : 'disabled'} aria-label="Professeur principal de ${this.escapeConfigHtml(name)}">
+                            PP
+                        </label>
                         <span class="eprof-config-class-count">${count}</span>
                     </div>`;
             }).join('');
@@ -955,8 +1062,11 @@ class TeacherManager {
         selectedClasses.forEach((className) => {
             this.teacherConfig.subjectsByClass[className] = (draft.subjectsByClass[className] || []).slice();
         });
+        const ppClasses = selectedClasses.filter((name) => draft.ppClasses && draft.ppClasses.has(name));
+        this.teacherConfig.ppClasses = ppClasses;
 
         this.saveTeacherConfig();
+        this.savePpClassesOnline(ppClasses);
         this.closeConfigModal();
 
         if (window.location.href.indexOf('carnet-notes.html') !== -1) {
@@ -1045,6 +1155,10 @@ class TeacherManager {
 
     getTeacherClasses() {
         return this.teacherConfig.classes || [];
+    }
+
+    getPpClasses() {
+        return (this.teacherConfig && this.teacherConfig.ppClasses) ? this.teacherConfig.ppClasses.slice() : [];
     }
 
     getSubjectsForClass(className) {

@@ -130,10 +130,32 @@
         return out;
     }
 
+    function getPpClasses() {
+        if (global.teacherManager && typeof global.teacherManager.getPpClasses === 'function') {
+            return (global.teacherManager.getPpClasses() || []).slice();
+        }
+        return [];
+    }
+
+    function isPpClass(classe) {
+        if (!classe) return false;
+        return getPpClasses().some(function (n) { return classesMatch(n, classe); });
+    }
+
+    function isProfPrincipal() {
+        return getPpClasses().length > 0;
+    }
+
+    function ppBadgeHtml(classe) {
+        return isPpClass(classe)
+            ? ' <span class="pp-badge" title="Professeur principal de cette classe">PP</span>'
+            : '';
+    }
+
     function classeBtnHtml(classe, count) {
         var color = global.getClassColor ? global.getClassColor(classe) : 'var(--eprof-accent, #2563eb)';
         var extra = typeof count === 'number' ? ' <small>(' + count + ')</small>' : '';
-        return '<button class="classe-btn" data-classe="' + classe + '" style="background:' + color + ';">📚 ' + classe + extra + '</button>';
+        return '<button class="classe-btn" data-classe="' + classe + '" style="background:' + color + ';">📚 ' + classe + ppBadgeHtml(classe) + extra + '</button>';
     }
 
     function emptyTeacherClassesHtml() {
@@ -351,6 +373,10 @@
         getVisibleTeacherClasses: getVisibleTeacherClasses,
         getListsForTeacher: getListsForTeacher,
         studentsForClass: studentsForClass,
+        getPpClasses: getPpClasses,
+        isPpClass: isPpClass,
+        isProfPrincipal: isProfPrincipal,
+        ppBadgeHtml: ppBadgeHtml,
         classeBtnHtml: classeBtnHtml,
         emptyTeacherClassesHtml: emptyTeacherClassesHtml,
         photoHtml: photoHtml,

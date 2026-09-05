@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="css/documentation.css">
     <link rel="stylesheet" href="css/messagerie.css">
     <link rel="stylesheet" href="css/config-classes.css">
+    <link rel="stylesheet" href="css/conseil-classe.css">
 </head>
 <body class="eprof-locked">
     <div id="eprof-auth-gate" class="eprof-auth-gate">
@@ -97,6 +98,7 @@
                     <li><a href="#" data-tool="trombinoscopes"><span class="sidebar-icon">📸</span><span class="sidebar-label">Trombinoscopes</span></a></li>
                     <li><a href="#" data-tool="eleves"><span class="sidebar-icon">👨‍🎓</span><span class="sidebar-label">Suivi des élèves</span></a></li>
                     <li><a href="#" data-tool="notes"><span class="sidebar-icon">📒</span><span class="sidebar-label">Carnet de notes</span></a></li>
+                    <li data-pp-only="1"><a href="#" data-tool="conseil-classe"><span class="sidebar-icon">🎓</span><span class="sidebar-label">Conseil de classe</span></a></li>
                     <li><a href="#" data-tool="agenda"><span class="sidebar-icon">🗓️</span><span class="sidebar-label">Agenda</span></a></li>
                     <li><a href="#" data-tool="converter"><span class="sidebar-icon">🔄</span><span class="sidebar-label">Conversion de fichier</span></a></li>
                     <li><a href="#" data-tool="archives"><span class="sidebar-icon">📦</span><span class="sidebar-label">Archives</span></a></li>
@@ -118,7 +120,7 @@
             <div class="footer-info">
                 <p class="footer-title">eProf - Plateforme Enseignant Portable</p>
                 <p class="footer-copyright">© 2026 - Lycée Jeanne Delanoue, Cholet</p>
-                <p class="footer-version" id="footer-version">Version V2.5.19</p>
+                <p class="footer-version" id="footer-version">Version V2.6.0</p>
                 <button type="button" class="footer-about-btn" id="about-modal-trigger">Qui sommes-nous ?</button>
             </div>
             <button type="button" class="footer-docs-btn" id="docs-trigger" title="Tutoriels pour prendre eProf en main">📖 Documentation</button>
@@ -252,7 +254,7 @@
             <div class="about-modal-body">
                 <p><strong>eProf</strong> est une plateforme pédagogique créée et gérée par <strong>Adrien Frantelle</strong>, avec l'aide de l'intelligence artificielle.</p>
                 <p>Son objectif : accompagner les enseignants dans leur <strong>organisation</strong>, le <strong>suivi des élèves</strong> et la <strong>préparation de la classe</strong>.</p>
-                <p>Elle centralise les outils utiles au quotidien : calendrier, agenda, carnet de notes, plan de classe, trombinoscopes, suivi des élèves et ressources pédagogiques.</p>
+                <p>Elle centralise les outils utiles au quotidien : calendrier, agenda, carnet de notes, conseil de classe, plan de classe, trombinoscopes, suivi des élèves et ressources pédagogiques.</p>
                 <p>L'utilisation d'eProf est <strong>libre et gratuite</strong>.</p>
                 <p>Pour prendre eProf en main, le bouton <strong>« 📖 Documentation »</strong> en bas de page propose des tutoriels pas à pas.</p>
                 <p>Une remarque, une idée, un bug ? Le bouton <strong>« 💬 Suggestions &amp; bugs »</strong> en bas de page permet de le signaler directement.</p>
@@ -303,6 +305,7 @@
     <script src="js/suivi-tableau.js"></script>
     <script src="js/trombinoscopes.js"></script>
     <script src="js/suivi-eleves.js"></script>
+    <script src="js/conseil-classe.js"></script>
     <script src="js/plan-classe.js"></script>
     <script src="js/app.js"></script>
 </body>

@@ -533,6 +533,11 @@ body.theme-sombre .eprof-config-add input {
     color: #e2e8f0;
 }
 
+body.theme-sombre .eprof-config-pp {
+    background: #78350f;
+    color: #fde68a;
+}
+
 body.theme-sombre .eprof-config-class.is-selected,
 body.theme-sombre .eprof-config-subject.is-on {
     background: #064e3b;

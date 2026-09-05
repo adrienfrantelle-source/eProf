@@ -257,6 +257,14 @@
     border-radius: 6px;
 }
 
+.admin-inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
 .admin-toolbar {
     display: flex;
     align-items: center;

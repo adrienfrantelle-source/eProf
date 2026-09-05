@@ -1,5 +1,15 @@
 # Nouvelles fonctionnalités eProf
 
+## V2.6.0 — Conseil de classe (professeur principal)
+
+Outil réservé aux **professeurs principaux**. Désignation par une case **PP** dans *Gérer mes classes et matières* et dans les **affectations** admin. Un badge **PP** identifie la classe sur tous les boutons (accueil, suivi, trombinoscope, conseil).
+
+Le menu place **Conseil de classe** sous le carnet de notes ; l’accueil l’affiche dans **Gestion de classe**.
+
+Le PP configure les **matières et coefficients** de sa classe pour l’année, saisit des **moyennes coefficientées** (indépendantes du carnet), suit les **sanctions** du lycée (plusieurs par élève, collègue issu de la liste blanche pour mots / retenues / avertissements, objectifs pour fiches et contrats, durée pour exclusion temporaire), rédige des **appréciations** (classe + élèves), consulte stats et évolution, et exporte des **PDF**. Onglets trimestre ou semestre selon la classe. Données personnelles, enregistrées en ligne (`teacher_documents` / `class_principals`). Migration : `0029_conseil_classe.sql`.
+
+---
+
 ## V2.5.19 — Fiche élève, recherche, calendrier → classe, modules retirés
 
 ### Fiche élève
