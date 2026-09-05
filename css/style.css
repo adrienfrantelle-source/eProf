@@ -3180,6 +3180,10 @@ body.theme-sombre .ts-field {
     color: #1e293b;
 }
 
+.tab-btn[hidden] {
+    display: none !important;
+}
+
 .tab-content {
     padding: 20px 0;
 }
@@ -3540,6 +3544,86 @@ body.theme-sombre .ts-field {
     font-weight: 600;
 }
 
+.badge-info-pp {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-width: 58%;
+}
+
+.badge-info-pp span {
+    background: #0f766e;
+    color: #fff;
+    font-size: 0.62em;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+.char-count-wrap {
+    position: relative;
+}
+
+.char-count-wrap textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding-bottom: 22px;
+}
+
+.char-count {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.synthese-info-pp {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 0 0 14px;
+}
+
+.synthese-info-pp h4 {
+    margin: 0 0 8px;
+}
+
+.synthese-pill {
+    display: inline-block;
+    background: #ccfbf1;
+    color: #115e59;
+    font-size: 0.78rem;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 3px 10px;
+}
+
+body.theme-sombre .synthese-info-pp {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.theme-sombre .char-count {
+    color: #64748b;
+}
+
+body.theme-sombre .synthese-pill {
+    background: #134e4a;
+    color: #99f6e4;
+}
+
+.info-pp-checks {
+    margin-bottom: 8px;
+}
+
 .note-perso-hint {
     color: #64748b;
     font-size: 0.9rem;
@@ -3554,6 +3638,11 @@ body.theme-sombre .ts-field {
     border-radius: 8px;
     font: inherit;
     resize: vertical;
+}
+
+.ajout-note-perso .char-count-wrap textarea,
+.item-note-perso .char-count-wrap textarea {
+    padding-bottom: 22px;
 }
 
 .ajout-note-perso-actions {

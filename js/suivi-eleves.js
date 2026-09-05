@@ -35,6 +35,12 @@
     // ========================================
     const SUIVI_DOC_TYPE = 'suivi_eleves';
     const CARNET_DOC_TYPE_SUIVI = 'carnet_notes';
+    const DISPOSITIFS_PP = [
+        { id: 'PAP', label: 'PAP', hint: 'Plan d’accompagnement personnalisé' },
+        { id: 'PAI', label: 'PAI', hint: 'Projet d’accueil individualisé' },
+        { id: 'GEVASCO', label: 'GEVASCO', hint: 'Guide d’évaluation des besoins de compensation en matière de scolarisation' },
+        { id: 'PPRE', label: 'PPRE', hint: 'Programme personnalisé de réussite éducative' }
+    ];
     let syncSuiviTimer = null;
     let carnetCacheSuivi = { evaluations: {}, notes: {} };
     let carnetCachePromise = null;
@@ -67,6 +73,36 @@
 
     function suiviHasContent(data) {
         return !!(data && typeof data === 'object' && Object.keys(data).length > 0);
+    }
+
+    function findSuiviRecord(data, nomComplet) {
+        if (!data || !nomComplet) return null;
+        if (data[nomComplet]) return data[nomComplet];
+        var cible = String(nomComplet).toLowerCase().replace(/\s+/g, ' ').trim();
+        var cle = Object.keys(data).find(function (k) {
+            return String(k).toLowerCase().replace(/\s+/g, ' ').trim() === cible;
+        });
+        return cle ? data[cle] : null;
+    }
+
+    function infoPpFromRecord(rec) {
+        var info = (rec && rec.infoPp) || {};
+        var dispositifs = {};
+        DISPOSITIFS_PP.forEach(function (d) {
+            dispositifs[d.id] = !!(info.dispositifs && info.dispositifs[d.id]);
+        });
+        return {
+            dispositifs: dispositifs,
+            infosPerso: Array.isArray(info.infosPerso) ? info.infosPerso.slice() : []
+        };
+    }
+
+    function infoPpSummary(nomComplet) {
+        var info = infoPpFromRecord(findSuiviRecord(lireSuiviLocal(), nomComplet));
+        return {
+            dispositifs: DISPOSITIFS_PP.filter(function (d) { return info.dispositifs[d.id]; }).map(function (d) { return d.id; }),
+            infosPerso: info.infosPerso
+        };
     }
 
     async function chargerSuiviEnLigne() {
@@ -271,6 +307,7 @@
                             <button class="tab-btn" data-tab="oublis">📦 Oublis</button>
                             <button class="tab-btn" data-tab="mots">📝 Mots</button>
                             <button class="tab-btn" data-tab="remarques">🗒️ Notes</button>
+                            <button class="tab-btn tab-info-pp" data-tab="info-pp" hidden>ℹ️ Information</button>
                             <button class="tab-btn" data-tab="moyennes">📊 Moyennes</button>
                         </div>
 
@@ -334,6 +371,45 @@
                             <div id="liste-notes-perso"></div>
                         </div>
                         
+                        <div id="tab-info-pp" class="tab-content" style="display: none;">
+                            <h4>Dispositifs</h4>
+                            <p class="note-perso-hint">Cochez les aménagements connus pour cet élève. Visible dans la synthèse et le conseil de classe.</p>
+                            <div class="oubli-checkboxes info-pp-checks">
+                                <label class="checkbox-oubli" title="Plan d’accompagnement personnalisé">
+                                    <input type="checkbox" id="info-pp-PAP" data-dispositif="PAP">
+                                    <span>PAP</span>
+                                </label>
+                                <label class="checkbox-oubli" title="Projet d’accueil individualisé">
+                                    <input type="checkbox" id="info-pp-PAI" data-dispositif="PAI">
+                                    <span>PAI</span>
+                                </label>
+                                <label class="checkbox-oubli" title="Guide d’évaluation des besoins de compensation en matière de scolarisation">
+                                    <input type="checkbox" id="info-pp-GEVASCO" data-dispositif="GEVASCO">
+                                    <span>GEVASCO</span>
+                                </label>
+                                <label class="checkbox-oubli" title="Programme personnalisé de réussite éducative">
+                                    <input type="checkbox" id="info-pp-PPRE" data-dispositif="PPRE">
+                                    <span>PPRE</span>
+                                </label>
+                            </div>
+                            <hr style="margin: 20px 0; border: none; border-top: 2px solid #e2e8f0;">
+                            <h4>Information personnelle</h4>
+                            <p class="note-perso-hint">Notes du professeur principal, sur le même modèle que l’onglet Notes.</p>
+                            <div class="ajout-note-perso">
+                                <div class="char-count-wrap">
+                                    <textarea id="texte-info-perso" rows="3" placeholder="Information personnelle concernant l’élève…"></textarea>
+                                    <span class="char-count" id="count-info-perso">0 caractère</span>
+                                </div>
+                                <div class="ajout-note-perso-actions">
+                                    <input type="date" id="date-info-perso">
+                                    <button type="button" id="ajouter-info-perso-btn" class="btn-primary">+ Ajouter</button>
+                                </div>
+                            </div>
+                            <hr style="margin: 20px 0; border: none; border-top: 2px solid #e2e8f0;">
+                            <h4>Informations enregistrées</h4>
+                            <div id="liste-infos-perso"></div>
+                        </div>
+
                         <div id="tab-moyennes" class="tab-content" style="display: none;">
                             <h4>Moyennes</h4>
                             <p style="color: #64748b; font-style: italic;">Chargement des notes…</p>
@@ -379,6 +455,14 @@
                                 <span class="fiche-opt-text">
                                     <strong>Notes personnelles</strong>
                                     <small>Observations de l’enseignant, visibles uniquement par vous</small>
+                                </span>
+                            </label>
+                            <label class="fiche-opt" id="fiche-opt-info-pp" hidden>
+                                <input type="checkbox" id="fiche-inclure-info-pp" checked>
+                                <span class="fiche-opt-icon">ℹ️</span>
+                                <span class="fiche-opt-text">
+                                    <strong>Information (PP)</strong>
+                                    <small>PAP, PAI, GEVASCO, PPRE et informations personnelles</small>
                                 </span>
                             </label>
                         </div>
@@ -466,6 +550,7 @@
         let elevesActuels = [];
         let eleveSelectionne = null;
         let notePersoEdition = null;
+        let infoPersoEdition = null;
         let filtreEleves = '';
         let suiviData = lireSuiviLocal();
         chargerCarnetPourSuivi();
@@ -595,6 +680,7 @@
             
             afficherEleves(resolved);
             refreshPlanClasseAccess(resolved);
+            refreshInfoPpTab();
             syncCloudPlansForClasse(resolved);
             
             const emargementContainer = container.querySelector('#emargement-container');
@@ -681,6 +767,17 @@
                 if (nbNotesPerso > 0) {
                     badgeNotes = `<div class="badge-notes-perso">🗒️ ${nbNotesPerso}</div>`;
                 }
+
+                let badgeInfo = '';
+                if (isPpClasseActuelle()) {
+                    const info = infoPpFromRecord(suiviData[eleve.nomComplet]);
+                    const labels = DISPOSITIFS_PP.filter(function (d) { return info.dispositifs[d.id]; }).map(function (d) { return d.id; });
+                    if (labels.length) {
+                        badgeInfo = '<div class="badge-info-pp">' + labels.map(function (id) {
+                            return '<span>' + id + '</span>';
+                        }).join('') + '</div>';
+                    }
+                }
                 
                 return `
                     <div class="carte-eleve ${sexeClass}" data-nom="${eleve.nomComplet}">
@@ -690,6 +787,7 @@
                         ${badgeOublis}
                         ${badgeMots}
                         ${badgeNotes}
+                        ${badgeInfo}
                     </div>
                 `;
             }).join('');
@@ -707,15 +805,7 @@
         function ouvrirModaleEleve(nomComplet) {
             eleveSelectionne = nomComplet;
             
-            if (!suiviData[nomComplet]) {
-                suiviData[nomComplet] = { oublis: [], notes: [], motsAMettre: [], notesPerso: [] };
-            }
-            if (!suiviData[nomComplet].motsAMettre) {
-                suiviData[nomComplet].motsAMettre = [];
-            }
-            if (!Array.isArray(suiviData[nomComplet].notesPerso)) {
-                suiviData[nomComplet].notesPerso = [];
-            }
+            ensureEleveData(nomComplet);
             
             const nomEleveModale = container.querySelector('#nom-eleve-modale');
             nomEleveModale.textContent = nomComplet;
@@ -737,6 +827,9 @@
             const dateInputNote = container.querySelector('#date-note-perso');
             if (dateInputNote) dateInputNote.value = aujourd_hui;
             notePersoEdition = null;
+            infoPersoEdition = null;
+            refreshInfoPpTab();
+            syncInfoPpForm();
             
             afficherOublis();
             afficherMots();
@@ -761,6 +854,9 @@
             const oublis = data.oublis || [];
             const mots = data.motsAMettre || [];
             const notes = Array.isArray(data.notesPerso) ? data.notesPerso.slice() : [];
+            const info = infoPpFromRecord(data);
+            const dispositifsOn = DISPOSITIFS_PP.filter(function (d) { return info.dispositifs[d.id]; });
+            const infosPerso = info.infosPerso.slice();
             const oublisOuverts = oublis.filter(function (o) { return !o.motMis; });
             const motsOuverts = mots.filter(function (m) { return !m.mis; });
             notes.sort(function (a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
@@ -788,8 +884,23 @@
                     '<div class="synthese-chip"><span>Oublis à traiter</span><strong>' + oublisOuverts.length + '</strong></div>' +
                     '<div class="synthese-chip"><span>Mots à mettre</span><strong>' + motsOuverts.length + '</strong></div>' +
                     '<div class="synthese-chip"><span>Notes perso</span><strong>' + notes.length + '</strong></div>' +
+                    (isPpClasseActuelle()
+                        ? '<div class="synthese-chip"><span>Dispositifs</span><strong>' + (dispositifsOn.length ? dispositifsOn.map(function (d) { return d.id; }).join(' · ') : '—') + '</strong></div>'
+                        : '') +
                     '<div class="synthese-chip ' + moyClass + '"><span>Moyenne</span><strong>' + moyTxt + '</strong></div>' +
                 '</div>' +
+                (isPpClasseActuelle()
+                    ? '<section class="synthese-info-pp"><h4>Information PP</h4>' +
+                      (dispositifsOn.length
+                          ? '<div class="synthese-chips">' + dispositifsOn.map(function (d) {
+                              return '<span class="synthese-pill" title="' + escapeFicheHtml(d.hint) + '">' + d.id + '</span>';
+                          }).join('') + '</div>'
+                          : '<p class="vide">Aucun dispositif coché.</p>') +
+                      recentList(infosPerso, 'Aucune information personnelle.', function (n) {
+                          return '<li>' + escapeFicheHtml(formatDateFiche(n.date)) + ' · ' + escapeFicheHtml((n.texte || '').slice(0, 100)) + '</li>';
+                      }) +
+                      '</section>'
+                    : '') +
                 '<div class="synthese-cols">' +
                     '<section><h4>Derniers oublis</h4>' +
                     recentList(oublisOuverts.concat(oublis.filter(function (o) { return o.motMis; })), 'Aucun oubli.', function (o) {
@@ -813,7 +924,7 @@
 
             const courte = box.querySelector('#synthese-fiche-courte-btn');
             if (courte) courte.addEventListener('click', function () {
-                imprimerFichesSuivi([eleve], { oublis: true, mots: true, notes: true, moyennes: true, courte: true });
+                imprimerFichesSuivi([eleve], { oublis: true, mots: true, notes: true, moyennes: true, info: isPpClasseActuelle(), courte: true });
             });
             const complete = box.querySelector('#synthese-fiche-complete-btn');
             if (complete) complete.addEventListener('click', function () {
@@ -1164,12 +1275,147 @@
             });
         }
 
-        function notesPersoEleve(nom) {
+        function isPpClasseActuelle() {
+            return !!(E().isPpClass && E().isPpClass(classeActuelle));
+        }
+
+        function refreshInfoPpTab() {
+            const on = isPpClasseActuelle();
+            const btn = container.querySelector('[data-tab="info-pp"]');
+            if (btn) btn.hidden = !on;
+            const tab = container.querySelector('#tab-info-pp');
+            if (tab && !on) tab.style.display = 'none';
+            const ficheOpt = container.querySelector('#fiche-opt-info-pp');
+            if (ficheOpt) ficheOpt.hidden = !on;
+        }
+
+        function ensureEleveData(nom) {
             if (!suiviData[nom]) {
                 suiviData[nom] = { oublis: [], notes: [], motsAMettre: [], notesPerso: [] };
             }
+            if (!suiviData[nom].motsAMettre) suiviData[nom].motsAMettre = [];
             if (!Array.isArray(suiviData[nom].notesPerso)) suiviData[nom].notesPerso = [];
-            return suiviData[nom].notesPerso;
+            if (!suiviData[nom].infoPp) suiviData[nom].infoPp = { dispositifs: {}, infosPerso: [] };
+            if (!suiviData[nom].infoPp.dispositifs) suiviData[nom].infoPp.dispositifs = {};
+            if (!Array.isArray(suiviData[nom].infoPp.infosPerso)) suiviData[nom].infoPp.infosPerso = [];
+            return suiviData[nom];
+        }
+
+        function notesPersoEleve(nom) {
+            return ensureEleveData(nom).notesPerso;
+        }
+
+        function infosPersoEleve(nom) {
+            return ensureEleveData(nom).infoPp.infosPerso;
+        }
+
+        function syncInfoPpForm() {
+            if (!eleveSelectionne || !isPpClasseActuelle()) return;
+            const rec = ensureEleveData(eleveSelectionne);
+            DISPOSITIFS_PP.forEach(function (d) {
+                const cb = container.querySelector('#info-pp-' + d.id);
+                if (cb) cb.checked = !!rec.infoPp.dispositifs[d.id];
+            });
+            const dateInput = container.querySelector('#date-info-perso');
+            if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+            const area = container.querySelector('#texte-info-perso');
+            if (area) {
+                area.value = '';
+                refreshCharCount(area, container.querySelector('#count-info-perso'));
+            }
+            infoPersoEdition = null;
+            afficherInfosPerso();
+        }
+
+        function refreshCharCount(area, label) {
+            if (!label || !area) return;
+            const n = (area.value || '').length;
+            label.textContent = n + ' caractère' + (n > 1 ? 's' : '');
+        }
+
+        function afficherInfosPerso() {
+            const liste = container.querySelector('#liste-infos-perso');
+            if (!liste || !eleveSelectionne) return;
+            const notes = infosPersoEleve(eleveSelectionne);
+            if (!notes.length) {
+                liste.innerHTML = '<p style="color:#64748b;font-style:italic;">Aucune information personnelle pour cet élève.</p>';
+                return;
+            }
+            const ordered = notes.map(function (note, index) {
+                return { note: note, index: index };
+            }).sort(function (a, b) {
+                return String(b.note.date || '').localeCompare(String(a.note.date || ''));
+            });
+            liste.innerHTML = ordered.map(function (item) {
+                const note = item.note;
+                const idx = item.index;
+                if (infoPersoEdition === idx) {
+                    return '<div class="item-note-perso is-editing">' +
+                        '<div class="char-count-wrap">' +
+                        '<textarea class="note-perso-edit info-perso-edit" rows="3">' + escapeFicheHtml(note.texte || '') + '</textarea>' +
+                        '<span class="char-count">' + (note.texte || '').length + ' caractère' + ((note.texte || '').length > 1 ? 's' : '') + '</span>' +
+                        '</div>' +
+                        '<div class="note-perso-actions">' +
+                        '<button type="button" class="btn-primary btn-sauver-info" data-index="' + idx + '">Enregistrer</button>' +
+                        '<button type="button" class="btn-secondary btn-annuler-info">Annuler</button>' +
+                        '</div></div>';
+                }
+                return '<div class="item-note-perso">' +
+                    '<div class="note-perso-body">' +
+                    '<div class="note-perso-date">' + escapeFicheHtml(formatDateFiche(note.date)) + '</div>' +
+                    '<div class="note-perso-texte">' + escapeFicheHtml(note.texte || '').replace(/\n/g, '<br>') + '</div>' +
+                    '</div>' +
+                    '<div class="note-perso-actions">' +
+                    '<button type="button" class="btn-editer-info" data-index="' + idx + '" title="Modifier">✏️</button>' +
+                    '<button type="button" class="btn-supprimer btn-supprimer-info" data-index="' + idx + '" title="Supprimer">🗑️</button>' +
+                    '</div></div>';
+            }).join('');
+
+            liste.querySelectorAll('.info-perso-edit').forEach(function (area) {
+                const label = area.parentElement.querySelector('.char-count');
+                area.addEventListener('input', function () { refreshCharCount(area, label); });
+            });
+            liste.querySelectorAll('.btn-editer-info').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    infoPersoEdition = parseInt(this.getAttribute('data-index'), 10);
+                    afficherInfosPerso();
+                });
+            });
+            liste.querySelectorAll('.btn-supprimer-info').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const index = parseInt(this.getAttribute('data-index'), 10);
+                    if (!confirm('Supprimer cette information ?')) return;
+                    infosPersoEleve(eleveSelectionne).splice(index, 1);
+                    infoPersoEdition = null;
+                    sauvegarderSuivi();
+                    afficherInfosPerso();
+                    afficherSynthese();
+                    afficherEleves(classeActuelle);
+                });
+            });
+            liste.querySelectorAll('.btn-sauver-info').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const index = parseInt(this.getAttribute('data-index'), 10);
+                    const area = liste.querySelector('.info-perso-edit');
+                    const texte = area ? area.value.trim() : '';
+                    if (!texte) {
+                        alert('⚠️ L’information ne peut pas être vide.');
+                        return;
+                    }
+                    infosPersoEleve(eleveSelectionne)[index].texte = texte;
+                    infosPersoEleve(eleveSelectionne)[index].updatedAt = new Date().toISOString();
+                    infoPersoEdition = null;
+                    sauvegarderSuivi();
+                    afficherInfosPerso();
+                    afficherSynthese();
+                });
+            });
+            liste.querySelectorAll('.btn-annuler-info').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    infoPersoEdition = null;
+                    afficherInfosPerso();
+                });
+            });
         }
 
         function afficherNotesPerso() {
@@ -1543,6 +1789,58 @@
                 afficherEleves(classeActuelle);
             });
         }
+
+        container.querySelectorAll('#tab-info-pp [data-dispositif]').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (!eleveSelectionne) return;
+                const id = cb.getAttribute('data-dispositif');
+                ensureEleveData(eleveSelectionne).infoPp.dispositifs[id] = cb.checked;
+                sauvegarderSuivi();
+                afficherEleves(classeActuelle);
+                afficherSynthese();
+            });
+        });
+
+        const texteInfoPerso = container.querySelector('#texte-info-perso');
+        if (texteInfoPerso) {
+            texteInfoPerso.addEventListener('input', function () {
+                refreshCharCount(texteInfoPerso, container.querySelector('#count-info-perso'));
+            });
+            refreshCharCount(texteInfoPerso, container.querySelector('#count-info-perso'));
+        }
+
+        const ajouterInfoPersoBtn = container.querySelector('#ajouter-info-perso-btn');
+        if (ajouterInfoPersoBtn) {
+            ajouterInfoPersoBtn.addEventListener('click', function () {
+                if (!eleveSelectionne) return;
+                const texteInput = container.querySelector('#texte-info-perso');
+                const dateInput = container.querySelector('#date-info-perso');
+                const texte = texteInput ? texteInput.value.trim() : '';
+                const date = dateInput ? dateInput.value : '';
+                if (!texte) {
+                    alert('⚠️ Saisissez une information.');
+                    return;
+                }
+                if (!date) {
+                    alert('⚠️ Sélectionnez une date.');
+                    return;
+                }
+                infosPersoEleve(eleveSelectionne).unshift({
+                    id: Date.now().toString(36),
+                    texte: texte,
+                    date: date,
+                    createdAt: new Date().toISOString()
+                });
+                sauvegarderSuivi();
+                texteInput.value = '';
+                dateInput.value = new Date().toISOString().split('T')[0];
+                refreshCharCount(texteInput, container.querySelector('#count-info-perso'));
+                infoPersoEdition = null;
+                afficherInfosPerso();
+                afficherSynthese();
+                afficherEleves(classeActuelle);
+            });
+        }
         
         function sauvegarderSuivi() {
             ecrireSuiviLocal(suiviData);
@@ -1588,6 +1886,9 @@
                 }
                 if (tab === 'remarques') {
                     afficherNotesPerso();
+                }
+                if (tab === 'info-pp') {
+                    syncInfoPpForm();
                 }
             });
         });
@@ -1760,6 +2061,28 @@
                 html += '</section>';
             }
 
+            if (options.info) {
+                const info = infoPpFromRecord(data);
+                const labels = DISPOSITIFS_PP.filter(function (d) { return info.dispositifs[d.id]; });
+                const infosPerso = info.infosPerso || [];
+                html += '<section class="bloc"><div class="bloc-head"><span>ℹ️ Information</span></div>';
+                html += '<p style="margin:0 0 8px;"><strong>Dispositifs :</strong> ' +
+                    (labels.length ? labels.map(function (d) { return d.id; }).join(' · ') : 'aucun') + '</p>';
+                if (!infosPerso.length) {
+                    html += '<p class="vide">Aucune information personnelle.</p>';
+                } else {
+                    html += '<table><thead><tr><th>Date</th><th>Information</th></tr></thead><tbody>' +
+                        infosPerso.slice().sort(function (a, b) {
+                            return String(b.date || '').localeCompare(String(a.date || ''));
+                        }).slice(0, options.courte ? 5 : infosPerso.length).map(function (n) {
+                            return '<tr><td>' + escapeFicheHtml(formatDateFiche(n.date)) +
+                                '</td><td>' + escapeFicheHtml(n.texte || '').replace(/\n/g, '<br>') +
+                                '</td></tr>';
+                        }).join('') + '</tbody></table>';
+                }
+                html += '</section>';
+            }
+
             if (options.moyennes) {
                 const resume = resumeMoyennesFiche(eleve);
                 html += '<section class="bloc"><div class="bloc-head"><span>📊 Moyennes</span></div>';
@@ -1912,9 +2235,10 @@
                     oublis: !!(container.querySelector('#fiche-inclure-oublis') || {}).checked,
                     mots: !!(container.querySelector('#fiche-inclure-mots') || {}).checked,
                     moyennes: !!(container.querySelector('#fiche-inclure-moyennes') || {}).checked,
-                    notes: !!(container.querySelector('#fiche-inclure-notes') || {}).checked
+                    notes: !!(container.querySelector('#fiche-inclure-notes') || {}).checked,
+                    info: isPpClasseActuelle() && !!(container.querySelector('#fiche-inclure-info-pp') || {}).checked
                 };
-                if (!options.oublis && !options.mots && !options.moyennes && !options.notes) {
+                if (!options.oublis && !options.mots && !options.moyennes && !options.notes && !options.info) {
                     alert('Cochez au moins une information à inclure.');
                     return;
                 }
@@ -2314,6 +2638,7 @@
             renderSuiviEleves(container, extra.classe, extra.eleve);
         },
         hydrate: hydrateSuivi,
-        lireSuiviLocal: lireSuiviLocal
+        lireSuiviLocal: lireSuiviLocal,
+        infoPpSummary: infoPpSummary
     };
 })(window);

@@ -390,6 +390,26 @@ body.eprof-is-pp li[data-pp-only] { display: list-item; }
     resize: vertical;
 }
 
+.conseil-area-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.conseil-area-wrap .conseil-app-area {
+    display: block;
+    padding-bottom: 22px;
+    box-sizing: border-box;
+}
+
+.conseil-char-count {
+    position: absolute;
+    right: 10px;
+    bottom: 6px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
 .conseil-sanctions {
     display: flex;
     flex-direction: column;
@@ -490,6 +510,39 @@ body.conseil-modale-resizing * {
     font: inherit;
 }
 
+.conseil-matiere-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 8px;
+}
+
+.conseil-mat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 4px 10px 4px 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.conseil-mat-chip.is-on {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
+}
+
+.conseil-mat-chip input {
+    accent-color: var(--eprof-accent, #2563eb);
+    margin: 0;
+}
+
 .conseil-form-row {
     display: flex;
     flex-direction: column;
@@ -568,9 +621,9 @@ body.theme-sombre .conseil-periode-btn {
     color: #e2e8f0;
 }
 
-body.theme-sombre .conseil-kicker,
-body.theme-sombre .conseil-hint,
-body.theme-sombre .conseil-sanction-meta { color: #94a3b8; }
+body.theme-sombre .conseil-char-count {
+    color: #64748b;
+}
 
 body.theme-sombre .conseil-table th { background: #0f172a; }
 body.theme-sombre .conseil-table .sticky-col { background: #1e293b; }
@@ -592,9 +645,14 @@ body.theme-sombre .conseil-drag-handle {
     color: #cbd5e1;
 }
 
-body.theme-sombre .conseil-add-prof-row select {
+body.theme-sombre .conseil-mat-chip {
     background: #0f172a;
-    color: #e2e8f0;
     border-color: #334155;
+    color: #cbd5e1;
+}
+body.theme-sombre .conseil-mat-chip.is-on {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #dbeafe;
 }
 body.theme-sombre .conseil-stat strong { color: #f8fafc; }

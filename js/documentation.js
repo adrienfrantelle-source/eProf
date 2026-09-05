@@ -96,8 +96,8 @@
                 'Dans <strong>Matières de la classe</strong>, définissez la liste et les coefficients pour l’année. Glissez les poignées pour réordonner. Ces moyennes restent dans le conseil : elles ne sont pas copiées vers le carnet de notes.',
                 'Onglet <strong>Moyennes</strong> : saisissez une moyenne par élève et par matière. La moyenne générale tient compte des coefficients. L’onglet <strong>Année</strong> calcule le récapitulatif.',
                 'Onglet <strong>Sanctions</strong> : ajoutez une ou plusieurs mesures (mot, retenue, avertissements, fiche d’accompagnement, contrat, exclusions, conseils). Pour les mots, retenues et avertissements, choisissez le collègue dans la liste blanche. Les objectifs se renseignent pour les fiches et contrats ; la durée pour une exclusion temporaire. L’ordre n’est pas imposé.',
-                'Onglet <strong>Retour des profs</strong> : appréciation générale de chaque enseignant de la classe. Elle figure sur le PDF classe.',
-                'Onglet <strong>Appréciations</strong> : texte pour la classe et pour chaque élève.',
+                'Onglet <strong>Retour des profs</strong> : appréciation générale de chaque enseignant, associé à une ou plusieurs matières de la classe. Elle figure sur le PDF classe.',
+                'Onglet <strong>Appréciations</strong> : texte pour la classe et pour chaque élève, avec un compteur de caractères.',
                 'Onglets <strong>Vue d’ensemble</strong> et <strong>Synthèse</strong> : statistiques, répartition des moyennes, suivi sur l’année. Exportez un <strong>PDF classe</strong> ou une <strong>fiche élève</strong>.'
             ],
             tip: 'Tout est enregistré en ligne sur votre compte, pour vos classes PP uniquement.'
@@ -110,12 +110,13 @@
             tool: 'eleves',
             steps: [
                 'Ouvrez <strong>Suivi des élèves</strong> et cliquez la classe concernée, ou cherchez un élève depuis l’en-tête.',
-                'Cliquez un élève pour ouvrir sa fiche : l’onglet <strong>Synthèse</strong> résume oublis, mots, notes et moyenne, avec une <strong>fiche courte (1 page)</strong> ou une fiche complète.',
+                'Cliquez un élève pour ouvrir sa fiche : l’onglet <strong>Synthèse</strong> résume oublis, mots, notes, moyenne et, pour le professeur principal, les informations (PAP, PAI, GEVASCO, PPRE).',
                 'Onglet <strong>Oublis</strong> : cochez le matériel manquant (manuel, cours, travail non fait…), choisissez la date, puis Ajouter.',
                 'Onglet <strong>Mots à mettre</strong> : saisissez le motif et la date.',
                 'Onglet <strong>Notes</strong> : ajoutez des observations personnelles. Elles se synchronisent en ligne pour votre compte uniquement.',
+                'Onglet <strong>Information</strong> (PP, classe dont vous êtes professeur principal) : cochez PAP, PAI, GEVASCO ou PPRE, et saisissez des informations personnelles (même fonctionnement que les notes). Ces éléments apparaissent dans la synthèse et le conseil de classe.',
                 'Onglet <strong>Moyennes</strong> : consultez les résultats issus du carnet de notes.',
-                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes et moyennes).',
+                'Depuis la classe, générez une <strong>liste d’émargement</strong> ou une <strong>fiche de suivi</strong> (classe entière ou un élève, en choisissant oublis, mots, notes, informations PP et moyennes).',
                 'Le bouton <strong>EDT</strong> affiche l’emploi du temps de la classe (image importée par l’administrateur), comme les dates de stage du calendrier.',
                 'Le bouton <strong>Plan de classe</strong> ouvre le plan le plus récemment lié à cette classe. S’il y en a plusieurs, un petit menu permet d’en choisir un autre.',
                 'Le bouton <strong>Tableau de suivi</strong> ouvre un tableau personnalisable (cases à cocher, notes, textes, dates).'

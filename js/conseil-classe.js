@@ -110,6 +110,7 @@
             created = true;
         }
         if (!Array.isArray(cache.classes[classe].profs)) cache.classes[classe].profs = [];
+        if (normalizeProfs(cache.classes[classe]) && ready) created = true;
         if (ready && created) planifierSync();
         return cache.classes[classe];
     }
@@ -203,7 +204,112 @@
     }
     function profKey(p) {
         if (!p) return '';
-        return String(p.identifiant || profLabel(p)) + '::' + String(p.matiere || '');
+        return String(p.identifiant || profLabel(p) || '').trim();
+    }
+    function normMatiereNom(nom) {
+        return String(nom || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    function matchMatiereId(mats, nom) {
+        var n = normMatiereNom(nom);
+        if (!n || !mats || !mats.length) return '';
+        var exact = mats.find(function (m) { return normMatiereNom(m.nom) === n; });
+        if (exact) return exact.id;
+        var fuzzy = mats.find(function (m) {
+            var mn = normMatiereNom(m.nom);
+            return mn && (mn.indexOf(n) !== -1 || n.indexOf(mn) !== -1);
+        });
+        return fuzzy ? fuzzy.id : '';
+    }
+    function collectMatiereIds(p, mats) {
+        var valid = {};
+        (mats || []).forEach(function (m) { valid[m.id] = true; });
+        var ids = [];
+        function add(id) {
+            if (id && valid[id] && ids.indexOf(id) === -1) ids.push(id);
+        }
+        (Array.isArray(p.matiereIds) ? p.matiereIds : []).forEach(add);
+        var names = [];
+        if (p.matiere) names.push(p.matiere);
+        if (Array.isArray(p.matieres)) names = names.concat(p.matieres);
+        names.forEach(function (nom) { add(matchMatiereId(mats, nom)); });
+        return ids;
+    }
+    function profMatieresLabel(classe, p) {
+        var mats = classData(classe).matieres || [];
+        var ids = p.matiereIds || [];
+        return mats.filter(function (m) { return ids.indexOf(m.id) !== -1; }).map(function (m) { return m.nom; }).join(', ');
+    }
+    function normalizeProfs(c) {
+        if (!c || !Array.isArray(c.profs)) return false;
+        var mats = c.matieres || [];
+        var oldList = c.profs;
+        var needs = oldList.some(function (p) {
+            return (p && (p.matiere || (p.matiereIds && p.matiereIds.some(function (id) {
+                return !mats.some(function (m) { return m.id === id; });
+            })))) || false;
+        });
+        var keys = {};
+        oldList.forEach(function (p) {
+            var k = profKey(p);
+            if (k) keys[k] = (keys[k] || 0) + 1;
+        });
+        var hasDup = Object.keys(keys).some(function (k) { return keys[k] > 1; });
+        var hasOldRetour = false;
+        Object.keys(c.periodes || {}).forEach(function (per) {
+            var map = (c.periodes[per] && c.periodes[per].retoursProfs) || {};
+            Object.keys(map).forEach(function (k) {
+                if (k.indexOf('::') !== -1) hasOldRetour = true;
+            });
+        });
+        if (!needs && !hasDup && !hasOldRetour && oldList.every(function (p) { return Array.isArray(p.matiereIds); })) {
+            return false;
+        }
+        var order = [];
+        var index = {};
+        oldList.forEach(function (p) {
+            var k = profKey(p);
+            if (!k) return;
+            if (!index[k]) {
+                index[k] = {
+                    identifiant: p.identifiant || '',
+                    nom: p.nom || '',
+                    prenom: p.prenom || '',
+                    matiereIds: []
+                };
+                order.push(index[k]);
+            }
+            var dest = index[k];
+            if (!dest.nom && p.nom) dest.nom = p.nom;
+            if (!dest.prenom && p.prenom) dest.prenom = p.prenom;
+            if (!dest.identifiant && p.identifiant) dest.identifiant = p.identifiant;
+            dest.matiereIds = collectMatiereIds({
+                matiereIds: dest.matiereIds.concat(p.matiereIds || []),
+                matiere: p.matiere,
+                matieres: p.matieres
+            }, mats);
+        });
+        c.profs = order;
+        Object.keys(c.periodes || {}).forEach(function (per) {
+            var map = (c.periodes[per] && c.periodes[per].retoursProfs) || {};
+            var next = {};
+            Object.keys(map).forEach(function (k) {
+                var texte = map[k];
+                var newKey = k.indexOf('::') !== -1 ? k.split('::')[0] : k;
+                if (!newKey) return;
+                if (next[newKey] && next[newKey] !== texte) {
+                    next[newKey] = [next[newKey], texte].filter(Boolean).join('\n\n');
+                } else if (!next[newKey]) {
+                    next[newKey] = texte;
+                }
+            });
+            c.periodes[per].retoursProfs = next;
+        });
+        return true;
     }
     function noteMatiere(classe, periode, nomComplet, matId) {
         if (isAnnee(periode)) {
@@ -280,7 +386,8 @@
                 identifiant: p.identifiant || '',
                 nom: p.nom || '',
                 prenom: p.prenom || '',
-                matiere: p.matiere || '',
+                matiereIds: (p.matiereIds || []).slice(),
+                matieresLabel: profMatieresLabel(classe, p),
                 texte: map[profKey(p)] || ''
             };
         });
@@ -311,20 +418,36 @@
     }
     function mergeProfs(classe, incoming) {
         var c = classData(classe);
+        var mats = c.matieres || [];
         var list = (c.profs || []).slice();
-        var seen = {};
-        list.forEach(function (p) { seen[profKey(p)] = true; });
+        var index = {};
+        list.forEach(function (p) { index[profKey(p)] = p; });
         var added = 0;
         (incoming || []).forEach(function (p) {
             var k = profKey(p);
-            if (!k || k === '::' || seen[k]) return;
-            list.push({
+            if (!k) return;
+            var ids = collectMatiereIds(p, mats);
+            if (index[k]) {
+                var dest = index[k];
+                var before = (dest.matiereIds || []).join(',');
+                dest.matiereIds = collectMatiereIds({
+                    matiereIds: (dest.matiereIds || []).concat(ids),
+                    matiere: p.matiere,
+                    matieres: p.matieres
+                }, mats);
+                if (!dest.nom && p.nom) dest.nom = p.nom;
+                if (!dest.prenom && p.prenom) dest.prenom = p.prenom;
+                if (dest.matiereIds.join(',') !== before) added += 1;
+                return;
+            }
+            var row = {
                 identifiant: p.identifiant || '',
                 nom: p.nom || '',
                 prenom: p.prenom || '',
-                matiere: p.matiere || ''
-            });
-            seen[k] = true;
+                matiereIds: ids
+            };
+            list.push(row);
+            index[k] = row;
             added += 1;
         });
         c.profs = list;
@@ -335,11 +458,7 @@
         if (!force && c.profs && c.profs.length) return false;
         var loaded = await chargerProfsClasse(classe);
         if (!loaded.length) return false;
-        if (force) {
-            mergeProfs(classe, loaded);
-        } else {
-            c.profs = loaded;
-        }
+        mergeProfs(classe, loaded);
         planifierSync();
         return true;
     }
@@ -510,6 +629,7 @@
         else if (view.tab === 'appreciations') body.innerHTML = htmlAppreciations();
         else body.innerHTML = htmlSynthese();
         bindBody(container);
+        bindCharCounters(container);
         if (view.tab === 'retours') {
             ensureProfs(view.classe, false).then(function (changed) {
                 if (!changed || view.tab !== 'retours') return;
@@ -517,6 +637,7 @@
                 if (!still) return;
                 still.innerHTML = htmlRetours();
                 bindBody(container);
+                bindCharCounters(container);
             });
         }
     }
@@ -551,9 +672,14 @@
             var m = moyenneEleve(view.classe, view.periode, e.nomComplet);
             var nSanc = sanctionsEleve(view.classe, view.periode, e.nomComplet).length;
             var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
+            var info = infoPpEleve(e.nomComplet);
+            var infoHtml = info.dispositifs.length
+                ? info.dispositifs.map(function (id) { return '<span class="conseil-chip">' + esc(id) + '</span>'; }).join('')
+                : '—';
             return '<tr><td class="sticky-col">' + esc(e.nomComplet) + '</td>' +
                 '<td class="conseil-moy ' + moyClass(m) + '">' + fmtMoy(m) + '</td>' +
                 '<td>' + (nSanc ? '<span class="conseil-chip danger">' + nSanc + '</span>' : '—') + '</td>' +
+                '<td><div class="conseil-chips" style="justify-content:center">' + infoHtml + '</div></td>' +
                 '<td>' + (app ? '✓' : '—') + '</td></tr>';
         }).join('');
         return htmlStats() +
@@ -570,7 +696,7 @@
             esc(periodeData(view.classe, view.periode).appreciationClasse) + '</textarea></div></div>' +
             '<div class="conseil-panel" style="margin-top:14px;"><h3>Tableau de bord</h3>' +
             '<div class="conseil-table-wrap"><table class="conseil-table"><thead><tr>' +
-            '<th class="sticky-col">Élève</th><th>Moy.</th><th>Sanctions</th><th>Appr.</th></tr></thead><tbody>' +
+            '<th class="sticky-col">Élève</th><th>Moy.</th><th>Sanctions</th><th>Info</th><th>Appr.</th></tr></thead><tbody>' +
             list + '</tbody></table></div></div>';
     }
 
@@ -680,27 +806,45 @@
 
     function htmlRetours() {
         var profs = retoursList(view.classe, view.periode);
+        var mats = classData(view.classe).matieres || [];
+        var already = {};
+        profs.forEach(function (p) { already[p.key] = true; });
+        var seenDir = {};
         var opts = directory.map(function (p) {
             var lab = profLabel(p);
-            var val = (p.identifiant || lab) + '::' + (p.matiere || '');
-            return '<option value="' + esc(val) + '">' + esc(lab) + (p.matiere ? ' · ' + esc(p.matiere) : '') + '</option>';
+            var k = String(p.identifiant || lab || '').trim();
+            if (!k || already[k] || seenDir[k]) return '';
+            seenDir[k] = true;
+            return '<option value="' + esc(k) + '" data-matiere="' + esc(p.matiere || '') + '">' +
+                esc(lab) + (p.matiere ? ' · ' + esc(p.matiere) : '') + '</option>';
         }).join('');
         var cards = profs.map(function (p) {
             var titre = profLabel(p) || p.identifiant || 'Enseignant';
+            var picks = mats.length
+                ? '<div class="conseil-matiere-picks" role="group" aria-label="Matières">' +
+                  mats.map(function (m) {
+                      var on = (p.matiereIds || []).indexOf(m.id) !== -1;
+                      return '<label class="conseil-mat-chip' + (on ? ' is-on' : '') + '">' +
+                          '<input type="checkbox" class="conseil-prof-mat" data-pkey="' + esc(p.key) +
+                          '" data-matid="' + esc(m.id) + '"' + (on ? ' checked' : '') + '>' +
+                          esc(m.nom) + '</label>';
+                  }).join('') + '</div>'
+                : '<p class="conseil-hint">Configurez d’abord les matières de la classe.</p>';
             return '<div class="conseil-eleve-card conseil-retour-card">' +
                 '<div class="conseil-eleve-head" style="cursor:default">' +
                 '<div><strong>' + esc(titre) + '</strong>' +
-                (p.matiere ? '<div class="conseil-sanction-meta">' + esc(p.matiere) + '</div>' : '') +
+                (p.matieresLabel ? '<div class="conseil-sanction-meta">' + esc(p.matieresLabel) + '</div>' : '') +
                 '</div>' +
                 '<button type="button" class="btn-secondary conseil-del-prof" data-pkey="' + esc(p.key) + '">Retirer</button>' +
                 '</div>' +
+                picks +
                 '<textarea class="conseil-app-area conseil-retour-texte" data-pkey="' + esc(p.key) +
                 '" rows="4" placeholder="Appréciation générale de l’enseignant pour la classe…">' +
                 esc(p.texte) + '</textarea></div>';
         }).join('');
         return htmlStats() +
             '<div class="conseil-panel"><h3>Retour des professeurs</h3>' +
-            '<p class="conseil-hint">Appréciation générale de chaque enseignant de la classe, à présenter au conseil. Elle figure sur le <strong>PDF classe</strong>' +
+            '<p class="conseil-hint">Appréciation générale de chaque enseignant. Associez-le à une ou plusieurs <strong>matières de la classe</strong>. Le tout figure sur le <strong>PDF classe</strong>' +
             (isAnnee(view.periode) ? ' (récapitulatif annuel).' : '.') + '</p>' +
             '<div class="conseil-toolbar">' +
             '<div class="conseil-add-prof-row">' +
@@ -749,12 +893,26 @@
             var histo = pers.map(function (per) {
                 return per.label.replace(/Semestre |Trimestre /, '') + ': ' + fmtMoy(moyenneEleve(view.classe, per.id, e.nomComplet));
             }).join(' · ') + ' · Année : ' + fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet));
+            var info = infoPpEleve(e.nomComplet);
+            var infoBlock = '';
+            if (info.dispositifs.length || info.infosPerso.length) {
+                infoBlock = '<div class="conseil-chips" style="margin:8px 0">' +
+                    info.dispositifs.map(function (id) {
+                        return '<span class="conseil-chip">' + esc(id) + '</span>';
+                    }).join('') + '</div>' +
+                    (info.infosPerso.length
+                        ? '<p class="conseil-sanction-meta">' + info.infosPerso.slice(0, 2).map(function (n) {
+                            return esc((n.texte || '').slice(0, 120));
+                        }).join(' · ') + '</p>'
+                        : '');
+            }
             return '<div class="conseil-eleve-card">' +
                 '<div class="conseil-eleve-head"><strong>' + esc(e.nomComplet) + '</strong>' +
                 '<span class="conseil-chips"><span class="conseil-chip">Moy. ' + fmtMoy(m) + '</span>' +
                 (nSanc ? '<span class="conseil-chip danger">' + nSanc + ' sanction' + (nSanc > 1 ? 's' : '') + '</span>' : '') +
                 '</span></div>' +
                 '<p class="conseil-sanction-meta">' + esc(histo) + '</p>' +
+                infoBlock +
                 '<p>' + (app ? esc(app) : '<span class="conseil-hint">Pas d’appréciation</span>') + '</p>' +
                 '<button type="button" class="btn-secondary conseil-pdf-eleve" data-eleve="' + esc(e.nomComplet) + '">📄 Fiche PDF</button>' +
                 '</div>';
@@ -762,6 +920,39 @@
         return htmlStats() +
             '<div class="conseil-panel"><p class="conseil-hint">Suivi de l’année : moyennes par période, sanctions et appréciations. Export visuel pour le conseil.</p>' +
             '<div class="conseil-eleve-list">' + cards + '</div></div>';
+    }
+
+    function bindCharCounters(root) {
+        if (!root) return;
+        root.querySelectorAll('textarea.conseil-app-area').forEach(function (area) {
+            var wrap = area.closest('.conseil-area-wrap');
+            if (!wrap) {
+                wrap = document.createElement('div');
+                wrap.className = 'conseil-area-wrap';
+                area.parentNode.insertBefore(wrap, area);
+                wrap.appendChild(area);
+                var count = document.createElement('span');
+                count.className = 'conseil-char-count';
+                wrap.appendChild(count);
+            }
+            var countEl = wrap.querySelector('.conseil-char-count');
+            function refresh() {
+                var n = (area.value || '').length;
+                countEl.textContent = n + ' caractère' + (n > 1 ? 's' : '');
+            }
+            if (!area._charBound) {
+                area._charBound = true;
+                area.addEventListener('input', refresh);
+            }
+            refresh();
+        });
+    }
+
+    function infoPpEleve(nomComplet) {
+        if (global.EprofSuiviEleves && typeof global.EprofSuiviEleves.infoPpSummary === 'function') {
+            return global.EprofSuiviEleves.infoPpSummary(nomComplet) || { dispositifs: [], infosPerso: [] };
+        }
+        return { dispositifs: [], infosPerso: [] };
     }
 
     function bindBody(container) {
@@ -825,19 +1016,46 @@
                 planifierSync();
             });
         });
+        container.querySelectorAll('.conseil-prof-mat').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var key = cb.getAttribute('data-pkey');
+                var matId = cb.getAttribute('data-matid');
+                var prof = (classData(view.classe).profs || []).find(function (p) { return profKey(p) === key; });
+                if (!prof) return;
+                if (!Array.isArray(prof.matiereIds)) prof.matiereIds = [];
+                var idx = prof.matiereIds.indexOf(matId);
+                if (cb.checked && idx === -1) prof.matiereIds.push(matId);
+                if (!cb.checked && idx !== -1) prof.matiereIds.splice(idx, 1);
+                var chip = cb.closest('.conseil-mat-chip');
+                if (chip) chip.classList.toggle('is-on', cb.checked);
+                var meta = cb.closest('.conseil-retour-card');
+                if (meta) {
+                    var line = meta.querySelector('.conseil-eleve-head .conseil-sanction-meta');
+                    var label = profMatieresLabel(view.classe, prof);
+                    if (line) line.textContent = label;
+                    else if (label) {
+                        var title = meta.querySelector('.conseil-eleve-head div');
+                        if (title) {
+                            var div = document.createElement('div');
+                            div.className = 'conseil-sanction-meta';
+                            div.textContent = label;
+                            title.appendChild(div);
+                        }
+                    }
+                }
+                planifierSync();
+            });
+        });
         var addProf = container.querySelector('#conseil-add-prof');
         if (addProf) {
             addProf.addEventListener('click', function () {
                 var sel = container.querySelector('#conseil-pick-prof');
-                var raw = sel && sel.value;
-                if (!raw) return;
-                var parts = raw.split('::');
-                var ident = parts[0] || '';
-                var matiere = parts.slice(1).join('::');
+                var ident = sel && sel.value;
+                if (!ident) return;
+                var opt = sel.options[sel.selectedIndex];
+                var matiere = opt ? (opt.getAttribute('data-matiere') || '') : '';
                 var src = directory.find(function (p) {
-                    return (p.identifiant || profLabel(p)) === ident && String(p.matiere || '') === matiere;
-                }) || directory.find(function (p) {
-                    return (p.identifiant || profLabel(p)) === ident;
+                    return String(p.identifiant || profLabel(p) || '').trim() === ident;
                 });
                 var prof = src
                     ? { identifiant: src.identifiant || ident, nom: src.nom || '', prenom: src.prenom || '', matiere: src.matiere || matiere }
@@ -1199,7 +1417,8 @@
             doc.text('Retour des professeurs', 12, y);
             y += 6;
             retours.forEach(function (r) {
-                var titre = (profLabel(r) || r.identifiant || 'Enseignant') + (r.matiere ? '  ·  ' + r.matiere : '');
+                var titre = (profLabel(r) || r.identifiant || 'Enseignant') +
+                    (r.matieresLabel ? '  ·  ' + r.matieresLabel : '');
                 y = pdfEnsure(doc, y, 16);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
@@ -1215,14 +1434,15 @@
         if (doc.autoTable) {
             var persPdf = periodesReelles(view.classe);
             var head = isAnnee(view.periode)
-                ? [['Élève'].concat(persPdf.map(function (per) { return per.label; })).concat(['Année', 'Sanctions', 'Appréciation'])]
-                : [['Élève', 'Moyenne', 'Sanctions', 'Appréciation']];
+                ? [['Élève'].concat(persPdf.map(function (per) { return per.label; })).concat(['Année', 'Sanctions', 'Info', 'Appréciation'])]
+                : [['Élève', 'Moyenne', 'Sanctions', 'Info', 'Appréciation']];
             doc.autoTable({
                 startY: y,
                 head: head,
                 body: list.map(function (e) {
                     var app = appreciationEleve(view.classe, view.periode, e.nomComplet);
                     var short = app.length > 90 ? app.slice(0, 87) + '…' : app;
+                    var info = infoPpEleve(e.nomComplet).dispositifs.join(', ') || '—';
                     if (isAnnee(view.periode)) {
                         return [e.nomComplet]
                             .concat(persPdf.map(function (per) {
@@ -1231,6 +1451,7 @@
                             .concat([
                                 fmtMoy(moyenneEleve(view.classe, AN_ID, e.nomComplet)),
                                 String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
+                                info,
                                 short
                             ]);
                     }
@@ -1238,12 +1459,13 @@
                         e.nomComplet,
                         fmtMoy(moyenneEleve(view.classe, view.periode, e.nomComplet)),
                         String(sanctionsEleve(view.classe, view.periode, e.nomComplet).length),
+                        info,
                         short
                     ];
                 }),
                 styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [30, 64, 175] },
-                columnStyles: isAnnee(view.periode) ? {} : { 3: { cellWidth: 80 } }
+                columnStyles: isAnnee(view.periode) ? {} : { 4: { cellWidth: 70 } }
             });
         }
         doc.setFontSize(8);
@@ -1312,6 +1534,30 @@
                     });
                 }
             });
+        }
+        y += 4;
+        var infoPdf = infoPpEleve(nomComplet);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('Information', 12, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text('Dispositifs : ' + (infoPdf.dispositifs.length ? infoPdf.dispositifs.join(', ') : 'aucun'), 12, y);
+        y += 6;
+        if (infoPdf.infosPerso.length) {
+            infoPdf.infosPerso.slice().sort(function (a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            }).forEach(function (n) {
+                var line = (n.date ? formatDate(n.date) + ' — ' : '') + (n.texte || '');
+                var wrapped = doc.splitTextToSize(line, 186);
+                y = pdfEnsure(doc, y, wrapped.length * 4.5 + 2);
+                doc.text(wrapped, 12, y);
+                y += wrapped.length * 4.5 + 2;
+            });
+        } else {
+            doc.text('Aucune information personnelle.', 12, y);
+            y += 6;
         }
         y += 4;
         doc.setFont('helvetica', 'bold');
