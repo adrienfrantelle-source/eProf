@@ -121,7 +121,7 @@
         var c = classData(classe);
         if (!c.periodes) c.periodes = {};
         if (!c.periodes[periode]) {
-            c.periodes[periode] = { moyennes: {}, appreciations: {}, appreciationClasse: '', sanctions: {}, retoursProfs: {} };
+            c.periodes[periode] = { moyennes: {}, appreciations: {}, appreciationClasse: '', sanctions: {}, retoursProfs: {}, conseilAt: '' };
         }
         var p = c.periodes[periode];
         if (!p.moyennes) p.moyennes = {};
@@ -129,6 +129,7 @@
         if (!p.sanctions) p.sanctions = {};
         if (!p.retoursProfs || typeof p.retoursProfs !== 'object') p.retoursProfs = {};
         if (typeof p.appreciationClasse !== 'string') p.appreciationClasse = '';
+        if (typeof p.conseilAt !== 'string') p.conseilAt = '';
         return p;
     }
     function storageKey() {
@@ -657,6 +658,23 @@
         var delta = t - Date.now();
         return delta >= 0 && delta <= 14 * 24 * 60 * 60 * 1000;
     }
+    function conseilAtPeriode(classe, periode) {
+        if (!periode || isAnnee(periode)) return '';
+        var p = periodeData(classe, periode);
+        if (p.conseilAt) return p.conseilAt;
+        return classData(classe).conseilAt || '';
+    }
+    function datesConseilStore(c) {
+        var dates = [];
+        if (!c) return dates;
+        Object.keys(c.periodes || {}).forEach(function (pid) {
+            if (pid === AN_ID) return;
+            var at = c.periodes[pid] && c.periodes[pid].conseilAt;
+            if (at) dates.push(at);
+        });
+        if (!dates.length && c.conseilAt) dates.push(c.conseilAt);
+        return dates;
+    }
     function nbAlertes() {
         var n = 0;
         var classes = ppClasses();
@@ -664,8 +682,9 @@
             ? cache.classes
             : ((lireLocal() || {}).classes || {});
         classes.forEach(function (nom) {
-            var c = store[nom];
-            if (c && conseilDansDeuxSemaines(c.conseilAt)) n += 1;
+            datesConseilStore(store[nom]).forEach(function (at) {
+                if (conseilDansDeuxSemaines(at)) n += 1;
+            });
         });
         return n;
     }
@@ -740,7 +759,7 @@
         }
         var nextPer = periodeSuivante(view.classe, view.periode);
         var listes = E().getListsForTeacher ? E().getListsForTeacher() : {};
-        var conseilAt = toDatetimeLocal(classData(view.classe).conseilAt || '');
+        var conseilAt = isAnnee(view.periode) ? '' : toDatetimeLocal(conseilAtPeriode(view.classe, view.periode) || '');
         container.innerHTML =
             '<div class="conseil-wrap" id="conseil-classe-module">' +
             '<div id="conseil-alerte-slot"></div>' +
@@ -749,7 +768,7 @@
             '<p class="conseil-kicker">Espace professeur principal · ' + esc(annee()) +
             ' · enregistré en ligne, indépendant du carnet de notes</p></div>' +
             '<div class="conseil-head-actions">' +
-            '<label class="conseil-datetime">Date du conseil' +
+            '<label class="conseil-datetime"' + (isAnnee(view.periode) ? ' hidden' : '') + '>Date du conseil' +
             '<input type="datetime-local" id="conseil-at" value="' + esc(conseilAt) + '"></label>' +
             '<button type="button" class="btn-secondary" id="conseil-config-matieres">⚙️ Matières</button>' +
             '<button type="button" class="btn-secondary" id="conseil-prep-periode"' +
@@ -816,11 +835,17 @@
         }
         var slot = container.querySelector('#conseil-alerte-slot');
         if (slot) {
-            var at = classData(view.classe).conseilAt || '';
+            var at = isAnnee(view.periode) ? '' : conseilAtPeriode(view.classe, view.periode);
             slot.innerHTML = conseilDansDeuxSemaines(at)
                 ? '<div class="conseil-alerte-date" role="status">Conseil de classe le ' +
                   esc(formatDateTime(at)) + ' — dans moins de deux semaines.</div>'
                 : '';
+        }
+        var dt = container.querySelector('.conseil-datetime');
+        if (dt) dt.hidden = isAnnee(view.periode);
+        var atInp = container.querySelector('#conseil-at');
+        if (atInp && !isAnnee(view.periode)) {
+            atInp.value = toDatetimeLocal(conseilAtPeriode(view.classe, view.periode) || '');
         }
     }
 
@@ -873,7 +898,9 @@
         var atInp = container.querySelector('#conseil-at');
         if (atInp) {
             atInp.addEventListener('change', function () {
-                classData(view.classe).conseilAt = atInp.value || '';
+                if (isAnnee(view.periode)) return;
+                periodeData(view.classe, view.periode).conseilAt = atInp.value || '';
+                classData(view.classe).conseilAt = '';
                 planifierSync();
                 syncShellChrome(container);
             });
@@ -1871,7 +1898,7 @@
     }
 
     function pdfDateLine() {
-        var at = classData(view.classe).conseilAt;
+        var at = conseilAtPeriode(view.classe, view.periode);
         return at ? 'Conseil le ' + formatDateTime(at) : '';
     }
 

@@ -101,6 +101,10 @@ body.eprof-is-pp li[data-pp-only] { display: list-item; }
     color: #475569;
 }
 
+.conseil-datetime[hidden] {
+    display: none !important;
+}
+
 .conseil-datetime input {
     font: inherit;
     font-weight: 500;

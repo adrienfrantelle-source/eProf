@@ -683,6 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
         outilCourant = tool;
         outilExtra = extra || null;
         rememberTool(tool);
+        if (tool !== 'eleves') {
+            document.body.classList.remove('suivi-fiche-open', 'suivi-modale-resizing');
+        }
         switch(tool) {
             case 'calendar':
                 renderCalendar(mainContent, extra);

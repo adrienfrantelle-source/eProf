@@ -306,8 +306,9 @@
                 
                 <!-- Modale élève -->
                 <div id="modale-eleve" class="modale-eleve" style="display: none;">
-                    <div class="modale-eleve-content">
+                    <div class="modale-eleve-content modale-eleve-resizable">
                         <span class="close-modale-eleve">&times;</span>
+                        <div class="modale-eleve-inner">
                         <div class="modale-eleve-title-row">
                             <div id="photo-eleve-modale" class="modale-eleve-photo"></div>
                             <h3 id="nom-eleve-modale"></h3>
@@ -427,6 +428,8 @@
                             <h4>Moyennes</h4>
                             <p style="color: #64748b; font-style: italic;">Chargement des notes…</p>
                         </div>
+                        </div>
+                        <div class="modale-eleve-resize" title="Redimensionner" aria-label="Redimensionner la fenêtre"></div>
                     </div>
                 </div>
                 
@@ -576,6 +579,83 @@
         const retourBtn = container.querySelector('#retour-selection-suivi');
         const modale = container.querySelector('#modale-eleve');
         const closeModale = container.querySelector('.close-modale-eleve');
+        const cardModale = modale && modale.querySelector('.modale-eleve-content');
+
+        function clampEleveModalSize(w, h) {
+            var maxW = Math.max(320, window.innerWidth - 32);
+            var maxH = Math.max(280, window.innerHeight - 32);
+            return {
+                w: Math.min(maxW, Math.max(320, w)),
+                h: Math.min(maxH, Math.max(280, h))
+            };
+        }
+        function applyEleveModalSize() {
+            if (!cardModale) return;
+            try {
+                var stored = JSON.parse(localStorage.getItem('suiviEleveModalSize') || 'null');
+                if (stored && stored.w && stored.h) {
+                    var s = clampEleveModalSize(stored.w, stored.h);
+                    cardModale.style.width = s.w + 'px';
+                    cardModale.style.height = s.h + 'px';
+                }
+            } catch (e) { /* ignore */ }
+        }
+        function bindEleveModalResize() {
+            if (!modale || !cardModale || modale._suiviResizeBound) return;
+            var handle = modale.querySelector('.modale-eleve-resize');
+            if (!handle) return;
+            modale._suiviResizeBound = true;
+            var drag = null;
+            handle.addEventListener('mousedown', function (e) {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                var rect = cardModale.getBoundingClientRect();
+                drag = { x: e.clientX, y: e.clientY, w: rect.width, h: rect.height };
+                document.body.classList.add('suivi-modale-resizing');
+            });
+            handle.addEventListener('dblclick', function (e) {
+                e.preventDefault();
+                cardModale.style.width = '';
+                cardModale.style.height = '';
+                try { localStorage.removeItem('suiviEleveModalSize'); } catch (err) { /* ignore */ }
+            });
+            function onMove(e) {
+                if (!drag) return;
+                var s = clampEleveModalSize(
+                    drag.w + 2 * (e.clientX - drag.x),
+                    drag.h + 2 * (e.clientY - drag.y)
+                );
+                cardModale.style.width = s.w + 'px';
+                cardModale.style.height = s.h + 'px';
+            }
+            function onUp() {
+                if (!drag) return;
+                drag = null;
+                document.body.classList.remove('suivi-modale-resizing');
+                var rect = cardModale.getBoundingClientRect();
+                try {
+                    localStorage.setItem('suiviEleveModalSize', JSON.stringify({
+                        w: Math.round(rect.width),
+                        h: Math.round(rect.height)
+                    }));
+                } catch (err) { /* ignore */ }
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        function ouvrirFicheModale() {
+            document.body.classList.add('suivi-fiche-open');
+            applyEleveModalSize();
+            bindEleveModalResize();
+            modale.style.display = 'flex';
+        }
+        function fermerFicheModale() {
+            document.body.classList.remove('suivi-fiche-open');
+            document.body.classList.remove('suivi-modale-resizing');
+            if (modale) modale.style.display = 'none';
+        }
+        fermerFicheModale();
         
         let classeActuelle = null;
         
@@ -873,7 +953,7 @@
             container.querySelectorAll('.tab-content').forEach(function (c) {
                 c.style.display = c.id === 'tab-synthese' ? 'block' : 'none';
             });
-            modale.style.display = 'flex';
+            ouvrirFicheModale();
         }
 
         function afficherSynthese() {
@@ -1883,9 +1963,9 @@
         }
         
         // Fermer la modale
-        closeModale.addEventListener('click', () => modale.style.display = 'none');
+        closeModale.addEventListener('click', fermerFicheModale);
         modale.addEventListener('click', function(e) {
-            if (e.target === modale) modale.style.display = 'none';
+            if (e.target === modale) fermerFicheModale();
         });
         
         // Retour à la sélection
