@@ -466,6 +466,7 @@
         let elevesActuels = [];
         let eleveSelectionne = null;
         let notePersoEdition = null;
+        let filtreEleves = '';
         let suiviData = lireSuiviLocal();
         chargerCarnetPourSuivi();
         
@@ -611,10 +612,6 @@
             });
         }
 
-        if (classeInitiale) chargerClasse(classeInitiale, eleveInitial);
-        
-        // Afficher la grille des élèves
-        let filtreEleves = '';
         const suiviRecherche = container.querySelector('#suivi-recherche-eleve');
         if (suiviRecherche) {
             suiviRecherche.addEventListener('input', function () {
@@ -623,7 +620,10 @@
             });
         }
 
+        if (classeInitiale) chargerClasse(classeInitiale, eleveInitial);
+
         function afficherEleves(classe) {
+            if (!selectionDiv || !listeDiv || !grilleEleves || !titreClasse) return;
             selectionDiv.style.display = 'none';
             listeDiv.style.display = 'block';
             const q = (window.EprofEleves && window.EprofEleves.fold)

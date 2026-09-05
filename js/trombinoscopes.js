@@ -3,6 +3,10 @@
     var E = function () { return global.EprofEleves || {}; };
 
     function elevesPourTrombi(classe, listes) {
+        if (E().studentsForClass) {
+            var fromShared = E().studentsForClass(classe) || [];
+            if (fromShared.length) return fromShared.slice();
+        }
         var fromList = ((listes || {})[classe] || []).slice();
         if (fromList.length) return fromList;
         if (global.EprofTrombiPhotos && typeof global.EprofTrombiPhotos.studentsForClass === 'function') {
@@ -89,7 +93,7 @@
 
         container.querySelectorAll('.classe-btn').forEach(function (btn) {
             btn.addEventListener('click', async function () {
-                classeCourante = this.dataset.classe;
+                classeCourante = this.getAttribute('data-classe') || this.dataset.classe;
                 elevesCourants = elevesPourTrombi(classeCourante, listes)
                     .sort(function (a, b) {
                         return (a.nom + a.prenom).localeCompare(b.nom + b.prenom);
