@@ -272,8 +272,21 @@ window.getTeacherClassNames = function () {
 window.getTeacherStudentLists = function () {
     const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
     const noms = window.getTeacherClassNames();
+    const keys = Object.keys(listes);
+    const match = window.EprofEleves && window.EprofEleves.classesMatch;
     const out = {};
     noms.forEach(function (nom) {
+        if (listes[nom] && listes[nom].length) {
+            out[nom] = listes[nom];
+            return;
+        }
+        const hit = match
+            ? keys.find(function (k) { return listes[k] && listes[k].length && window.EprofEleves.classesMatch(k, nom); })
+            : null;
+        if (hit) {
+            out[nom] = listes[hit];
+            return;
+        }
         out[nom] = listes[nom] || [];
     });
     return out;

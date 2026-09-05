@@ -17,6 +17,16 @@
     }
     function photoHtml(classe, eleve) { return E().photoHtml(classe, eleve, { compact: true }); }
     function resolvePhotoUrls(eleves, classe) { return E().resolvePhotoUrls(eleves, classe); }
+    function studentsForClass(classe) {
+        if (E().studentsForClass) return E().studentsForClass(classe) || [];
+        const listes = window.getAvailableStudentLists ? window.getAvailableStudentLists() : {};
+        return listes[classe] || [];
+    }
+    function rememberSuiviContext(classe, eleve) {
+        if (global.EprofAppHooks && typeof global.EprofAppHooks.setOutilExtra === 'function') {
+            global.EprofAppHooks.setOutilExtra(classe ? { classe: classe, eleve: eleve || undefined } : null);
+        }
+    }
 
     // ========================================
     // SUIVI DES ÉLÈVES
@@ -565,36 +575,35 @@
 
         function chargerClasse(classe, eleveAOuvrir) {
             if (window.EprofSuiviTableau) window.EprofSuiviTableau.fermer(container);
-            classeActuelle = classe;
-            
-            const listeClasse = (window.getAvailableStudentLists ? window.getAvailableStudentLists() : {})[classe];
-            if (!listeClasse || listeClasse.length === 0) {
-                alert('⚠️ Aucun élève trouvé pour cette classe');
-                return;
-            }
-            
-            elevesActuels = listeClasse.map(e => ({
+            const resolved = (window.EprofEleves && window.EprofEleves.resolveTaughtClass)
+                ? (window.EprofEleves.resolveTaughtClass(classe) || classe)
+                : classe;
+            classeActuelle = resolved;
+            rememberSuiviContext(resolved, eleveAOuvrir);
+
+            const listeClasse = studentsForClass(resolved);
+            elevesActuels = (listeClasse || []).map(e => ({
                 nom: e.nom,
                 prenom: e.prenom,
                 sexe: e.sexe,
                 photo_path: e.photo_path || '',
-                nomComplet: `${e.prenom} ${e.nom.toUpperCase()}`
+                nomComplet: `${e.prenom || ''} ${String(e.nom || '').toUpperCase()}`.trim()
             }));
             
-            elevesActuels.sort((a, b) => a.nom.localeCompare(b.nom));
+            elevesActuels.sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
             
-            afficherEleves(classe);
-            refreshPlanClasseAccess(classe);
-            syncCloudPlansForClasse(classe);
+            afficherEleves(resolved);
+            refreshPlanClasseAccess(resolved);
+            syncCloudPlansForClasse(resolved);
             
             const emargementContainer = container.querySelector('#emargement-container');
             if (emargementContainer) {
                 emargementContainer.style.display = 'block';
             }
 
-            resolvePhotoUrls(elevesActuels, classe).then(function (list) {
+            resolvePhotoUrls(elevesActuels, resolved).then(function (list) {
                 elevesActuels = list;
-                afficherEleves(classe);
+                afficherEleves(resolved);
                 if (eleveAOuvrir) {
                     const hit = trouverEleveParLabel(eleveAOuvrir);
                     if (hit) ouvrirModaleEleve(hit.nomComplet);
@@ -625,7 +634,9 @@
             });
             titreClasse.textContent = `Classe : ${classe} (${visibles.length}${q ? ' / ' + elevesActuels.length : ''} élèves)`;
             if (!visibles.length) {
-                grilleEleves.innerHTML = '<p class="trombi-empty">Aucun élève ne correspond au filtre.</p>';
+                grilleEleves.innerHTML = q
+                    ? '<p class="trombi-empty">Aucun élève ne correspond au filtre.</p>'
+                    : '<p class="trombi-empty">Aucun élève dans cette classe pour l’instant.</p>';
                 return;
             }
             
@@ -1551,6 +1562,8 @@
         // Retour à la sélection
         retourBtn.addEventListener('click', function() {
             if (window.EprofSuiviTableau) window.EprofSuiviTableau.fermer(container);
+            classeActuelle = null;
+            rememberSuiviContext(null);
             selectionDiv.style.display = 'block';
             listeDiv.style.display = 'none';
         });
@@ -2028,7 +2041,7 @@
                 }
                 
                 const listeClasseEmargement = classeActuelle
-                    ? (window.getAvailableStudentLists ? window.getAvailableStudentLists() : {})[classeActuelle]
+                    ? studentsForClass(classeActuelle)
                     : null;
 
                 if (!listeClasseEmargement || listeClasseEmargement.length === 0) {

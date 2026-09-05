@@ -333,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const LAST_TOOLS_KEY = 'eprofLastTools';
     let outilCourant = null;
+    let outilExtra = null;
     const TOOL_SHORT_LABELS = {
         calendar: '📅 Calendrier',
         agenda: '🗓️ Agenda',
@@ -372,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetAppShell() {
         appShellReady = false;
         outilCourant = null;
+        outilExtra = null;
         if (mainContent) mainContent.innerHTML = '';
     }
     document.addEventListener('eprof-session-ready', startAppShell);
@@ -382,6 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.body.classList.contains('eprof-locked')) startAppShell();
 
     function showDashboard() {
+        outilCourant = null;
+        outilExtra = null;
         const classes = getVisibleTeacherClasses();
         const lastTools = readLastTools();
         const listes = getListsForTeacher();
@@ -637,15 +641,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Gestion des outils du dashboard et sidebar
 
-    // Les listes d'élèves arrivent de façon asynchrone : on re-rend l'outil affiché.
+    // Les listes d'élèves arrivent de façon asynchrone : on re-rend l'outil affiché
+    // en conservant la classe / le plan déjà ouverts (accueil, calendrier, recherche).
     document.addEventListener('eprof-referentiel-maj', function () {
+        if (!outilCourant) {
+            if (document.getElementById('home-upcoming')) showDashboard();
+            return;
+        }
         if (['eleves', 'trombinoscopes', 'plan-classe'].includes(outilCourant)) {
-            handleDashboardTool(outilCourant);
+            handleDashboardTool(outilCourant, outilExtra);
         }
     });
 
     function handleDashboardTool(tool, extra) {
         outilCourant = tool;
+        outilExtra = extra || null;
         rememberTool(tool);
         switch(tool) {
             case 'calendar':
@@ -729,6 +739,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.EprofElevesOpenTool = handleDashboardTool;
+    window.EprofAppHooks = window.EprofAppHooks || {};
+    window.EprofAppHooks.setOutilExtra = function (extra) {
+        outilExtra = extra || null;
+    };
 
     (function bindGlobalStudentSearch() {
         var input = document.getElementById('eprof-search-eleve');

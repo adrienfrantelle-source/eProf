@@ -99,11 +99,34 @@
         return [];
     }
 
+    function lookupListKey(listes, classe) {
+        if (!classe || !listes) return '';
+        if (listes[classe] && listes[classe].length) return classe;
+        var keys = Object.keys(listes);
+        var hit = keys.find(function (k) { return classesMatch(k, classe) && listes[k] && listes[k].length; });
+        if (hit) return hit;
+        if (Object.prototype.hasOwnProperty.call(listes, classe)) return classe;
+        return keys.find(function (k) { return classesMatch(k, classe); }) || '';
+    }
+
+    function studentsForClass(classe) {
+        if (!classe) return [];
+        var listes = global.getAvailableStudentLists ? global.getAvailableStudentLists() : {};
+        var key = lookupListKey(listes, classe);
+        if (key && listes[key] && listes[key].length) return listes[key];
+        var taught = getListsForTeacher();
+        key = lookupListKey(taught, classe);
+        return (key && taught[key]) ? taught[key] : [];
+    }
+
     function getListsForTeacher() {
         if (global.getTeacherStudentLists) return global.getTeacherStudentLists();
         var listes = global.getAvailableStudentLists ? global.getAvailableStudentLists() : {};
         var out = {};
-        getVisibleTeacherClasses().forEach(function (nom) { out[nom] = listes[nom] || []; });
+        getVisibleTeacherClasses().forEach(function (nom) {
+            var key = lookupListKey(listes, nom);
+            out[nom] = key ? (listes[key] || []) : [];
+        });
         return out;
     }
 
@@ -327,6 +350,7 @@
         getAlertesSeuils: getAlertesSeuils,
         getVisibleTeacherClasses: getVisibleTeacherClasses,
         getListsForTeacher: getListsForTeacher,
+        studentsForClass: studentsForClass,
         classeBtnHtml: classeBtnHtml,
         emptyTeacherClassesHtml: emptyTeacherClassesHtml,
         photoHtml: photoHtml,
